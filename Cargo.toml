@@ -40,7 +40,7 @@ terminal_size = "0.4.2"
 clap_complete = "4.5.55"
 walkdir = "2.5.0"
 once_cell = "1.21.3"
-strum = { version = "0.27.1", features = ["strum_macros"] }
+strum = { version = "0.27.2", features = ["strum_macros"] }
 strum_macros = "0.27.1"
 axum = "0.8.4"
 serde_regex = "1.1.0"
