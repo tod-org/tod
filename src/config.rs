@@ -756,7 +756,7 @@ where
     }
 
     match fs::remove_file(&path).await {
-        Ok(_) => Ok(format!(
+        Ok(()) => Ok(format!(
             "Config file at {} deleted successfully.",
             path.display()
         )),
