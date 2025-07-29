@@ -22,5 +22,5 @@ jobs:
         uses: peter-evans/repository-dispatch@v3
         with:
           token: ${{ secrets.TOD_CONTENTS_READ_WRITE }}
-          repository: alanvardy/homebrew-tod
+          repository: tod-org/homebrew-tod
           event-type: update-homebrew
