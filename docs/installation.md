@@ -3,7 +3,7 @@
 <!--toc:start-->
 - [Installation](#installation)
   - [Homebrew](#homebrew-linux-mac-or-wsl)
-  - [Crates.io)](#cratesio--cargo-all-platforms)
+  - [Crates.io](#cratesio--cargo-all-platforms)
   - [Scoop](#scoop-windows)
   - [GitHub](#manually-build-from-github-linux-mac-and-windows)
 <!--toc:end-->
