@@ -112,7 +112,7 @@ jobs:
 
         - name: Compute SHA256 of release zip
           run: |
-            ZIP_URL="https://github.com/alanvardy/tod/releases/download/v$VERSION/tod-$VERSION-windows-amd64.zip"
+            ZIP_URL="https://github.com/tod-org/tod/releases/download/v$VERSION/tod-$VERSION-windows-amd64.zip"
             curl -L -o tod.zip "$ZIP_URL"
             HASH=$(sha256sum tod.zip | awk '{print $1}')
             echo "HASH=$HASH" >> $GITHUB_ENV
@@ -120,7 +120,7 @@ jobs:
         - name: Update bucket/tod.json
           run: |
             jq --arg version "$VERSION" \
-                --arg url "https://github.com/alanvardy/tod/releases/download/v$VERSION/tod-$VERSION-windows-amd64.zip" \
+                --arg url "https://github.com/tod-org/tod/releases/download/v$VERSION/tod-$VERSION-windows-amd64.zip" \
                 --arg hash "$HASH" \
                 '
                 .version = $version |
