@@ -6,8 +6,8 @@ edition = "2024"
 license = "MIT"
 description = "An unofficial Todoist command-line client"
 readme = "README.md"
-homepage = "https://github.com/alanvardy/tod"
-repository = "https://github.com/alanvardy/tod"
+homepage = "https://github.com/tod-org/tod"
+repository = "https://github.com/tod-org/tod"
 keywords = ["cli", "todoist", "client", "tasks", "todo"]
 categories = ["command-line-utilities"]
 
