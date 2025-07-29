@@ -44,7 +44,7 @@ pub fn get_update_command_args(
         InstallMethod::Scoop => Ok(("scoop", vec!["update", "tod"])),
         InstallMethod::Cargo => Ok(("cargo", vec!["install", "tod", "--force"])),
         InstallMethod::FromSource | InstallMethod::Unknown => {
-            let url = "https://github.com/alanvardy/tod#installation";
+            let url = "https://github.com/tod-org/tod#installation";
             Err(format!(
                 "Automatic update is not supported for this installation method.\nPlease visit: {url}"
             ))
@@ -78,7 +78,7 @@ pub fn get_upgrade_command(override_arg: &Option<String>) -> String {
         InstallMethod::Scoop => "scoop update tod".to_string(),
         InstallMethod::Cargo => "cargo install tod --force".to_string(),
         InstallMethod::FromSource | InstallMethod::Unknown => {
-            "https://github.com/alanvardy/tod#installation".to_string()
+            "https://github.com/tod-org/tod#installation".to_string()
         }
     }
 }
@@ -173,11 +173,11 @@ mod tests {
         );
         assert_eq!(
             get_upgrade_command(&Some("source".into())),
-            "https://github.com/alanvardy/tod#installation"
+            "https://github.com/tod-org/tod#installation"
         );
         assert_eq!(
             get_upgrade_command(&Some("unknown".into())),
-            "https://github.com/alanvardy/tod#installation"
+            "https://github.com/tod-org/tod#installation"
         );
     }
 
@@ -236,7 +236,7 @@ mod tests {
             "Missing auto-update failure notice"
         );
         assert!(
-            response.contains("https://github.com/alanvardy/tod#installation"),
+            response.contains("https://github.com/tod-org/tod#installation"),
             "Missing manual update link"
         );
 

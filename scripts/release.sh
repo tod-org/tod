@@ -47,7 +47,7 @@ fi
 cd ../homebrew-tod || { echo "Error: failed to change directory to ../homebrew-tod. Ensure the directory exists and is accessible."; exit 1; }
 echo "Editing Homebrew versions to set version to $VERSION"
 ambr --regex "version \"\\d+\\.\\d+\\.\\d+\"" "version \"$VERSION\"" Formula/tod.rb
-ambr --regex "https://github.com/alanvardy/tod/releases/download/v\d+\\.\\d+\\.\\d+/" "https://github.com/alanvardy/tod/releases/download/v$VERSION/" Formula/tod.rb
+ambr --regex "https://github.com/tod-org/tod/releases/download/v\d+\\.\\d+\\.\\d+/" "https://github.com/tod-org/tod/releases/download/v$VERSION/" Formula/tod.rb
 echo "Editing Homebrew versions to set SHA256 to $HASH"
 ambr --regex "sha256 \"[0-9a-z]+\"" "sha256 \"$HASH\"" Formula/tod.rb
 
