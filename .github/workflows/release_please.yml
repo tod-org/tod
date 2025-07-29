@@ -18,6 +18,15 @@ jobs:
       major: ${{ steps.release.outputs.major }}
       minor: ${{ steps.release.outputs.minor }}
     steps:
+         
+      - id: app-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ vars.TODD_CLIENT_ID }}
+          private-key: ${{ secrets.TODD_PRIVATE_KEY }}
+      - uses: ./actions/staging-tests
+        with:
+          token: ${{ steps.app-token.outputs.token }}
       - id: release
         uses: googleapis/release-please-action@v4
         with:
