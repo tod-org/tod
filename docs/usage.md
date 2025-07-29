@@ -146,7 +146,7 @@ tod list label --filter "no label" --label physical --label digital
 
 ## How task priority is determined
 
-See [Sort_value](https://github.com/alanvardy/tod/blob/main/docs/configuration.md#sort_value)
+See [Sort_value](https://github.com/tod-org/tod/blob/main/docs/configuration.md#sort_value)
 
 ## Update Tod
 
