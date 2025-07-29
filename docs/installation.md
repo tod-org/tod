@@ -11,7 +11,7 @@
 ## [Homebrew](https://brew.sh) (Linux, Mac, or WSL)
 
 ```bash
-brew tap alanvardy/tod
+brew tap tod-org/tod
 brew install tod
 ```
 
@@ -33,7 +33,7 @@ cargo install tod
 ## [Scoop](https://scoop.sh/) (Windows)
 
 ```powershell
-scoop bucket add tod https://github.com/alanvardy/tod
+scoop bucket add tod https://github.com/tod-org/tod
 scoop install tod
 ```
 
@@ -44,7 +44,7 @@ scoop install tod
 Clone the project
 
 ```bash
-git clone git@github.com:alanvardy/tod.git
+git clone git@github.com:tod-org/tod.git
 cd tod
 ```
 
