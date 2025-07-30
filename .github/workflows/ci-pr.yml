@@ -1,10 +1,9 @@
-# Main CI orchestrator for push events
-name: CI Push
+# Main CI orchestrator for pull request events
+name: CI Pull Request
 
 on:
-  push:
+  pull_request:
     branches: [ main ]
-  workflow_dispatch:
 
 permissions:
   contents: read
@@ -19,7 +18,14 @@ jobs:
     if: needs.detect-changes.outputs.code-changed == 'true'
     uses: ./.github/workflows/reusable-quick-ci.yml
     with:
-      include-codecov: true
+      include-codecov: false  # No codecov for PRs
+      rust-version: 'stable'
+
+  full-ci:
+    needs: [detect-changes, quick-ci]
+    if: needs.detect-changes.outputs.code-changed == 'true'
+    uses: ./.github/workflows/reusable-full-ci.yml
+    with:
       rust-version: 'stable'
 
   # Skip if only docs changed

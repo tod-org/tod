@@ -1,0 +1,85 @@
+# Reusable workflow to detect what type of changes occurred
+name: Detect Changes
+
+on:
+  workflow_call:
+    outputs:
+      code-changed:
+        description: "True if code files changed"
+        value: ${{ jobs.detect.outputs.code-changed }}
+      docs-only:
+        description: "True if only documentation changed"
+        value: ${{ jobs.detect.outputs.docs-only }}
+      version-bump:
+        description: "True if this is a version bump"
+        value: ${{ jobs.detect.outputs.version-bump }}
+
+jobs:
+  detect:
+    runs-on: ubuntu-latest
+    outputs:
+      code-changed: ${{ steps.changes.outputs.code }}
+      docs-only: ${{ steps.changes.outputs.docs-only }}
+      version-bump: ${{ steps.version.outputs.is-version-bump }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect file changes
+        uses: dorny/paths-filter@v2
+        id: changes
+        with:
+          filters: |
+            code:
+              - 'src/**'
+              - 'Cargo.toml'
+              - 'Cargo.lock'
+              - 'build.rs'
+              - 'rust-toolchain.toml'
+              - '.github/workflows/**'
+              - 'scripts/**'
+              - 'tests/**'
+            docs:
+              - '**.md'
+              - 'docs/**'
+              - '**.txt'
+              - 'LICENSE'
+              - 'CODE_OF_CONDUCT.md'
+              - 'SECURITY.md'
+              - 'CHANGELOG.md'
+            docs-only:
+              - '**.md'
+              - 'docs/**'
+              - '**.txt'
+              - 'LICENSE'
+              - 'CODE_OF_CONDUCT.md'
+              - 'SECURITY.md'
+              - 'CHANGELOG.md'
+
+      - name: Check if docs-only change
+        id: docs-only-check
+        run: |
+          if [[ "${{ steps.changes.outputs.docs }}" == "true" && "${{ steps.changes.outputs.code }}" == "false" ]]; then
+            echo "docs-only=true" >> $GITHUB_OUTPUT
+          else
+            echo "docs-only=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Detect version bump
+        id: version
+        run: |
+          if [[ "${{ github.event_name }}" == "push" && "${{ github.ref }}" == "refs/heads/main" ]]; then
+            # Check if Cargo.toml version changed in this commit
+            if git diff HEAD~1 HEAD --name-only | grep -q "Cargo.toml"; then
+              if git diff HEAD~1 HEAD Cargo.toml | grep -q "^+version"; then
+                echo "is-version-bump=true" >> $GITHUB_OUTPUT
+              else
+                echo "is-version-bump=false" >> $GITHUB_OUTPUT
+              fi
+            else
+              echo "is-version-bump=false" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "is-version-bump=false" >> $GITHUB_OUTPUT
+          fi

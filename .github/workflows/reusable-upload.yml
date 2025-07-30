@@ -1,0 +1,75 @@
+# Reusable workflow for uploading release artifacts
+name: Upload Release
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: 'Version to upload'
+        required: true
+        type: string
+      linux-artifact:
+        description: 'Linux artifact name'
+        required: true
+        type: string
+      windows-artifact:
+        description: 'Windows artifact name'
+        required: true
+        type: string
+      macos-artifact:
+        description: 'macOS artifact name'
+        required: true
+        type: string
+    outputs:
+      release-url:
+        description: "GitHub release URL"
+        value: ${{ jobs.upload.outputs.release-url }}
+
+permissions:
+  contents: write  # for creating releases
+
+jobs:
+  upload:
+    name: Upload to GitHub Release
+    runs-on: ubuntu-latest
+    outputs:
+      release-url: ${{ steps.release.outputs.html_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download Linux artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: tod-linux-${{ inputs.version }}
+
+      - name: Download Windows artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: tod-windows-${{ inputs.version }}
+
+      - name: Download macOS artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: tod-macos-${{ inputs.version }}
+
+      - name: Generate checksums
+        run: |
+          sha256sum *.tar.gz *.zip > checksums.txt
+          echo "Generated checksums:"
+          cat checksums.txt
+
+      - name: Create GitHub Release
+        id: release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ inputs.version }}
+          name: Release v${{ inputs.version }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          files: |
+            *.tar.gz
+            *.zip
+            checksums.txt
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

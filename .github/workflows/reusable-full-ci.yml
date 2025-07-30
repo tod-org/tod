@@ -1,0 +1,107 @@
+# Reusable workflow for full CI testing across all platforms
+name: Full CI
+
+on:
+  workflow_call:
+    inputs:
+      rust-version:
+        description: "Rust version to use"
+        required: false
+        default: "stable"
+        type: string
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0
+  CARGO_PROFILE_TEST_DEBUG: 0
+
+permissions:
+  contents: read
+
+jobs:
+  test-matrix:
+    name: Test on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+          - os: macos-latest
+            target: aarch64-apple-darwin
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: taiki-e/install-action@nextest
+
+      - name: Install Rust Toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ inputs.rust-version }}
+          targets: ${{ matrix.target }}
+
+      - name: Add target (if needed)
+        run: |
+          # Ensure the target is installed, ignore errors if already installed
+          rustup target add ${{ matrix.target }} || true
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-all-crates: true
+          key: ${{ matrix.target }}
+
+      - name: Build
+        run: cargo build --all-features --target ${{ matrix.target }}
+
+      - name: Test
+        run: cargo nextest run --all-features --target ${{ matrix.target }}
+
+  # Additional tests that only need to run once
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ inputs.rust-version }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-all-crates: true
+
+      - name: Run integration tests
+        run: cargo test --all-features
+
+  bench-tests:
+    name: Benchmark Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ inputs.rust-version }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-all-crates: true
+
+      - name: Run benchmark tests
+        run: cargo test --benches --all-features
+
+  doc-tests:
+    name: Documentation Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ inputs.rust-version }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-all-crates: true
+
+      - name: Check documentation
+        run: cargo doc --all-features --no-deps

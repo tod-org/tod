@@ -1,0 +1,86 @@
+# Main release orchestrator for version bumps
+name: Release
+
+on:
+  push:
+    branches: [ main ]
+    paths: [ 'Cargo.toml' ]  # Only trigger when Cargo.toml changes
+
+permissions:
+  contents: write
+  security-events: write
+
+jobs:
+  detect-changes:
+    uses: ./.github/workflows/reusable-detect-changes.yml
+
+  # Only proceed if this is a version bump
+  check-version-bump:
+    needs: detect-changes
+    runs-on: ubuntu-latest
+    outputs:
+      should-release: ${{ steps.version-check.outputs.should-release }}
+      version: ${{ steps.version-check.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Check version bump
+        id: version-check
+        run: |
+          if [[ "${{ needs.detect-changes.outputs.version-bump }}" == "true" ]]; then
+            VERSION=$(grep "^version" Cargo.toml | sed 's/version = "\(.*\)"/\1/')
+            echo "should-release=true" >> $GITHUB_OUTPUT
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
+            echo "Detected version bump to $VERSION"
+          else
+            echo "should-release=false" >> $GITHUB_OUTPUT
+            echo "No version bump detected"
+          fi
+
+  # Run full CI first  
+  ci:
+    needs: [detect-changes, check-version-bump]
+    if: needs.check-version-bump.outputs.should-release == 'true'
+    uses: ./.github/workflows/reusable-full-ci.yml
+    with:
+      rust-version: 'stable'
+
+  # Build binaries
+  build:
+    needs: [check-version-bump, ci]
+    if: needs.check-version-bump.outputs.should-release == 'true'
+    uses: ./.github/workflows/reusable-build.yml
+    with:
+      version: ${{ needs.check-version-bump.outputs.version }}
+      rust-version: 'stable'
+
+  # Upload to GitHub releases
+  upload:
+    needs: [check-version-bump, build]
+    if: needs.check-version-bump.outputs.should-release == 'true'
+    uses: ./.github/workflows/reusable-upload.yml
+    with:
+      version: ${{ needs.check-version-bump.outputs.version }}
+      linux-artifact: ${{ needs.build.outputs.linux-artifact }}
+      windows-artifact: ${{ needs.build.outputs.windows-artifact }}
+      macos-artifact: ${{ needs.build.outputs.macos-artifact }}
+
+  # Publish to package managers
+  publish:
+    needs: [check-version-bump, upload]
+    if: needs.check-version-bump.outputs.should-release == 'true'
+    uses: ./.github/workflows/reusable-publish.yml
+    with:
+      version: ${{ needs.check-version-bump.outputs.version }}
+      release-url: ${{ needs.upload.outputs.release-url }}
+    secrets: inherit
+
+  # Validate the published packages
+  validate:
+    needs: [check-version-bump, publish]
+    if: needs.check-version-bump.outputs.should-release == 'true'
+    uses: ./.github/workflows/reusable-validate.yml
+    with:
+      version: ${{ needs.check-version-bump.outputs.version }}

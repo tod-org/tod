@@ -1,0 +1,16 @@
+# CI workflow for push events to main branch
+name: CI Push
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    uses: ./.github/workflows/reusable-ci.yml
+    with:
+      rust-version: 'stable'

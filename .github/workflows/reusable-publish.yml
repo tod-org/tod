@@ -1,0 +1,74 @@
+# Reusable workflow for publishing to various package managers
+name: Publish Packages
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: 'Version to publish'
+        required: true
+        type: string
+      release-url:
+        description: 'GitHub release URL'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  publish-cargo:
+    name: Publish to Cargo
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-all-crates: true
+
+      - name: Verify version matches
+        run: |
+          CARGO_VERSION=$(grep "^version" Cargo.toml | sed 's/version = "\(.*\)"/\1/')
+          if [ "$CARGO_VERSION" != "${{ inputs.version }}" ]; then
+            echo "Version mismatch: Cargo.toml has $CARGO_VERSION but expected ${{ inputs.version }}"
+            exit 1
+          fi
+
+      - name: Publish to crates.io
+        run: cargo publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
+
+  publish-homebrew:
+    name: Update Homebrew Formula
+    runs-on: ubuntu-latest
+    needs: publish-cargo
+    steps:
+      - name: Trigger Homebrew Update
+        run: |
+          curl -X POST \
+            -H "Authorization: token ${{ secrets.HOMEBREW_TAP_TOKEN }}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            https://api.github.com/repos/alanvardy/homebrew-tod/dispatches \
+            -d '{"event_type":"new_release","client_payload":{"version":"${{ inputs.version }}","release_url":"${{ inputs.release-url }}"}}'
+
+  publish-aur:
+    name: Update AUR Package
+    runs-on: ubuntu-latest
+    needs: publish-cargo
+    steps:
+      - name: Trigger AUR Update
+        run: |
+          # This would typically trigger your AUR update script
+          echo "AUR update would be triggered here for version ${{ inputs.version }}"
+          # Add your AUR update logic here
+
+  publish-scoop:
+    name: Update Scoop Manifest
+    runs-on: ubuntu-latest
+    needs: publish-cargo
+    steps:
+      - name: Trigger Scoop Update
+        run: |
+          # This would typically trigger your Scoop bucket update
+          echo "Scoop update would be triggered here for version ${{ inputs.version }}"
+          # Add your Scoop update logic here

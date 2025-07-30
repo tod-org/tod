@@ -1,0 +1,138 @@
+# Reusable workflow for building release binaries across platforms
+name: Build Binaries
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: 'Version to build'
+        required: true
+        type: string
+      rust-version:
+        description: 'Rust version to use'
+        required: false
+        default: 'stable'
+        type: string
+    outputs:
+      linux-artifact:
+        description: "Linux artifact name"
+        value: ${{ jobs.build-linux.outputs.artifact-name }}
+      windows-artifact:
+        description: "Windows artifact name"
+        value: ${{ jobs.build-windows.outputs.artifact-name }}
+      macos-artifact:
+        description: "macOS artifact name"
+        value: ${{ jobs.build-macos.outputs.artifact-name }}
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0
+  CARGO_PROFILE_RELEASE_LTO: true
+  CARGO_PROFILE_RELEASE_CODEGEN_UNITS: 1
+
+permissions:
+  contents: read
+
+jobs:
+  build-linux:
+    name: Build Linux
+    runs-on: ubuntu-latest
+    outputs:
+      artifact-name: ${{ steps.artifact.outputs.name }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ inputs.rust-version }}
+          targets: x86_64-unknown-linux-gnu
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-all-crates: true
+          key: linux-release
+
+      - name: Build release binary
+        run: cargo build --release --target x86_64-unknown-linux-gnu
+
+      - name: Prepare artifact
+        id: artifact
+        run: |
+          mkdir -p artifacts/linux
+          cp target/x86_64-unknown-linux-gnu/release/tod artifacts/linux/
+          tar -czf tod-${{ inputs.version }}-x86_64-unknown-linux-gnu.tar.gz -C artifacts/linux tod
+          echo "name=tod-${{ inputs.version }}-x86_64-unknown-linux-gnu.tar.gz" >> $GITHUB_OUTPUT
+
+      - name: Upload Linux artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: tod-linux-${{ inputs.version }}
+          path: tod-${{ inputs.version }}-x86_64-unknown-linux-gnu.tar.gz
+          retention-days: 30
+
+  build-windows:
+    name: Build Windows
+    runs-on: windows-latest
+    outputs:
+      artifact-name: ${{ steps.artifact.outputs.name }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ inputs.rust-version }}
+          targets: x86_64-pc-windows-msvc
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-all-crates: true
+          key: windows-release
+
+      - name: Build release binary
+        run: cargo build --release --target x86_64-pc-windows-msvc
+
+      - name: Prepare artifact
+        id: artifact
+        shell: bash
+        run: |
+          mkdir -p artifacts/windows
+          cp target/x86_64-pc-windows-msvc/release/tod.exe artifacts/windows/
+          cd artifacts/windows && zip ../../tod-${{ inputs.version }}-x86_64-pc-windows-msvc.zip tod.exe
+          echo "name=tod-${{ inputs.version }}-x86_64-pc-windows-msvc.zip" >> $GITHUB_OUTPUT
+
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: tod-windows-${{ inputs.version }}
+          path: tod-${{ inputs.version }}-x86_64-pc-windows-msvc.zip
+          retention-days: 30
+
+  build-macos:
+    name: Build macOS
+    runs-on: macos-latest
+    outputs:
+      artifact-name: ${{ steps.artifact.outputs.name }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ inputs.rust-version }}
+          targets: x86_64-apple-darwin
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-all-crates: true
+          key: macos-release
+
+      - name: Build release binary
+        run: cargo build --release --target x86_64-apple-darwin
+
+      - name: Prepare artifact
+        id: artifact
+        run: |
+          mkdir -p artifacts/macos
+          cp target/x86_64-apple-darwin/release/tod artifacts/macos/
+          tar -czf tod-${{ inputs.version }}-x86_64-apple-darwin.tar.gz -C artifacts/macos tod
+          echo "name=tod-${{ inputs.version }}-x86_64-apple-darwin.tar.gz" >> $GITHUB_OUTPUT
+
+      - name: Upload macOS artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: tod-macos-${{ inputs.version }}
+          path: tod-${{ inputs.version }}-x86_64-apple-darwin.tar.gz
+          retention-days: 30

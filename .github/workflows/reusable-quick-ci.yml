@@ -1,0 +1,151 @@
+# Reusable workflow for quick CI checks
+# Includes: lint, format check, clippy, codeQL, quick tests, and codecov (conditional)
+name: Quick CI
+
+on:
+  workflow_call:
+    inputs:
+      include-codecov:
+        description: 'Whether to include codecov reporting'
+        required: false
+        default: false
+        type: boolean
+      rust-version:
+        description: 'Rust version to use'
+        required: false
+        default: 'stable'
+        type: string
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0
+  CARGO_PROFILE_TEST_DEBUG: 0
+
+permissions:
+  contents: read
+  security-events: write  # for CodeQL
+
+jobs:
+  quick-test:
+    runs-on: ubuntu-latest
+    name: Quick Tests
+    steps:
+      - uses: actions/checkout@v4
+      - uses: taiki-e/install-action@nextest
+
+      - name: Install Rust Toolchain
+        run: rustup toolchain install ${{ inputs.rust-version }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-all-crates: true
+
+      - name: Quick Tests
+        run: cargo nextest run --all-features
+
+  check:
+    runs-on: ubuntu-latest
+    name: Cargo Check
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ inputs.rust-version }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-all-crates: true
+      
+      - name: Check
+        run: cargo check --locked --all-features
+
+  fmt:
+    name: Format Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ inputs.rust-version }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-all-crates: true
+      
+      - run: rustup component add rustfmt
+      - run: cargo fmt --all -- --check
+
+  clippy:
+    name: Clippy Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ inputs.rust-version }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-all-crates: true
+      
+      - run: rustup component add clippy
+      - run: cargo clippy --all-features -- -D warnings
+
+  lint-todos:
+    name: TODO/FIXME Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: ./scripts/lint_string.sh "TODO "
+      - run: ./scripts/lint_string.sh "TODO:"
+      - run: ./scripts/lint_string.sh "FIXME "
+      - run: ./scripts/lint_string.sh "FIXME:"
+      - run: ./scripts/lint_string.sh "todo "
+      - run: ./scripts/lint_string.sh "todo:"
+      - run: ./scripts/lint_string.sh "fixme "
+      - run: ./scripts/lint_string.sh "fixme:"
+      - run: ./scripts/lint_string.sh "dbg!"
+
+  codeql:
+    name: CodeQL Analysis
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v2
+        with:
+          languages: rust
+
+      - name: Install Rust Toolchain
+        run: rustup toolchain install ${{ inputs.rust-version }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-all-crates: true
+
+      - name: Build for CodeQL
+        run: cargo build --all-features
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v2
+
+  codecov:
+    name: Code Coverage
+    runs-on: ubuntu-latest
+    if: ${{ inputs.include-codecov }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ inputs.rust-version }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-all-crates: true
+
+      - name: Install cargo-tarpaulin
+        run: cargo install cargo-tarpaulin
+
+      - name: Generate coverage report
+        run: cargo tarpaulin --verbose --all-features --workspace --timeout 120 --out xml
+
+      - name: Upload to codecov.io
+        uses: codecov/codecov-action@v3
+        with:
+          file: cobertura.xml
+          fail_ci_if_error: true

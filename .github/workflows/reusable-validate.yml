@@ -1,0 +1,77 @@
+# Reusable workflow for validating published packages
+name: Validate Release
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: 'Version to validate'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  validate-cargo:
+    name: Validate Cargo Package
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install from crates.io
+        run: cargo install tod --version ${{ inputs.version }}
+
+      - name: Test installed binary
+        run: |
+          tod --version
+          if ! tod --version | grep -q "${{ inputs.version }}"; then
+            echo "Version mismatch in installed binary"
+            exit 1
+          fi
+
+  validate-homebrew:
+    name: Validate Homebrew Package
+    runs-on: macos-latest
+    steps:
+      - name: Install from Homebrew
+        run: |
+          brew tap alanvardy/tod
+          brew install tod
+
+      - name: Test installed binary
+        run: |
+          tod --version
+          if ! tod --version | grep -q "${{ inputs.version }}"; then
+            echo "Version mismatch in Homebrew binary"
+            exit 1
+          fi
+
+  validate-github-release:
+    name: Validate GitHub Release
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        platform: [linux, windows, macos]
+    steps:
+      - name: Download and test release binary
+        run: |
+          case "${{ matrix.platform }}" in
+            linux)
+              wget https://github.com/alanvardy/tod/releases/download/v${{ inputs.version }}/tod-${{ inputs.version }}-x86_64-unknown-linux-gnu.tar.gz
+              tar -xzf tod-${{ inputs.version }}-x86_64-unknown-linux-gnu.tar.gz
+              ;;
+            windows)
+              wget https://github.com/alanvardy/tod/releases/download/v${{ inputs.version }}/tod-${{ inputs.version }}-x86_64-pc-windows-msvc.zip
+              unzip tod-${{ inputs.version }}-x86_64-pc-windows-msvc.zip
+              ;;
+            macos)
+              wget https://github.com/alanvardy/tod/releases/download/v${{ inputs.version }}/tod-${{ inputs.version }}-x86_64-apple-darwin.tar.gz
+              tar -xzf tod-${{ inputs.version }}-x86_64-apple-darwin.tar.gz
+              ;;
+          esac
+          
+          # Test the binary (adjust for Windows .exe)
+          if [ "${{ matrix.platform }}" = "windows" ]; then
+            ./tod.exe --version
+          else
+            ./tod --version
+          fi

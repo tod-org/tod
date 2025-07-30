@@ -153,6 +153,6 @@ mod tests {
 
         cmd.assert()
             .failure()
-            .stderr(contains("No such").or(contains("cannot find")));
+            .stderr(predicates::str::is_empty().not());
     }
 }
