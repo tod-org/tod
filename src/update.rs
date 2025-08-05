@@ -212,7 +212,7 @@ mod tests {
             .expect("Expected version check to succeed");
 
         // Print full output for debugging if test fails
-        println!("DEBUG: Version check output:\n{response}");
+        println!("Version check output:\n{response}");
 
         // Assertions — robust against changing installed version
         assert!(
