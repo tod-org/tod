@@ -7,13 +7,24 @@ use crate::{
     update,
 };
 
+// Values pulled from Cargo.toml
+const NAME: &str = env!("CARGO_PKG_NAME");
 const VERSION: &str = env!("CARGO_PKG_VERSION");
+// Verbose values set at build time
+const BUILD_TARGET: &str = env!("BUILD_TARGET");
+const BUILD_PROFILE: &str = env!("BUILD_PROFILE");
+const BUILD_TIMESTAMP: &str = env!("BUILD_TIMESTAMP");
 
 #[derive(Subcommand, Debug, Clone)]
 pub enum ConfigCommands {
+    #[clap(alias = "a")]
+    /// (a) Get build information about Tod
+    About(About),
+
     #[clap(alias = "v")]
     /// (v) Check to see if tod is on the latest version, returns exit code 1 if out of date. Does not need a configuration file.
     CheckVersion(CheckVersion),
+
     /// (r) Deletes the configuration file (if present). Errors if the file does not exist.
     #[clap(alias = "r")]
     Reset(ConfigReset),
@@ -38,6 +49,9 @@ pub struct ConfigReset {
     #[arg(long)]
     pub force: bool,
 }
+
+#[derive(Parser, Debug, Clone)]
+pub struct About {}
 
 #[derive(Parser, Debug, Clone)]
 pub struct SetTimezone {
@@ -121,6 +135,12 @@ pub async fn set_timezone(config: Config, _args: &SetTimezone) -> Result<String,
             &format!("Could not reset timezone in config. {e}"),
         )),
     }
+}
+
+pub async fn about(_args: &About) -> Result<String, Error> {
+    Ok(format!(
+        "APP:             {NAME}\nVERSION:         {VERSION}\nBUILD_PROFILE:   {BUILD_PROFILE}\nBUILD_TARGET:    {BUILD_TARGET}\nBUILD_TIMESTAMP: {BUILD_TIMESTAMP}"
+    ))
 }
 
 #[cfg(test)]
