@@ -396,9 +396,9 @@ impl Config {
         Ok(config)
     }
 
-    pub async fn new(tx: Option<UnboundedSender<Error>>) -> Result<Config, Error> {
+    pub async fn new(tx: Option<UnboundedSender<Error>>, path: PathBuf) -> Result<Config, Error> {
         Ok(Config {
-            path: generate_path().await?,
+            path,
             token: None,
             next_id: None,
             next_task: None,
@@ -644,7 +644,7 @@ pub async fn get_or_create(
         Ok(_) => Config::load(&path).await,
         Err(err) if err.kind() == std::io::ErrorKind::NotFound => {
             debug::print("Config file not found, creating new config".into());
-            create_config(tx).await
+            create_config(tx, path).await
         }
         Err(err) => Err(Error::new(
             "config.rs",
@@ -668,9 +668,12 @@ pub async fn get_or_create(
     Ok(config)
 }
 //create the config file with settings
-pub async fn create_config(tx: &UnboundedSender<Error>) -> Result<Config, Error> {
+pub async fn create_config(
+    tx: &UnboundedSender<Error>,
+    config_path: PathBuf,
+) -> Result<Config, Error> {
     // Create the default in-memory config
-    let mut config = Config::new(Some(tx.clone())).await?;
+    let mut config = Config::new(Some(tx.clone()), config_path).await?;
     // Create the empty file
     config = config.create().await?;
 
@@ -923,7 +926,9 @@ mod tests {
 
     #[tokio::test]
     async fn new_should_generate_config() {
-        let config = Config::new(None).await.unwrap();
+        let config = Config::new(None, generate_path().await.unwrap())
+            .await
+            .unwrap();
         assert_eq!(config.token, None);
     }
 
@@ -1084,7 +1089,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_config_with_methods() {
-        let base_config = Config::new(None)
+        let path = generate_path().await.unwrap();
+        let base_config = Config::new(None, path)
             .await
             .expect("Failed to create base config");
 
@@ -1186,8 +1192,30 @@ mod tests {
         assert!(err.contains("unknown field `Bobby`"));
     }
     #[tokio::test]
+    async fn test_create_config_with_custom_path() {
+        let path = PathBuf::from("/tmp/custom_path");
+        let mut config = Config {
+            path,
+            ..Config::default_test()
+        };
+        config = config.create().await.expect("Should create file");
+        config.save().await.expect("Should save file");
+
+        // Check that required fields are populated
+        assert!(config.token.is_some(), "Token should be set");
+        assert!(config.timezone.is_some(), "Timezone should be set");
+
+        // Check that the file exists
+        assert!(
+            tokio::fs::try_exists(&config.path).await.unwrap(),
+            "Config file should exist at {}",
+            config.path.display()
+        );
+    }
+
+    #[tokio::test]
     async fn test_create_config_saves_file() {
-        let mut config = Config::default_test(); // ✅ Uses mock_url, token, timezone, etc.
+        let mut config = Config::default_test();
         config = config.create().await.expect("Should create file");
         config.save().await.expect("Should save file");
 
@@ -1265,7 +1293,8 @@ mod tests {
     async fn test_create_config_populates_token_and_timezone() {
         // Manually set token and timezone and ensure they're saved
         let (tx, _rx) = tokio::sync::mpsc::unbounded_channel();
-        let mut config = Config::new(Some(tx.clone()))
+        let path = generate_path().await.unwrap();
+        let mut config = Config::new(Some(tx.clone()), path)
             .await
             .expect("Init default config");
 
