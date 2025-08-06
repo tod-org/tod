@@ -915,7 +915,10 @@ mod tests {
 
         let config_load = config_with_mock_and_token(&mock_url, "loaded").await;
         let path_load = config_load.path.clone();
-        config_load.create().await.unwrap();
+        config_load
+            .create()
+            .await
+            .expect("Failed to create config load asynchronously");
 
         let loaded = get_or_create(Some(path_load.clone()), false, None, &tx())
             .await
@@ -946,7 +949,10 @@ mod tests {
         let mut config = config.create().await.expect("Failed to create test config");
         let project = test::fixtures::project();
         config.add_project(project);
-        let projects = config.projects().await.unwrap();
+        let projects = config
+            .projects()
+            .await
+            .expect("Failed to fetch projects asynchronously");
         assert!(!&projects.is_empty());
 
         config.reload().await.expect("Failed to reload config");
@@ -966,22 +972,43 @@ mod tests {
     #[tokio::test]
     async fn add_project_should_work() {
         let mut config = test::fixtures::config().await;
-        let projects_count = config.projects().await.unwrap().len();
+        let projects_count = config
+            .projects()
+            .await
+            .expect("Failed to fetch projects asynchronously")
+            .len();
         assert_eq!(projects_count, 1);
         config.add_project(test::fixtures::project());
-        let projects_count = config.projects().await.unwrap().len();
+        let projects_count = config
+            .projects()
+            .await
+            .expect("Failed to fetch projects asynchronously")
+            .len();
         assert_eq!(projects_count, 2);
     }
 
     #[tokio::test]
     async fn remove_project_should_work() {
         let mut config = test::fixtures::config().await;
-        let projects = config.projects().await.unwrap();
-        let project = projects.first().unwrap();
-        let projects_count = config.projects().await.unwrap().len();
+        let projects = config
+            .projects()
+            .await
+            .expect("Failed to fetch projects asynchronously");
+        let project = projects
+            .first()
+            .expect("Expected at least one project in projects list");
+        let projects_count = config
+            .projects()
+            .await
+            .expect("Failed to fetch projects asynchronously")
+            .len();
         assert_eq!(projects_count, 1);
         config.remove_project(project);
-        let projects_count = config.projects().await.unwrap().len();
+        let projects_count = config
+            .projects()
+            .await
+            .expect("Failed to fetch projects asynchronously")
+            .len();
         assert_eq!(projects_count, 0);
     }
 
