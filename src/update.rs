@@ -180,34 +180,39 @@ mod tests {
     }
     #[test]
     fn test_get_update_command_args_homebrew() {
-        let cmd = get_update_command_args(&Some("homebrew".into())).unwrap();
+        let cmd = get_update_command_args(&Some("homebrew".into()))
+            .expect("Failed to get update command args for homebrew");
         assert_eq!(cmd.0, "brew");
         assert_eq!(cmd.1, vec!["upgrade", "tod"]);
     }
 
     #[test]
     fn test_get_update_command_args_scoop() {
-        let cmd = get_update_command_args(&Some("scoop".into())).unwrap();
+        let cmd = get_update_command_args(&Some("scoop".into()))
+            .expect("Failed to get update command args for scoop");
         assert_eq!(cmd.0, "scoop");
         assert_eq!(cmd.1, vec!["update", "tod"]);
     }
 
     #[test]
     fn test_get_update_command_args_cargo() {
-        let cmd = get_update_command_args(&Some("cargo".into())).unwrap();
+        let cmd = get_update_command_args(&Some("cargo".into()))
+            .expect("Failed to get update command args for cargo");
         assert_eq!(cmd.0, "cargo");
         assert_eq!(cmd.1, vec!["install", "tod", "--force"]);
     }
 
     #[test]
     fn test_get_update_command_args_from_source() {
-        let err = get_update_command_args(&Some("source".into())).unwrap_err();
+        let err = get_update_command_args(&Some("source".into()))
+            .expect_err("Expected error when getting update command args for source");
         assert!(err.contains("Automatic update is not supported"));
     }
 
     #[test]
     fn test_get_update_command_args_unknown() {
-        let err = get_update_command_args(&Some("unknown".into())).unwrap_err();
+        let err = get_update_command_args(&Some("unknown".into()))
+            .expect_err("Expected error when getting update command args for unknown");
         assert!(err.contains("Automatic update is not supported"));
     }
     #[test]

@@ -381,23 +381,41 @@ mod tests {
             .await
             .unwrap();
 
-        let binding = config.projects().await.unwrap();
-        let project = binding.first().unwrap().to_owned();
+        let binding = config
+            .projects()
+            .await
+            .expect("Failed to fetch projects asynchronously");
+        let project = binding
+            .first()
+            .expect("Expected at least one project in binding")
+            .to_owned();
         let sort = &SortOrder::Value;
         let result = timebox(&config, Flag::Project(project), sort).await;
         assert_matches!(result, Ok(x) if x.contains("Successfully timeboxed"));
 
         let config = config.mock_select(2);
 
-        let binding = config.projects().await.unwrap();
-        let project = binding.first().unwrap().to_owned();
+        let binding = config
+            .projects()
+            .await
+            .expect("Failed to fetch projects asynchronously");
+        let project = binding
+            .first()
+            .expect("Expected at least one project in binding")
+            .to_owned();
         let result = timebox(&config, Flag::Project(project), sort).await;
         assert_matches!(result, Ok(x) if x.contains("Successfully timeboxed"));
 
         let config = config.mock_select(3);
 
-        let binding = config.projects().await.unwrap();
-        let project = binding.first().unwrap().to_owned();
+        let binding = config
+            .projects()
+            .await
+            .expect("Failed to fetch projects asynchronously");
+        let project = binding
+            .first()
+            .expect("Expected at least one project in binding")
+            .to_owned();
         let result = timebox(&config, Flag::Project(project.clone()), sort).await;
         assert_matches!(result, Ok(x) if x.contains("Successfully timeboxed"));
 
@@ -422,8 +440,14 @@ mod tests {
 
         let config = test::fixtures::config().await.with_mock_url(server.url());
 
-        let binding = config.projects().await.unwrap();
-        let project = binding.first().unwrap().to_owned();
+        let binding = config
+            .projects()
+            .await
+            .expect("Failed to fetch projects asynchronously");
+        let project = binding
+            .first()
+            .expect("Expected at least one project in binding")
+            .to_owned();
         let sort = &SortOrder::Value;
 
         let result = prioritize(&config, Flag::Project(project), sort).await;
@@ -519,8 +543,14 @@ mod tests {
             .await
             .unwrap();
 
-        let binding = config.projects().await.unwrap();
-        let project = binding.first().unwrap().to_owned();
+        let binding = config
+            .projects()
+            .await
+            .expect("Failed to fetch projects asynchronously");
+        let project = binding
+            .first()
+            .expect("Expected at least one project in binding")
+            .to_owned();
         let sort = &SortOrder::Value;
 
         let result = process(&config, Flag::Project(project), sort).await;
@@ -622,8 +652,14 @@ mod tests {
             .with_timezone("US/Pacific")
             .with_mock_url(server.url());
 
-        let binding = config_with_timezone.projects().await.unwrap();
-        let project = binding.first().unwrap().clone();
+        let binding = config_with_timezone
+            .projects()
+            .await
+            .expect("Failed to fetch projects asynchronously");
+        let project = binding
+            .first()
+            .expect("Expected at least one project in binding")
+            .clone();
         let sort = &SortOrder::Value;
 
         let tasks = view(&mut config_with_timezone, Flag::Project(project), sort)
