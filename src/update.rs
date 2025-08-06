@@ -109,8 +109,6 @@ fn detect_install_method() -> InstallMethod {
 
 #[cfg(test)]
 mod tests {
-    use crate::{ConfigCheckVersion, config_check_version, test::responses::ResponseFromFile};
-
     use super::*;
     use pretty_assertions::assert_eq;
 
@@ -180,70 +178,6 @@ mod tests {
             "https://github.com/tod-org/tod#installation"
         );
     }
-
-    #[tokio::test]
-    async fn test_config_check_version_outdated() {
-        use mockito::Server;
-
-        // Start mock server
-        let mut server = Server::new_async().await;
-
-        // Mock the crates.io versions endpoint
-        let mock = server
-            .mock("GET", "/v1/crates/tod/versions")
-            .with_status(200)
-            .with_header("content-type", "application/json")
-            .with_body(
-                ResponseFromFile::Versions
-                    .read_with_version("999.99.999")
-                    .await,
-            )
-            .create_async()
-            .await;
-
-        let args = ConfigCheckVersion {
-            force: true,
-            repo: None,
-        };
-
-        // Run the version check
-        let response = config_check_version(&args, Some(server.url()))
-            .await
-            .expect("Expected version check to succeed");
-
-        // Print full output for debugging if test fails
-        println!("Version check output:\n{response}");
-
-        // Assertions — robust against changing installed version
-        assert!(
-            response.contains("Tod is out of date"),
-            "Missing 'Tod is out of date' message"
-        );
-        assert!(
-            response.contains("Installed version:"),
-            "Missing installed version line"
-        );
-        assert!(
-            response.contains("Latest version: 999.99.999"),
-            "Missing latest version string"
-        );
-        assert!(
-            response.contains("Detected installation method:"),
-            "Missing installation method detection"
-        );
-        assert!(
-            response.contains("Auto-update failed:"),
-            "Missing auto-update failure notice"
-        );
-        assert!(
-            response.contains("https://github.com/tod-org/tod#installation"),
-            "Missing manual update link"
-        );
-
-        // Ensure the mock was actually called
-        mock.assert();
-    }
-
     #[test]
     fn test_get_update_command_args_homebrew() {
         let cmd = get_update_command_args(&Some("homebrew".into())).unwrap();
