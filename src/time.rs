@@ -259,7 +259,7 @@ fn parse_gmt_to_timezone(gmt: &str) -> Result<Tz, Error> {
 
 #[cfg(test)]
 mod tests {
-    use crate::time;
+    use crate::{config, time};
     use pretty_assertions::assert_eq;
 
     use super::*;
@@ -318,7 +318,8 @@ mod tests {
 
     #[tokio::test]
     async fn errors_when_no_timezone() {
-        let config = Config::new(None).await.unwrap();
+        let path = config::generate_path().await.unwrap();
+        let config = Config::new(None, path).await.unwrap();
         assert_matches!(config.get_timezone(), Err(Error { .. }));
     }
 

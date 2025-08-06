@@ -1,7 +1,7 @@
 //! Fixtures are for creating structs in test
 
 use crate::comments::Comment;
-use crate::config::Config;
+use crate::config::{self, Config};
 use crate::errors::Error;
 use crate::labels::Label;
 use crate::projects::Project;
@@ -117,7 +117,8 @@ pub async fn task(days_in_future: i64) -> Task {
 pub async fn config() -> Config {
     let (tx, _rx) = tokio::sync::mpsc::unbounded_channel::<Error>();
 
-    Config::new(Some(tx))
+    let path = config::generate_path().await.unwrap();
+    Config::new(Some(tx), path)
         .await
         .expect("Could not generate directory")
         .with_token("alreadycreated")
