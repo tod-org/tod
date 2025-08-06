@@ -249,7 +249,11 @@ impl Task {
         let deadline_value: u32 = match self.deadline_value(config) {
             Ok(value) => value,
             Err(error) => {
-                config.clone().tx().send(error).unwrap();
+                config
+                    .clone()
+                    .tx()
+                    .send(error)
+                    .expect("Failed to send error message in task value calculation");
                 0
             }
         };
@@ -540,7 +544,10 @@ pub async fn label_task(
     Ok(tokio::spawn(async move {
         if label.as_str() == input::SKIP {
         } else if let Err(e) = todoist::add_task_label(&config, task, label, false).await {
-            config.tx().send(e).unwrap();
+            config
+                .tx()
+                .send(e)
+                .expect("Failed to send error on task channel");
         }
     }))
 }
@@ -763,7 +770,10 @@ pub async fn spawn_deadline_task(
 pub fn spawn_complete_task(config: Config, task: Task) -> JoinHandle<()> {
     tokio::spawn(async move {
         if let Err(e) = todoist::complete_task(&config, &task, false).await {
-            config.tx().send(e).unwrap();
+            config
+                .tx()
+                .send(e)
+                .expect("Failed to send error on task channel");
         }
     })
 }
@@ -772,7 +782,10 @@ pub fn spawn_complete_task(config: Config, task: Task) -> JoinHandle<()> {
 pub fn spawn_delete_task(config: Config, task: Task) -> JoinHandle<()> {
     tokio::spawn(async move {
         if let Err(e) = todoist::delete_task(&config, &task, false).await {
-            config.tx().send(e).unwrap();
+            config
+                .tx()
+                .send(e)
+                .expect("Failed to send error on task channel");
         }
     })
 }
@@ -789,7 +802,10 @@ pub fn spawn_update_task_due(
             todoist::update_task_due_natural_language(&config, &task, due_string, duration, false)
                 .await
         {
-            config.tx().send(e).unwrap();
+            config
+                .tx()
+                .send(e)
+                .expect("Failed to send error on task channel");
         }
     })
 }
@@ -802,7 +818,10 @@ pub fn spawn_update_task_deadline(
 ) -> JoinHandle<()> {
     tokio::spawn(async move {
         if let Err(e) = todoist::update_task_deadline(&config, &task, date, false).await {
-            config.tx().send(e).unwrap();
+            config
+                .tx()
+                .send(e)
+                .expect("Failed to send error on task channel");
         }
     })
 }
@@ -811,7 +830,10 @@ pub fn spawn_update_task_deadline(
 pub fn spawn_comment_task(config: Config, task: Task, task_comment: String) -> JoinHandle<()> {
     tokio::spawn(async move {
         if let Err(e) = todoist::create_comment(&config, &task, task_comment, false).await {
-            config.tx().send(e).unwrap();
+            config
+                .tx()
+                .send(e)
+                .expect("Failed to send error on task channel");
         }
     })
 }
@@ -820,7 +842,10 @@ pub fn spawn_comment_task(config: Config, task: Task, task_comment: String) -> J
 pub fn spawn_update_task_content(config: Config, task: Task, content: String) -> JoinHandle<()> {
     tokio::spawn(async move {
         if let Err(e) = todoist::update_task_content(&config, &task, content, false).await {
-            config.tx().send(e).unwrap();
+            config
+                .tx()
+                .send(e)
+                .expect("Failed to send error on task channel");
         }
     })
 }
@@ -833,7 +858,10 @@ pub fn spawn_update_task_description(
 ) -> JoinHandle<()> {
     tokio::spawn(async move {
         if let Err(e) = todoist::update_task_description(&config, &task, description, false).await {
-            config.tx().send(e).unwrap();
+            config
+                .tx()
+                .send(e)
+                .expect("Failed to send error on task channel");
         }
     })
 }
@@ -842,7 +870,10 @@ pub fn spawn_update_task_description(
 pub fn spawn_update_task_labels(config: Config, task: Task, labels: Vec<String>) -> JoinHandle<()> {
     tokio::spawn(async move {
         if let Err(e) = todoist::update_task_labels(&config, &task, labels, false).await {
-            config.tx().send(e).unwrap();
+            config
+                .tx()
+                .send(e)
+                .expect("Failed to send error on task channel");
         }
     })
 }
@@ -855,7 +886,10 @@ pub fn spawn_update_task_priority(
 ) -> JoinHandle<()> {
     tokio::spawn(async move {
         if let Err(e) = todoist::update_task_priority(&config, &task, &priority, false).await {
-            config.tx().send(e).unwrap();
+            config
+                .tx()
+                .send(e)
+                .expect("Failed to send error on task channel");
         }
     })
 }
@@ -989,7 +1023,10 @@ pub async fn set_priority(
     let config = config.clone();
     Ok(tokio::spawn(async move {
         if let Err(e) = todoist::update_task_priority(&config, &task, &priority, false).await {
-            config.tx().send(e).unwrap();
+            config
+                .tx()
+                .send(e)
+                .expect("Failed to send error on task channel");
         }
     }))
 }
@@ -1010,7 +1047,10 @@ mod tests {
         let task = Task {
             due: Some(DateInfo {
                 is_recurring: true,
-                ..test::fixtures::today_task().await.due.unwrap()
+                ..test::fixtures::today_task()
+                    .await
+                    .due
+                    .expect("Failed to unwrap due field in test fixtures for today_task")
             }),
             ..test::fixtures::today_task().await
         };
@@ -1040,7 +1080,10 @@ mod tests {
         let task = Task {
             due: Some(DateInfo {
                 date: "2021-02-27T19:41:56Z".into(),
-                ..test::fixtures::today_task().await.due.unwrap()
+                ..test::fixtures::today_task()
+                    .await
+                    .due
+                    .expect("Failed to unwrap due field in test fixtures for today_task")
             }),
             ..test::fixtures::today_task().await
         };
@@ -1055,7 +1098,10 @@ mod tests {
             content: "Get gifts for the twins".into(),
             due: Some(DateInfo {
                 date: "2021-08-13".into(),
-                ..test::fixtures::today_task().await.due.unwrap()
+                ..test::fixtures::today_task()
+                    .await
+                    .due
+                    .expect("Failed to unwrap due field in test fixtures for today_task")
             }),
             ..test::fixtures::today_task().await
         };
@@ -1076,8 +1122,12 @@ mod tests {
         let task = Task {
             content: "Get gifts for the twins".into(),
             due: Some(DateInfo {
-                date: time::date_string_today(&config).unwrap(),
-                ..test::fixtures::today_task().await.due.unwrap()
+                date: time::date_string_today(&config)
+                    .expect("Failed to unwrap date_string_today result in tasks test"),
+                ..test::fixtures::today_task()
+                    .await
+                    .due
+                    .expect("Failed to unwrap due field in test fixtures for today_task")
             }),
             ..test::fixtures::today_task().await
         };
@@ -1097,7 +1147,10 @@ mod tests {
         let task = Task {
             due: Some(DateInfo {
                 date: "2021-09-06T16:00:00".into(),
-                ..test::fixtures::today_task().await.due.unwrap()
+                ..test::fixtures::today_task()
+                    .await
+                    .due
+                    .expect("Failed to unwrap due field in test fixtures for today_task")
             }),
             ..test::fixtures::today_task().await
         };
@@ -1110,8 +1163,12 @@ mod tests {
         let config = test::fixtures::config().await;
         let task = Task {
             due: Some(DateInfo {
-                date: time::date_string_today(&config).unwrap(),
-                ..test::fixtures::today_task().await.due.unwrap()
+                date: time::date_string_today(&config)
+                    .expect("Failed to unwrap date_string_today result in tasks test"),
+                ..test::fixtures::today_task()
+                    .await
+                    .due
+                    .expect("Failed to unwrap due field in test fixtures for today_task")
             }),
             ..test::fixtures::today_task().await
         };
@@ -1131,8 +1188,12 @@ mod tests {
 
         let task_today = Task {
             due: Some(DateInfo {
-                date: time::date_string_today(&config).unwrap(),
-                ..test::fixtures::today_task().await.due.unwrap()
+                date: time::date_string_today(&config)
+                    .expect("Failed to unwrap date_string_today result in tasks test"),
+                ..test::fixtures::today_task()
+                    .await
+                    .due
+                    .expect("Failed to unwrap due field in test fixtures for today_task")
             }),
             ..test::fixtures::today_task().await
         };
@@ -1151,7 +1212,8 @@ mod tests {
 
         let task_today = Task {
             due: Some(DateInfo {
-                date: time::date_string_today(&config).unwrap(),
+                date: time::date_string_today(&config)
+                    .expect("Failed to unwrap date_string_today result in tasks test"),
                 lang: "en".into(),
                 is_recurring: false,
                 string: "Every 2 weeks".into(),
@@ -1179,7 +1241,8 @@ mod tests {
         let config = test::fixtures::config().await;
         let today = Task {
             due: Some(DateInfo {
-                date: time::date_string_today(&config).unwrap(),
+                date: time::date_string_today(&config)
+                    .expect("Failed to unwrap date_string_today result in tasks test"),
                 lang: "en".into(),
                 is_recurring: false,
                 timezone: None,
@@ -1190,7 +1253,8 @@ mod tests {
 
         let today_recurring = Task {
             due: Some(DateInfo {
-                date: time::date_string_today(&config).unwrap(),
+                date: time::date_string_today(&config)
+                    .expect("Failed to unwrap date_string_today result in tasks test"),
                 is_recurring: false,
                 lang: "en".into(),
                 string: "Every 2 weeks".into(),
@@ -1251,7 +1315,8 @@ mod tests {
 
         let date_not_datetime = Task {
             due: Some(DateInfo {
-                date: time::date_string_today(&config).unwrap(),
+                date: time::date_string_today(&config)
+                    .expect("Failed to unwrap date_string_today result in tasks test"),
                 is_recurring: false,
                 lang: "en".into(),
                 string: "Every 2 weeks".into(),
@@ -1339,7 +1404,8 @@ mod tests {
 
         let task_today = Task {
             due: Some(DateInfo {
-                date: time::date_string_today(&config).unwrap(),
+                date: time::date_string_today(&config)
+                    .expect("Failed to unwrap date_string_today result in tasks test"),
                 lang: "en".into(),
                 string: "Every 2 weeks".into(),
                 is_recurring: false,
