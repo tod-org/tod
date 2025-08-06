@@ -889,15 +889,23 @@ mod tests {
 
         let config_create = config_with_mock_and_token(&mock_url, "created").await;
         let path_created = config_create.path.clone();
-        config_create.create().await.unwrap();
+        config_create
+            .create()
+            .await
+            .expect("Failed to create config in async call");
 
-        let loaded = Config::load(&path_created).await.unwrap();
+        let loaded = Config::load(&path_created)
+            .await
+            .expect("Failed to load config from path asynchronously");
         assert_eq!(loaded.token, Some("created".into()));
         delete_config(&path_created).await;
 
         let config_create = config_with_mock(&mock_url).await;
         let path_create = config_create.path.clone();
-        config_create.create().await.unwrap();
+        config_create
+            .create()
+            .await
+            .expect("Failed to create config in async call");
 
         let created = get_or_create(Some(path_create.clone()), false, None, &tx())
             .await

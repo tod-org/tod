@@ -169,14 +169,23 @@ mod tests {
 
         let mut config = test::fixtures::config().await.with_mock_url(server.url());
 
-        config.clone().create().await.unwrap();
+        config
+            .clone()
+            .create()
+            .await
+            .expect("Failed to create config asynchronously in oauth test");
 
         assert_eq!(config.token, Some(String::from("alreadycreated")));
         let (test_tx, test_rx) = oneshot::channel::<()>();
-        let login_handle =
-            tokio::spawn(async move { login(&mut config, Some(test_tx)).await.unwrap() });
+        let login_handle = tokio::spawn(async move {
+            login(&mut config, Some(test_tx))
+                .await
+                .expect("Login async operation failed")
+        });
 
-        test_rx.await.unwrap();
+        test_rx
+            .await
+            .expect("Failed to await test receiver completion");
 
         let params = [("code", "state"), ("state", FAKE_UUID)];
         let client = reqwest::Client::new();
@@ -188,10 +197,15 @@ mod tests {
             .expect("Failed to send callback");
 
         assert!(resp.status().is_success());
-        let body = resp.text().await.unwrap();
+        let body = resp
+            .text()
+            .await
+            .expect("Failed to get text from response asynchronously");
         assert!(body.contains("Success"));
 
-        let result = login_handle.await.unwrap();
+        let result = login_handle
+            .await
+            .expect("Failed to await login handle completion");
         assert_eq!(result, String::from("✓"));
         mock.assert()
     }
@@ -202,15 +216,22 @@ mod tests {
         let csrf_token = new_uuid();
 
         // Spawn the server on a random port in test mode
-        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-        let port = listener.local_addr().unwrap().port();
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+            .await
+            .expect("Failed to bind TCP listener asynchronously");
+        let port = listener
+            .local_addr()
+            .expect("Failed to get local address")
+            .port();
         // Move a clone into the server task, keep the original for the request
         let server_handle = tokio::spawn({
             let csrf_token = csrf_token.clone();
             async move { receive_callback(&csrf_token, Some(test_tx), listener).await }
         });
 
-        test_rx.await.unwrap();
+        test_rx
+            .await
+            .expect("Failed to await test receiver completion");
 
         // Simulate callback with error
         let params = [("error", "access_denied"), ("state", &csrf_token)];
@@ -223,12 +244,17 @@ mod tests {
             .expect("Failed to send callback");
 
         assert!(resp.status().is_success());
-        let body = resp.text().await.unwrap();
+        let body = resp
+            .text()
+            .await
+            .expect("Failed to get text from response asynchronously");
         assert!(body.contains("Error"));
 
-        let result = server_handle.await.unwrap();
+        let result = server_handle
+            .await
+            .expect("Failed to await server handle completion");
         assert!(result.is_err());
-        let err = result.unwrap_err();
+        let err = result.expect_err("Expected error result but got success");
         assert!(err.to_string().contains("access_denied"));
     }
 
@@ -238,14 +264,21 @@ mod tests {
         let csrf_token = new_uuid();
 
         // Bind to a random port for the callback server
-        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-        let port = listener.local_addr().unwrap().port();
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+            .await
+            .expect("Failed to bind TCP listener asynchronously");
+        let port = listener
+            .local_addr()
+            .expect("Failed to get local address")
+            .port();
         let server_handle =
             tokio::spawn(
                 async move { receive_callback(&csrf_token, Some(test_tx), listener).await },
             );
 
-        test_rx.await.unwrap();
+        test_rx
+            .await
+            .expect("Failed to await test receiver completion");
 
         // Simulate callback with mismatched csrf_token
         let params = [("code", "somecode"), ("state", "not-the-csrf-token")];
@@ -259,9 +292,11 @@ mod tests {
 
         assert!(resp.status().is_success());
 
-        let result = server_handle.await.unwrap();
+        let result = server_handle
+            .await
+            .expect("Failed to await server handle completion");
         assert!(result.is_err());
-        let err = result.unwrap_err();
+        let err = result.expect_err("Expected error result but got success");
         assert!(
             err.to_string().contains("state doesn't match csrf token"),
             "Unexpected error: {err}"

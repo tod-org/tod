@@ -159,7 +159,8 @@ mod tests {
 
     async fn load_comments() -> Vec<Comment> {
         let json = ResponseFromFile::CommentsAllTypes.read().await;
-        let response = json_to_comment_response(json).unwrap();
+        let response =
+            json_to_comment_response(json).expect("Failed to parse JSON to comment response");
         response
             .results
             .into_iter()
@@ -184,8 +185,10 @@ mod tests {
             .await
             .into_iter()
             .find(|c| c.id == "file-1")
-            .unwrap();
-        let output = comment.fmt(&config).unwrap();
+            .expect("Failed to find comment with id 'file-1'");
+        let output = comment
+            .fmt(&config)
+            .expect("Failed to format the comment with the provided config");
         assert!(output.contains("file.pdf"));
     }
 
@@ -197,7 +200,9 @@ mod tests {
             .into_iter()
             .find(|c| c.id == "video-1")
             .unwrap();
-        let output = comment.fmt(&config).unwrap();
+        let output = comment
+            .fmt(&config)
+            .expect("Failed to format the comment with the provided config");
         assert!(output.contains("Test Video"));
     }
 
@@ -209,7 +214,9 @@ mod tests {
             .into_iter()
             .find(|c| c.id == "image-1")
             .unwrap();
-        let output = comment.fmt(&config).unwrap();
+        let output = comment
+            .fmt(&config)
+            .expect("Failed to format the comment with the provided config");
         assert!(output.contains("Example Image"));
     }
 
@@ -221,7 +228,9 @@ mod tests {
             .into_iter()
             .find(|c| c.id == "url-1")
             .unwrap();
-        let output = comment.fmt(&config).unwrap();
+        let output = comment
+            .fmt(&config)
+            .expect("Failed to format the comment with the provided config");
         assert!(output.contains("Interesting Article"));
     }
 
@@ -233,7 +242,9 @@ mod tests {
             .into_iter()
             .find(|c| c.id == "shorturl-1")
             .unwrap();
-        let output = comment.fmt(&config).unwrap();
+        let output = comment
+            .fmt(&config)
+            .expect("Failed to format the comment with the provided config");
         assert!(output.contains("Shortened Link"));
     }
 
@@ -245,7 +256,9 @@ mod tests {
             .into_iter()
             .find(|c| c.id == "rich-1")
             .unwrap();
-        let output = comment.fmt(&config).unwrap();
+        let output = comment
+            .fmt(&config)
+            .expect("Failed to format the comment with the provided config");
         assert!(output.contains("News Story"));
     }
 
@@ -257,7 +270,9 @@ mod tests {
             .into_iter()
             .find(|c| c.id == "noattach-1")
             .unwrap();
-        let output = comment.fmt(&config).unwrap();
+        let output = comment
+            .fmt(&config)
+            .expect("Failed to format the comment with the provided config");
         assert!(output.contains("Just a plain comment"));
     }
 

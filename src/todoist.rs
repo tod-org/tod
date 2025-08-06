@@ -881,8 +881,13 @@ mod tests {
 
         let config = test::fixtures::config().await.with_mock_url(server.url());
         let config_with_timezone = config.with_timezone("US/Pacific");
-        let binding = config_with_timezone.projects().await.unwrap();
-        let project = binding.first().unwrap();
+        let binding = config_with_timezone
+            .projects()
+            .await
+            .expect("Failed to fetch projects asynchronously");
+        let project = binding
+            .first()
+            .expect("Expected at least one project in binding");
 
         assert_eq!(
             all_tasks_by_project(&config_with_timezone, project, None).await,
@@ -929,8 +934,13 @@ mod tests {
             .with_mock_url(server.url())
             .with_time_provider(TimeProviderEnum::Fixed(FixedTimeProvider));
 
-        let binding = config.projects().await.unwrap();
-        let project = binding.first().unwrap();
+        let binding = config
+            .projects()
+            .await
+            .expect("Failed to fetch projects asynchronously");
+        let project = binding
+            .first()
+            .expect("Expected at least one project in binding");
         let response = move_task_to_project(&config, &task, project, false)
             .await
             .unwrap();
