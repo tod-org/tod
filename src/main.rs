@@ -35,14 +35,9 @@ mod time;
 mod todoist;
 mod update;
 mod users;
-// Values pulled from Cargo.toml
-const NAME: &str = env!("CARGO_PKG_NAME");
+
 const LOWERCASE_NAME: &str = "tod";
 const VERSION: &str = env!("CARGO_PKG_VERSION");
-// Verbose values set at build time
-const BUILD_TARGET: &str = env!("BUILD_TARGET");
-const BUILD_PROFILE: &str = env!("BUILD_PROFILE");
-const BUILD_TIMESTAMP: &str = env!("BUILD_TIMESTAMP");
 
 #[tokio::main]
 async fn main() {
@@ -77,10 +72,6 @@ async fn main() {
 fn terminal_bell() {
     print!("\x07");
     std::io::stdout().flush().unwrap();
-}
-
-pub fn long_version() -> String {
-    format!("{NAME} ({VERSION}, {BUILD_PROFILE}, {BUILD_TARGET}, {BUILD_TIMESTAMP})")
 }
 
 #[test]

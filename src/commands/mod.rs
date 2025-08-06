@@ -378,7 +378,10 @@ pub async fn select_command(
             (true, true, config_commands::check_version(args, None).await)
         }
 
-        // Command to delete the config file. Checks the default path, does not rely on the config struct.
+        Commands::Config(ConfigCommands::About(args)) => {
+            (true, true, config_commands::about(args).await)
+        }
+
         Commands::Config(ConfigCommands::Reset(args)) => (
             false,
             false,
