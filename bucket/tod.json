@@ -1,7 +1,7 @@
 {
   "version": "0.11.0",
   "description": "An unofficial Todoist command-line client",
-  "homepage": "https://tod.cx",
+  "homepage": "https://www.tod.cx",
   "license": "MIT",
   "architecture": {
     "64bit": {
