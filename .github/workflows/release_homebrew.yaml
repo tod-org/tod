@@ -175,7 +175,11 @@ jobs:
             text = new_text
 
           if not ok:
-            print("ERROR: One or more platform blocks failed to update.", file=sys.stderr)
+              failed_platforms.append(key)
+            text = new_text
+
+          if not ok:
+            print(f"ERROR: The following platform blocks failed to update: {', '.join(failed_platforms)}.", file=sys.stderr)
             sys.exit(1)
 
           pathlib.Path("Formula/tod.rb").write_text(text)
