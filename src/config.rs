@@ -700,18 +700,18 @@ pub async fn generate_path() -> Result<PathBuf, Error> {
 
 fn maybe_expand_home_dir(path: PathBuf) -> Result<PathBuf, Error> {
     // If the path starts with "~", expand it
-    if let Some(str_path) = path.to_str() {
-        if str_path.starts_with('~') {
-            let home = homedir::my_home()?
-                .ok_or_else(|| Error::new("homedir", "Could not get homedir"))?;
+    if let Some(str_path) = path.to_str()
+        && str_path.starts_with('~')
+    {
+        let home =
+            homedir::my_home()?.ok_or_else(|| Error::new("homedir", "Could not get homedir"))?;
 
-            // Strip the "~" and construct the new path
-            let mut expanded = home;
-            let suffix = str_path.trim_start_matches('~').trim_start_matches('/');
-            expanded.push(suffix);
+        // Strip the "~" and construct the new path
+        let mut expanded = home;
+        let suffix = str_path.trim_start_matches('~').trim_start_matches('/');
+        expanded.push(suffix);
 
-            return Ok(expanded);
-        }
+        return Ok(expanded);
     }
 
     Ok(path)

@@ -35,13 +35,13 @@ pub fn execute_command(command: &str) {
 
         if let Err(e) = output {
             eprintln!("Failed to execute command '{command}': {e}");
-        } else if let Ok(output) = output {
-            if !output.status.success() {
-                if let Ok(stderr) = String::from_utf8(output.stderr) {
-                    eprintln!("Command '{command}' failed: {stderr}");
-                } else {
-                    eprintln!("Command '{command}' failed with non-UTF-8 output.");
-                }
+        } else if let Ok(output) = output
+            && !output.status.success()
+        {
+            if let Ok(stderr) = String::from_utf8(output.stderr) {
+                eprintln!("Command '{command}' failed: {stderr}");
+            } else {
+                eprintln!("Command '{command}' failed with non-UTF-8 output.");
             }
         }
     });
