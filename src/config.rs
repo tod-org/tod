@@ -937,9 +937,12 @@ mod tests {
 
     #[tokio::test]
     async fn new_should_generate_config() {
-        let config = Config::new(None, generate_path().await.unwrap())
-            .await
-            .unwrap();
+        let config = Config::new(
+            None,
+            generate_path().await.expect("Could not create config"),
+        )
+        .await
+        .expect("Could not create config");
         assert_eq!(config.token, None);
     }
 
@@ -1016,7 +1019,7 @@ mod tests {
     fn test_maybe_expand_home_dir() {
         // No tilde, so path should remain unchanged
         let input = PathBuf::from("/Users/tod.cfg");
-        let result = maybe_expand_home_dir(input.clone()).unwrap();
+        let result = maybe_expand_home_dir(input.clone()).expect("Could not create PathBuf");
 
         assert_eq!(result, input);
     }
@@ -1034,13 +1037,17 @@ mod tests {
         }
     }"#;
 
-        write(bad_config_path, contents).await.unwrap();
+        write(bad_config_path, contents)
+            .await
+            .expect("Could not write to file");
 
         let bad_config_path_buf = std::path::PathBuf::from(bad_config_path);
         let result = Config::load(&bad_config_path_buf).await;
         assert!(result.is_err(), "Expected error from invalid u8");
 
-        fs::remove_file(bad_config_path).await.unwrap();
+        fs::remove_file(bad_config_path)
+            .await
+            .expect("Could not remove file");
     }
 
     #[tokio::test]
@@ -1050,7 +1057,7 @@ mod tests {
         // Assert that the debug output contains the struct name and some fields
         assert!(debug_output.contains("Config"));
         assert!(debug_output.contains("token"));
-        assert!(debug_output.contains(&config.token.unwrap()));
+        assert!(debug_output.contains(&config.token.expect("No token found in config")));
     }
 
     #[test]
@@ -1124,7 +1131,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_config_with_methods() {
-        let path = generate_path().await.unwrap();
+        let path = generate_path().await.expect("Could not generate path");
         let base_config = Config::new(None, path)
             .await
             .expect("Failed to create base config");
@@ -1242,7 +1249,9 @@ mod tests {
 
         // Check that the file exists
         assert!(
-            tokio::fs::try_exists(&config.path).await.unwrap(),
+            tokio::fs::try_exists(&config.path)
+                .await
+                .expect("Could not determine if file exists"),
             "Config file should exist at {}",
             config.path.display()
         );
@@ -1260,7 +1269,9 @@ mod tests {
 
         // Check that the file exists
         assert!(
-            tokio::fs::try_exists(&config.path).await.unwrap(),
+            tokio::fs::try_exists(&config.path)
+                .await
+                .expect("Could not determine if file exists"),
             "Config file should exist at {}",
             config.path.display()
         );
@@ -1328,7 +1339,7 @@ mod tests {
     async fn test_create_config_populates_token_and_timezone() {
         // Manually set token and timezone and ensure they're saved
         let (tx, _rx) = tokio::sync::mpsc::unbounded_channel();
-        let path = generate_path().await.unwrap();
+        let path = generate_path().await.expect("Could not generate path");
         let mut config = Config::new(Some(tx.clone()), path)
             .await
             .expect("Init default config");
@@ -1369,16 +1380,18 @@ mod tests {
     #[test]
     fn test_maybe_expand_home_dir_expands_tilde() {
         let input = PathBuf::from("~/myfolder/mysubfile.txt");
-        let expanded = maybe_expand_home_dir(input).unwrap();
+        let expanded = maybe_expand_home_dir(input).expect("Could not expand home dir");
 
-        let expected_prefix = homedir::my_home().unwrap().unwrap();
+        let expected_prefix = homedir::my_home()
+            .expect("Could not find home path")
+            .expect("No home path found");
         assert!(expanded.starts_with(&expected_prefix));
         assert!(expanded.ends_with("myfolder/mysubfile.txt"));
     }
     #[test]
     fn test_maybe_expand_home_dir_non_tilde_unchanged() {
         let input = PathBuf::from("/usr/bin/env");
-        let result = maybe_expand_home_dir(input.clone()).unwrap();
+        let result = maybe_expand_home_dir(input.clone()).expect("Could not expand home dir");
         assert_eq!(result, input);
     }
 
@@ -1400,7 +1413,7 @@ mod tests {
         // Should load successfully
         let loaded = get_config(Some(temp_path.clone())).await;
         assert!(loaded.is_ok(), "Expected Ok for existing config");
-        let loaded = loaded.unwrap();
+        let loaded = loaded.expect("No config found");
         assert_eq!(loaded.token, Some("abc".to_string()));
 
         // Cleanup
@@ -1430,11 +1443,17 @@ mod tests {
         // Should not exist yet
         tokio::fs::remove_file(&temp_path).await.ok();
 
-        let exists = check_config_exists(Some(temp_path.clone())).await.unwrap();
+        let exists = check_config_exists(Some(temp_path.clone()))
+            .await
+            .expect("Could not check if config exists");
         assert!(!exists, "Should be false for nonexistent config");
 
-        tokio::fs::File::create(&temp_path).await.unwrap();
-        let exists = check_config_exists(Some(temp_path.clone())).await.unwrap();
+        tokio::fs::File::create(&temp_path)
+            .await
+            .expect("Could not create file");
+        let exists = check_config_exists(Some(temp_path.clone()))
+            .await
+            .expect("Could not check if config exists");
         assert!(exists, "Should be true for existing config");
 
         tokio::fs::remove_file(&temp_path).await.ok();
@@ -1451,7 +1470,7 @@ mod tests {
         let result = config_reset_with_prompt(Some(temp_path.clone()), false, || true).await;
 
         assert!(result.is_ok(), "Expected Ok, got {result:?}");
-        let msg = result.unwrap();
+        let msg = result.expect("Could not get msg");
         assert!(
             msg.contains("deleted successfully"),
             "Expected deletion message, got: {msg}"
@@ -1474,7 +1493,7 @@ mod tests {
         let result = config_reset_with_prompt(Some(temp_path.clone()), false, || false).await;
 
         assert!(result.is_ok(), "Expected Ok, got {result:?}");
-        let msg = result.unwrap();
+        let msg = result.expect("Could not get reset config response");
         assert_eq!(msg, "Aborted: Config not deleted.");
         assert!(
             Path::new(&temp_path).exists(),

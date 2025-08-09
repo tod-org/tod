@@ -89,7 +89,7 @@ mod tests {
             is_collapsed: false,
         }];
         let result = json_to_sections_response(ResponseFromFile::Sections.read().await)
-            .unwrap()
+            .expect("expected value or result, got None or Err")
             .results;
         assert_eq!(result, sections);
     }

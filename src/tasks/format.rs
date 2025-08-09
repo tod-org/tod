@@ -106,7 +106,8 @@ pub fn due(task: &Task, config: &Config, buffer: &str) -> String {
 // Formats a string for all style/formatted links (including markdown) and formats them as a hyperlink
 fn create_links(content: &str) -> String {
     // Define the regex pattern for Markdown links
-    let link_regex = Regex::new(r"\[([^\]]+)\]\(([^)]+)\)").unwrap();
+    let link_regex =
+        Regex::new(r"\[([^\]]+)\]\(([^)]+)\)").expect("invalid markdown link regex pattern");
 
     // Use `replace_all` to replace all matches
     let result = link_regex.replace_all(content, |caps: &regex::Captures| {
@@ -224,7 +225,9 @@ mod tests {
         let config = test::fixtures::config().await.with_mock_url(server.url());
 
         let comments = vec![test::fixtures::comment()];
-        let comments = render_comments(&config, comments).await.unwrap();
+        let comments = render_comments(&config, comments)
+            .await
+            .expect("expected value or result, got None or Err");
 
         assert_matches!(
             comments.as_str(),
