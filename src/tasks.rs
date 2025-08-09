@@ -987,7 +987,11 @@ async fn parent_in_future(task: Task, tasks: Vec<Task>, config: &Config) -> bool
                 // look up id and see if it is in the future
                 match todoist::get_task(config, &parent_id).await {
                     Err(e) => {
-                        config.clone().tx().send(e).unwrap();
+                        config
+                            .clone()
+                            .tx()
+                            .send(e)
+                            .expect("expected value or result, got None or Err");
                         false
                     }
                     Ok(task) => {
@@ -1110,7 +1114,7 @@ mod tests {
         let task = task
             .fmt(comments, &config, FormatType::Single, false)
             .await
-            .unwrap();
+            .expect("expected value or result, got None or Err");
 
         assert!(task.contains("Get gifts for the twins"));
         assert!(task.contains("2021-08-13"));
@@ -1136,7 +1140,7 @@ mod tests {
         let task_text = task
             .fmt(comments, &config, FormatType::Single, true)
             .await
-            .unwrap();
+            .expect("expected value or result, got None or Err");
 
         assert!(task_text.contains("Today @ computer"));
     }
@@ -1208,7 +1212,11 @@ mod tests {
             ..test::fixtures::today_task().await
         };
 
-        assert!(!task.is_today(&config).unwrap());
+        assert!(
+            !task
+                .is_today(&config)
+                .expect("expected value or result, got None or Err")
+        );
 
         let task_today = Task {
             due: Some(DateInfo {
@@ -1221,7 +1229,11 @@ mod tests {
             }),
             ..test::fixtures::today_task().await
         };
-        assert!(task_today.is_today(&config).unwrap());
+        assert!(
+            task_today
+                .is_today(&config)
+                .expect("expected value or result, got None or Err")
+        );
 
         let task_in_past = Task {
             due: Some(DateInfo {
@@ -1233,7 +1245,11 @@ mod tests {
             }),
             ..test::fixtures::today_task().await
         };
-        assert!(!task_in_past.is_today(&config).unwrap());
+        assert!(
+            !task_in_past
+                .is_today(&config)
+                .expect("expected value or result, got None or Err")
+        );
     }
 
     #[tokio::test]
@@ -1400,7 +1416,11 @@ mod tests {
             is_deleted: false,
         };
 
-        assert!(!task.is_overdue(&config).unwrap());
+        assert!(
+            !task
+                .is_overdue(&config)
+                .expect("expected value or result, got None or Err")
+        );
 
         let task_today = Task {
             due: Some(DateInfo {
@@ -1413,7 +1433,11 @@ mod tests {
             }),
             ..task.clone()
         };
-        assert!(!task_today.is_overdue(&config).unwrap());
+        assert!(
+            !task_today
+                .is_overdue(&config)
+                .expect("expected value or result, got None or Err")
+        );
 
         let task_future = Task {
             due: Some(DateInfo {
@@ -1425,7 +1449,11 @@ mod tests {
             }),
             ..task.clone()
         };
-        assert!(!task_future.is_overdue(&config).unwrap());
+        assert!(
+            !task_future
+                .is_overdue(&config)
+                .expect("expected value or result, got None or Err")
+        );
 
         let task_today = Task {
             due: Some(DateInfo {
@@ -1437,7 +1465,11 @@ mod tests {
             }),
             ..task
         };
-        assert!(task_today.is_overdue(&config).unwrap());
+        assert!(
+            task_today
+                .is_overdue(&config)
+                .expect("expected value or result, got None or Err")
+        );
     }
 
     #[test]
@@ -1464,9 +1496,13 @@ mod tests {
             .mock_select(1)
             .with_mock_url(server.url());
 
-        let future = set_priority(&config, task, false).await.unwrap();
+        let future = set_priority(&config, task, false)
+            .await
+            .expect("expected value or result, got None or Err");
 
-        tokio::join!(future).0.unwrap();
+        tokio::join!(future)
+            .0
+            .expect("expected value or result, got None or Err");
         mock.assert();
     }
 
@@ -1488,16 +1524,16 @@ mod tests {
             .mock_select(0)
             .create()
             .await
-            .unwrap();
+            .expect("expected value or result, got None or Err");
 
         let mut task_count = 3;
         let comments = Vec::new();
         process_task(comments, &config, task, &mut task_count, true)
             .await
-            .unwrap()
-            .unwrap()
+            .expect("expected value or result, got None or Err")
+            .expect("expected value or result, got None or Err")
             .await
-            .unwrap();
+            .expect("expected value or result, got None or Err");
         mock.assert();
     }
 
@@ -1511,7 +1547,9 @@ mod tests {
     async fn test_deadline_value_when_today() {
         let config = test::fixtures::config().await;
         let task = test::fixtures::today_task().await;
-        let value = task.deadline_value(&config).unwrap();
+        let value = task
+            .deadline_value(&config)
+            .expect("expected value or result, got None or Err");
         assert_eq!(value, 150);
     }
 
@@ -1520,7 +1558,9 @@ mod tests {
         let config = test::fixtures::config().await;
         let task = test::fixtures::task(1).await;
 
-        let value = task.deadline_value(&config).unwrap();
+        let value = task
+            .deadline_value(&config)
+            .expect("expected value or result, got None or Err");
         assert_eq!(value, 120);
     }
 
@@ -1529,7 +1569,9 @@ mod tests {
         let config = test::fixtures::config().await;
         let task = test::fixtures::task(6).await;
 
-        let value = task.deadline_value(&config).unwrap();
+        let value = task
+            .deadline_value(&config)
+            .expect("expected value or result, got None or Err");
         assert_eq!(value, 0);
     }
     #[tokio::test]
@@ -1537,7 +1579,9 @@ mod tests {
         let config = test::fixtures::config().await;
         let task = test::fixtures::task(-1).await;
 
-        let value = task.deadline_value(&config).unwrap();
+        let value = task
+            .deadline_value(&config)
+            .expect("expected value or result, got None or Err");
         assert_eq!(value, 180);
     }
 }

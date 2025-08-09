@@ -187,10 +187,16 @@ mod tests {
             .with_timezone("US/Pacific")
             .with_path(config_dir.join("test3"));
 
-        config_with_timezone.clone().create().await.unwrap();
+        config_with_timezone
+            .clone()
+            .create()
+            .await
+            .expect("expected value or result, got None or Err");
 
         let filter = String::from("today");
-        let task = next_task(&config_with_timezone, &filter).await.unwrap();
+        let task = next_task(&config_with_timezone, &filter)
+            .await
+            .expect("expected value or result, got None or Err");
 
         assert!(task.contains("TEST"));
         assert!(task.contains("for 15 min"));

@@ -48,7 +48,12 @@ pub async fn get_latest_version(mock_url: Option<String>) -> Result<String, Erro
 
     if response.status().is_success() {
         let cr: CargoResponse = serde_json::from_str(&response.text().await?)?;
-        Ok(cr.versions.first().unwrap().num.clone())
+        Ok(cr
+            .versions
+            .first()
+            .expect("crates.io response contained no versions")
+            .num
+            .clone())
     } else {
         let message = format!("Error: {:#?}", response.text().await);
         let source = "get_latest_version response failure".to_string();

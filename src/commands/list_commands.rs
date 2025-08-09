@@ -242,7 +242,12 @@ fn select_file(path_or_file: String, config: &Config) -> Result<String, Error> {
             .into_iter()
             .filter_map(|e| e.ok())
             .filter(is_md_file)
-            .map(|e| e.path().to_str().unwrap().to_string())
+            .map(|e| {
+                e.path()
+                    .to_str()
+                    .expect("Could not make str out of DirEntry")
+                    .to_string()
+            })
             .collect::<Vec<String>>();
         options.sort();
         options.dedup();

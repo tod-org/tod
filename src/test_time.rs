@@ -17,9 +17,9 @@ pub struct FixedTimeProvider;
 impl TimeProvider for FixedTimeProvider {
     fn now(&self, tz: Tz) -> DateTime<Tz> {
         let dt_utc = chrono::NaiveDate::from_ymd_opt(2025, 5, 10)
-            .unwrap()
+            .expect("expected value or result, got None or Err")
             .and_hms_opt(10, 0, 0)
-            .unwrap();
+            .expect("expected value or result, got None or Err");
         tz.from_utc_datetime(&dt_utc)
     }
 

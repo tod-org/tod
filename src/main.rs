@@ -71,7 +71,7 @@ async fn main() {
 
 fn terminal_bell() {
     print!("\x07");
-    std::io::stdout().flush().unwrap();
+    std::io::stdout().flush().expect("failed to flush stdout");
 }
 
 #[test]

@@ -911,7 +911,9 @@ mod tests {
         let config = test::fixtures::config().await.with_mock_url(server.url());
 
         let task = test::fixtures::today_task().await;
-        let response = complete_task(&config, &task, false).await.unwrap();
+        let response = complete_task(&config, &task, false)
+            .await
+            .expect("Did not complete task");
         mock.assert();
         assert_eq!(response, String::from("✓"));
     }
@@ -943,7 +945,7 @@ mod tests {
             .expect("Expected at least one project in binding");
         let response = move_task_to_project(&config, &task, project, false)
             .await
-            .unwrap();
+            .expect("Could not move task to project");
 
         assert_eq!(response, task);
         mock.assert();
@@ -969,7 +971,7 @@ mod tests {
         let section = test::fixtures::section();
         let response = move_task_to_section(&config, &task, &section, false)
             .await
-            .unwrap();
+            .expect("Could not move task to section");
 
         assert_eq!(response, task);
         mock.assert();
@@ -1010,7 +1012,9 @@ mod tests {
 
         let config = test::fixtures::config().await.with_mock_url(server.url());
 
-        let response = get_task(&config, "5149481867").await.unwrap();
+        let response = get_task(&config, "5149481867")
+            .await
+            .expect("could not get task");
         mock.assert();
 
         assert_eq!(response.id, String::from("6Xqhv4cwxgjwG9w8"));
@@ -1104,7 +1108,9 @@ mod tests {
 
         let task = test::fixtures::today_task().await;
 
-        let comments = all_comments(&config, &task, None).await.unwrap();
+        let comments = all_comments(&config, &task, None)
+            .await
+            .expect("Could not get all comments");
         mock.assert();
 
         assert_eq!(comments.len(), 7); // One comment in the JSON is_deleted = true
@@ -1116,7 +1122,8 @@ mod tests {
         task.content = "Brush Teeth".to_string();
 
         let mut config = test::fixtures::config().await;
-        config.task_exclude_regex = Some(regex::Regex::new(r"^Brush").unwrap());
+        config.task_exclude_regex =
+            Some(regex::Regex::new(r"^Brush").expect("Could not create regex"));
 
         let result = filter_tasks_by_title(vec![task], config.task_exclude_regex.as_ref(), &config);
         assert!(result.is_empty(), "Expected task to be excluded by regex");
@@ -1128,7 +1135,8 @@ mod tests {
         task.content = "Eat Breakfast".to_string();
 
         let mut config = test::fixtures::config().await;
-        config.task_exclude_regex = Some(regex::Regex::new(r"^Brush").unwrap());
+        config.task_exclude_regex =
+            Some(regex::Regex::new(r"^Brush").expect("Could not create regex"));
 
         let result = filter_tasks_by_title(
             vec![task.clone()],

@@ -15,9 +15,13 @@ const FORMAT_DATETIME_LONG: &str = "%Y-%m-%dT%H:%M:%S%.fZ";
 
 pub const FORMAT_DATE_AND_TIME: &str = "%Y-%m-%d %H:%M";
 
-static DATE_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"^\d{4}-\d{2}-\d{2}$").unwrap());
-static DATETIME_REGEX: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$").unwrap());
+static DATE_REGEX: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(r"^\d{4}-\d{2}-\d{2}$").expect("invalid DATE_REGEX pattern YYYY-MM-DD")
+});
+static DATETIME_REGEX: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$")
+        .expect("invalid DATETIME_REGEX pattern YYYY-MM-DD HH:MM")
+});
 
 #[cfg(test)] //Fixed Time Provider for Testing
 use crate::test_time::FixedTimeProvider;
@@ -294,7 +298,8 @@ mod tests {
     #[test]
     fn test_today_date_from_tz_utc() {
         let tz = Tz::UTC;
-        let result = naive_date_today_from_tz(tz).unwrap();
+        let result =
+            naive_date_today_from_tz(tz).expect("failed to compute today's date for timezone");
         let expected = chrono::Utc::now().with_timezone(&tz).date_naive();
         assert_eq!(result, expected);
     }
@@ -302,7 +307,8 @@ mod tests {
     #[test]
     fn test_today_date_from_tz_pacific() {
         let tz = Tz::America__Los_Angeles;
-        let result = naive_date_today_from_tz(tz).unwrap();
+        let result =
+            naive_date_today_from_tz(tz).expect("failed to compute today's date for timezone");
         let expected = chrono::Utc::now().with_timezone(&tz).date_naive();
         assert_eq!(result, expected);
     }
@@ -310,7 +316,7 @@ mod tests {
     #[test]
     fn trait_default_today_is_used() {
         let provider = SystemTimeProvider;
-        let tz: Tz = "UTC".parse().unwrap();
+        let tz: Tz = "UTC".parse().expect("failed to parse timezone 'UTC'");
         let expected = provider.now(tz).date_naive();
         let today = provider.today(tz);
         assert_eq!(today, expected);
@@ -318,8 +324,12 @@ mod tests {
 
     #[tokio::test]
     async fn errors_when_no_timezone() {
-        let path = config::generate_path().await.unwrap();
-        let config = Config::new(None, path).await.unwrap();
+        let path = config::generate_path()
+            .await
+            .expect("failed to generate config path");
+        let config = Config::new(None, path)
+            .await
+            .expect("failed to create Config with path");
         assert_matches!(config.get_timezone(), Err(Error { .. }));
     }
 
@@ -344,7 +354,7 @@ mod tests {
         let config = Config::default();
 
         // Parse a timezone (e.g., UTC)
-        let tz: Tz = "UTC".parse().unwrap();
+        let tz: Tz = "UTC".parse().expect("failed to parse timezone 'UTC'");
 
         // Call the `today` method via the `time_provider`
         let today_from_provider = config.time_provider.today(tz);

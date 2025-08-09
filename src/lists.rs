@@ -379,7 +379,7 @@ mod tests {
             .with_mock_string("tod")
             .create()
             .await
-            .unwrap();
+            .expect("expected value or result, got None or Err");
 
         let binding = config
             .projects()
@@ -494,7 +494,7 @@ mod tests {
             .mock_select(0)
             .create()
             .await
-            .unwrap();
+            .expect("expected value or result, got None or Err");
         let filter = String::from("today");
         let sort = &SortOrder::Value;
 
@@ -541,7 +541,7 @@ mod tests {
             .mock_select(0)
             .create()
             .await
-            .unwrap();
+            .expect("expected value or result, got None or Err");
 
         let binding = config
             .projects()
@@ -594,7 +594,11 @@ mod tests {
             .with_mock_url(server.url())
             .mock_select(0);
 
-        config_with_timezone.clone().create().await.unwrap();
+        config_with_timezone
+            .clone()
+            .create()
+            .await
+            .expect("expected value or result, got None or Err");
 
         let filter = String::from("today");
         let labels = vec![String::from("thing")];
@@ -629,7 +633,7 @@ mod tests {
 
         let tasks = view(&mut config_with_timezone, Flag::Filter(filter), sort)
             .await
-            .unwrap();
+            .expect("expected value or result, got None or Err");
 
         assert!(tasks.contains("Tasks for today"));
         mock.assert();
@@ -664,7 +668,7 @@ mod tests {
 
         let tasks = view(&mut config_with_timezone, Flag::Project(project), sort)
             .await
-            .unwrap();
+            .expect("expected value or result, got None or Err");
 
         assert!(tasks.contains("Tasks for"));
         assert!(tasks.contains("- TEST\n"));

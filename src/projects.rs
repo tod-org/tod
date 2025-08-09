@@ -512,7 +512,10 @@ pub async fn move_task_to_project(
                     if let Err(e) =
                         todoist::move_task_to_project(&config, &task, &project, false).await
                     {
-                        config.tx().send(e).unwrap();
+                        config
+                            .tx()
+                            .send(e)
+                            .expect("expected value or result, got None or Err");
                     }
                 }))
             } else {
@@ -528,7 +531,10 @@ pub async fn move_task_to_project(
                     if let Err(e) =
                         todoist::move_task_to_section(&config, &task, &section, false).await
                     {
-                        config.tx().send(e).unwrap();
+                        config
+                            .tx()
+                            .send(e)
+                            .expect("expected value or result, got None or Err");
                     }
                 }))
             }
@@ -545,11 +551,20 @@ mod tests {
 
     #[tokio::test]
     async fn should_add_and_remove_projects() {
-        let config = test::fixtures::config().await.create().await.unwrap();
+        let config = test::fixtures::config()
+            .await
+            .create()
+            .await
+            .expect("expected value or result, got None or Err");
 
         let mut config = config;
-        let binding = config.projects().await.unwrap();
-        let project = binding.first().unwrap();
+        let binding = config
+            .projects()
+            .await
+            .expect("expected value or result, got None or Err");
+        let project = binding
+            .first()
+            .expect("expected value or result, got None or Err");
 
         let result = remove(&mut config, project).await;
         assert_eq!(Ok("✓".to_string()), result);
@@ -571,11 +586,14 @@ mod tests {
             .await
             .create()
             .await
-            .unwrap()
+            .expect("expected value or result, got None or Err")
             .with_mock_url(server.url())
             .with_projects(vec![test::fixtures::project()]);
 
-        config.save().await.unwrap();
+        config
+            .save()
+            .await
+            .expect("expected value or result, got None or Err");
 
         let str = "Projects                           # Tasks\n - Doomsday                      ";
 
@@ -613,12 +631,23 @@ mod tests {
             .with_timezone("America/Vancouver")
             .with_path(config_dir.join("test3"))
             .with_mock_url(server.url());
-        let binding = config_with_timezone.projects().await.unwrap();
-        let project = binding.first().unwrap();
+        let binding = config_with_timezone
+            .projects()
+            .await
+            .expect("expected value or result, got None or Err");
+        let project = binding
+            .first()
+            .expect("expected value or result, got None or Err");
 
-        config_with_timezone.clone().create().await.unwrap();
+        config_with_timezone
+            .clone()
+            .create()
+            .await
+            .expect("expected value or result, got None or Err");
 
-        let response = next_task(config_with_timezone, project).await.unwrap();
+        let response = next_task(config_with_timezone, project)
+            .await
+            .expect("expected value or result, got None or Err");
 
         assert!(response.contains("TEST"));
         assert!(response.contains("1 task(s) remaining"));
@@ -643,7 +672,7 @@ mod tests {
             .mock_select(0)
             .create()
             .await
-            .unwrap();
+            .expect("expected value or result, got None or Err");
 
         assert_eq!(
             import(&mut config, &false).await,
@@ -651,11 +680,14 @@ mod tests {
         );
         mock.assert_async().await;
 
-        let config = config.reload().await.unwrap();
+        let config = config
+            .reload()
+            .await
+            .expect("expected value or result, got None or Err");
         let config_keys: Vec<String> = config
             .projects()
             .await
-            .unwrap()
+            .expect("expected value or result, got None or Err")
             .iter()
             .map(|p| p.name.to_owned())
             .collect();
@@ -678,13 +710,16 @@ mod tests {
             .with_mock_url(server.url())
             .create()
             .await
-            .unwrap();
+            .expect("expected value or result, got None or Err");
 
         let result = remove_auto(&mut config);
         let expected: Result<String, Error> = Ok(String::from("Auto removed: 'myproject'"));
         assert_eq!(result.await, expected);
         mock.assert_async().await;
-        let projects = config.projects().await.unwrap();
+        let projects = config
+            .projects()
+            .await
+            .expect("expected value or result, got None or Err");
         assert_eq!(projects.is_empty(), true);
     }
 
@@ -695,13 +730,16 @@ mod tests {
             .mock_select(1)
             .create()
             .await
-            .unwrap();
+            .expect("expected value or result, got None or Err");
 
         let result = remove_all(&mut config).await;
         let expected: Result<String, Error> = Ok(String::from("Removed all projects from config"));
         assert_eq!(result, expected);
 
-        let projects = config.projects().await.unwrap();
+        let projects = config
+            .projects()
+            .await
+            .expect("expected value or result, got None or Err");
         assert_eq!(projects.is_empty(), true);
     }
 
@@ -756,8 +794,13 @@ mod tests {
             .with_mock_string("newtext")
             .mock_select(0);
 
-        let binding = config.projects().await.unwrap();
-        let project = binding.first().unwrap();
+        let binding = config
+            .projects()
+            .await
+            .expect("expected value or result, got None or Err");
+        let project = binding
+            .first()
+            .expect("expected value or result, got None or Err");
         let result = empty(&mut config, project).await;
         assert_eq!(result, Ok(String::from("Successfully emptied 'myproject'")));
         mock.expect(2);
@@ -775,9 +818,9 @@ mod tests {
 
         move_task_to_project(&mut config, task, &sections)
             .await
-            .unwrap()
+            .expect("expected value or result, got None or Err")
             .await
-            .unwrap();
+            .expect("expected value or result, got None or Err");
     }
 
     #[tokio::test]
@@ -795,8 +838,13 @@ mod tests {
             .await
             .with_mock_url(server.url())
             .mock_select(0);
-        let binding = config.projects().await.unwrap();
-        let project = binding.first().unwrap();
+        let binding = config
+            .projects()
+            .await
+            .expect("expected value or result, got None or Err");
+        let project = binding
+            .first()
+            .expect("expected value or result, got None or Err");
 
         let result = edit_task(&config, project);
         assert_eq!(result.await, Ok("Finished editing task".to_string()));
@@ -819,9 +867,14 @@ mod tests {
             .mock_select(0)
             .create()
             .await
-            .unwrap();
-        let binding = config.projects().await.unwrap();
-        let project = binding.first().unwrap();
+            .expect("expected value or result, got None or Err");
+        let binding = config
+            .projects()
+            .await
+            .expect("expected value or result, got None or Err");
+        let project = binding
+            .first()
+            .expect("expected value or result, got None or Err");
 
         let result = delete(&mut config, project).await;
         assert_eq!(result, Ok("✓".to_string()));
@@ -866,8 +919,13 @@ mod tests {
             .mock_select(1)
             .with_mock_string("tod");
 
-        let binding = config.projects().await.unwrap();
-        let project = binding.first().unwrap();
+        let binding = config
+            .projects()
+            .await
+            .expect("expected value or result, got None or Err");
+        let project = binding
+            .first()
+            .expect("expected value or result, got None or Err");
         let sort = &SortOrder::Value;
         let result = schedule(&config, project, TaskFilter::Unscheduled, false, sort);
         assert_eq!(
@@ -877,8 +935,13 @@ mod tests {
 
         let config = config.mock_select(2);
 
-        let binding = config.projects().await.unwrap();
-        let project = binding.first().unwrap();
+        let binding = config
+            .projects()
+            .await
+            .expect("expected value or result, got None or Err");
+        let project = binding
+            .first()
+            .expect("expected value or result, got None or Err");
         let result = schedule(&config, project, TaskFilter::Overdue, false, sort);
         assert_eq!(
             result.await,
@@ -887,8 +950,13 @@ mod tests {
 
         let config = config.mock_select(3);
 
-        let binding = config.projects().await.unwrap();
-        let project = binding.first().unwrap();
+        let binding = config
+            .projects()
+            .await
+            .expect("expected value or result, got None or Err");
+        let project = binding
+            .first()
+            .expect("expected value or result, got None or Err");
         let result = schedule(&config, project, TaskFilter::Unscheduled, false, sort);
         assert_eq!(
             result.await,
@@ -945,8 +1013,13 @@ mod tests {
             .with_body(ResponseFromFile::CommentsAllTypes.read().await)
             .create_async()
             .await;
-        let binding = config.projects().await.unwrap();
-        let project = binding.first().unwrap();
+        let binding = config
+            .projects()
+            .await
+            .expect("expected value or result, got None or Err");
+        let project = binding
+            .first()
+            .expect("expected value or result, got None or Err");
         let sort = &SortOrder::Value;
         let result = deadline(&config, project, sort);
         assert_eq!(
@@ -956,8 +1029,13 @@ mod tests {
 
         let config = config.mock_select(3);
 
-        let binding = config.projects().await.unwrap();
-        let project = binding.first().unwrap();
+        let binding = config
+            .projects()
+            .await
+            .expect("expected value or result, got None or Err");
+        let project = binding
+            .first()
+            .expect("expected value or result, got None or Err");
         let result = deadline(&config, project, sort);
         assert_eq!(
             result.await,
