@@ -199,7 +199,7 @@ mod tests {
             .await
             .into_iter()
             .find(|c| c.id == "video-1")
-            .unwrap();
+            .expect("Could not find ID video-1");
         let output = comment
             .fmt(&config)
             .expect("Failed to format the comment with the provided config");
@@ -213,7 +213,7 @@ mod tests {
             .await
             .into_iter()
             .find(|c| c.id == "image-1")
-            .unwrap();
+            .expect("could not find id image-1");
         let output = comment
             .fmt(&config)
             .expect("Failed to format the comment with the provided config");
@@ -227,7 +227,7 @@ mod tests {
             .await
             .into_iter()
             .find(|c| c.id == "url-1")
-            .unwrap();
+            .expect("Could not find ID url-1");
         let output = comment
             .fmt(&config)
             .expect("Failed to format the comment with the provided config");
@@ -241,7 +241,7 @@ mod tests {
             .await
             .into_iter()
             .find(|c| c.id == "shorturl-1")
-            .unwrap();
+            .expect("Could not find ID shorturl-1");
         let output = comment
             .fmt(&config)
             .expect("Failed to format the comment with the provided config");
@@ -255,7 +255,7 @@ mod tests {
             .await
             .into_iter()
             .find(|c| c.id == "rich-1")
-            .unwrap();
+            .expect("Could not find ID rich-1");
         let output = comment
             .fmt(&config)
             .expect("Failed to format the comment with the provided config");
@@ -269,7 +269,7 @@ mod tests {
             .await
             .into_iter()
             .find(|c| c.id == "noattach-1")
-            .unwrap();
+            .expect("Could not find ID noattach-1");
         let output = comment
             .fmt(&config)
             .expect("Failed to format the comment with the provided config");
@@ -322,10 +322,13 @@ mod tests {
         }
         "#;
 
-        let mut comments = json_to_comment_response(json.to_string()).unwrap().results;
+        let mut comments = json_to_comment_response(json.to_string())
+            .expect("Could not convert JSON into comment response")
+            .results;
 
         // Simulate filtering using a regex from config
-        let re = regex::Regex::new(r"(?i)^via habit tracker|ignore me").unwrap();
+        let re =
+            regex::Regex::new(r"(?i)^via habit tracker|ignore me").expect("Could not create regex");
         comments.retain(|c| !re.is_match(&c.content));
 
         let remaining_ids: Vec<_> = comments.iter().map(|c| &c.id).collect();

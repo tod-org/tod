@@ -25,7 +25,8 @@ pub fn label() -> Label {
 /// Adjust a date forward in time in days, use negative to go backwards in time
 async fn adjusted_date(days: i64) -> String {
     let config = config().await.with_timezone("America/Vancouver");
-    let base_date = time::naive_date_today(&config).unwrap();
+    let base_date =
+        time::naive_date_today(&config).expect("expected value or result, got None or Err");
     let adjusted = base_date + ChronoDuration::days(days);
     adjusted.format(FORMAT_DATE).to_string()
 }
@@ -117,7 +118,9 @@ pub async fn task(days_in_future: i64) -> Task {
 pub async fn config() -> Config {
     let (tx, _rx) = tokio::sync::mpsc::unbounded_channel::<Error>();
 
-    let path = config::generate_path().await.unwrap();
+    let path = config::generate_path()
+        .await
+        .expect("expected value or result, got None or Err");
     Config::new(Some(tx), path)
         .await
         .expect("Could not generate directory")
