@@ -9,7 +9,7 @@ on:
       - completed
 
 permissions:
-  contents: read
+  contents: write  # Need write permission to dispatch event
 
 jobs:
   trigger-homebrew-update:
@@ -18,9 +18,16 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - id: app-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ vars.TODD_APP_ID }}
+          private-key: ${{ secrets.TODD_PRIVATE_KEY }}
+          owner: tod-org  # Ensure token is scoped to the target org
+
       - name: Trigger homebrew-tod update
         uses: peter-evans/repository-dispatch@v3
         with:
-          token: ${{ secrets.TOD_CONTENTS_READ_WRITE }}
+          token: ${{ steps.app-token.outputs.token }}
           repository: tod-org/homebrew-tod
           event-type: update-homebrew

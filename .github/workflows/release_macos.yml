@@ -3,14 +3,14 @@
 
 name: macOS Build & Release
 permissions:
-  contents: write  # Allow the workflow to write to the repository contents
-  pull-requests: write  # Allow the workflow to write to pull requests
+  contents: write
+  pull-requests: write
 
 on:
   push:
     tags:
       - 'v*.*.*'
-  workflow_dispatch:  # Allow manual triggering of the workflow
+  workflow_dispatch:
 
 env:
   CARGO_TERM_COLOR: always
@@ -22,88 +22,78 @@ env:
 jobs:
   build:
     name: Build, Release, and Publish for macOS (ARM & Intel)
-    runs-on: macos-latest  # Use macOS runner
+    runs-on: macos-latest
 
     steps:
-    # Checkout the repository
-    - name: Checkout repository
-      uses: actions/checkout@v4
-    # Install nextest for running tests
-    - uses: taiki-e/install-action@nextest
+      - name: App token
+        id: app-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ vars.TODD_APP_ID }}
+          private-key: ${{ secrets.TODD_PRIVATE_KEY }}
+          owner: tod-org
 
-    # Install the Rust toolchain
-    - name: Install Rust Toolchain
-      run: rustup toolchain install
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
+      - uses: taiki-e/install-action@nextest
 
-    - uses: Swatinem/rust-cache@v2
-      with:
-        cache-all-crates: true
+      - name: Install Rust Toolchain
+        run: rustup toolchain install
 
-    # Run Platform Tests
-    - name: Run tests using cargo-nextest
-      run: cargo nextest run --all-features  # Run all tests with nextest.
-      continue-on-error: false  # Fail the job if tests do not pass
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-all-crates: true
 
-    # Get version and tag from Cargo.toml
-    - name: Set VERSION and TAG from Cargo.toml
-      id: cargo-get
-      uses: nicolaiunrein/cargo-get@master
-      with:
-        subcommand: package.version 
+      - name: Run tests using cargo-nextest
+        run: cargo nextest run --all-features
+        continue-on-error: false
 
-    # Set the version as an output variable
-    - name: Set version output
-      id: package-version
-      run: |
-        echo "VERSION=$(cargo get package.version)" >> $GITHUB_ENV
-        echo "TAG=$(cargo get package.version --pretty)" >> $GITHUB_ENV
+      - name: Set VERSION and TAG from Cargo.toml
+        id: cargo-get
+        uses: nicolaiunrein/cargo-get@master
+        with:
+          subcommand: package.version
 
-    # Add the x86_64 target to cross-compile for darwin (macOS Intel)
-    - name: Add x86_64 target for cross-compilation
-      run: rustup target add x86_64-apple-darwin
- 
-    # Build for darwin (macOS ARM)
-    - name: Build for macOS (ARM)
-      run: |
-        cargo build --release --target aarch64-apple-darwin
+      - name: Set version output
+        id: package-version
+        run: |
+          echo "VERSION=$(cargo get package.version)" >> $GITHUB_ENV
+          echo "TAG=$(cargo get package.version --pretty)" >> $GITHUB_ENV
 
-    # Gzip the ARM binary as tod-<version>-darwin-arm64.tar.gz
-    - name: Gzipping the ARM binary
-      run:
-        tar -czf target/release/tod-$VERSION-darwin-arm64.tar.gz -C target/aarch64-apple-darwin/release tod
+      - name: Add x86_64 target for cross-compilation
+        run: rustup target add x86_64-apple-darwin
 
-    # Hash the release binary for ARM
-    - name: Hash ARM release binary
-      run: |
-        HASH=$(shasum -a 256 target/release/tod-$VERSION-darwin-arm64.tar.gz | awk '{print $1}')
-        echo "ARM HASH: $HASH"
+      - name: Build for macOS (ARM)
+        run: cargo build --release --target aarch64-apple-darwin
 
-    # Build for darwin (macOS amd64)
-    - name: Build for macOS (Intel)
-      run: |
-        cargo build --release --target x86_64-apple-darwin
+      - name: Gzipping the ARM binary
+        run: tar -czf target/release/tod-$VERSION-darwin-arm64.tar.gz -C target/aarch64-apple-darwin/release tod
 
-    # Gzip the x86 binary as tod-<version>-darwin-amd64.tar.gz
-    - name: Gzipping the x86 binary
-      run: |
-        tar -czf target/release/tod-$VERSION-darwin-amd64.tar.gz -C target/x86_64-apple-darwin/release tod
+      - name: Hash ARM release binary
+        run: |
+          HASH=$(shasum -a 256 target/release/tod-$VERSION-darwin-arm64.tar.gz | awk '{print $1}')
+          echo "ARM HASH: $HASH"
 
-    # Hash the release binary for amd64
-    - name: Hash Intel release binary
-      run: |
-        HASH=$(shasum -a 256 target/release/tod-$VERSION-darwin-amd64.tar.gz | awk '{print $1}')
-        echo "Intel HASH: $HASH"
+      - name: Build for macOS (Intel)
+        run: cargo build --release --target x86_64-apple-darwin
 
-    # Upload Binaries to existing GitHub release using softprops/action-gh-release
-    - name: Upload darwin (macOS) binaries
-      run: |
-        gh release upload "$TAG" \
-          target/release/tod-$VERSION-darwin-amd64.tar.gz \
-          target/release/tod-$VERSION-darwin-arm64.tar.gz \
-          --repo "$GITHUB_REPOSITORY" \
-          --clobber
-      env:
-        GITHUB_TOKEN: ${{ secrets.TOD_CONTENTS_READ_WRITE }}
-        VERSION: ${{ env.VERSION }}
-        TAG: ${{ env.TAG }}
+      - name: Gzipping the x86 binary
+        run: tar -czf target/release/tod-$VERSION-darwin-amd64.tar.gz -C target/x86_64-apple-darwin/release tod
+
+      - name: Hash Intel release binary
+        run: |
+          HASH=$(shasum -a 256 target/release/tod-$VERSION-darwin-amd64.tar.gz | awk '{print $1}')
+          echo "Intel HASH: $HASH"
+
+      - name: Upload darwin (macOS) binaries
+        run: |
+          gh release upload "$TAG" \
+            target/release/tod-$VERSION-darwin-amd64.tar.gz \
+            target/release/tod-$VERSION-darwin-arm64.tar.gz \
+            --repo "$GITHUB_REPOSITORY" \
+            --clobber
+        env:
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+          VERSION: ${{ env.VERSION }}
+          TAG: ${{ env.TAG }}
