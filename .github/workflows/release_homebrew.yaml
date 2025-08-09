@@ -1,33 +1,203 @@
-name: Release Homebrew Formula
+name: Update Homebrew Formula
 
 on:
-  workflow_dispatch:  # Allows manual triggering
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to update to (e.g., v1.2.3 or 1.2.3). If blank, use latest release."
+        required: false
+        type: string
 
-  workflow_run:       # Automatically trigger when both jobs succeed
+  workflow_run:
     workflows: ["macOS Build & Release", "Linux Build & Release"]
-    types:
-      - completed
+    types: [completed]
 
 permissions:
-  contents: write  # Need write permission to dispatch event
+  contents: read
+
+concurrency:
+  group: homebrew-formula-update
+  cancel-in-progress: false
 
 jobs:
-  trigger-homebrew-update:
-    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
-    name: Dispatch to homebrew-tod
+  update-homebrew:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
 
     steps:
-      - id: app-token
+      - name: Create app token (tod-deploy)
+        id: app-token
         uses: actions/create-github-app-token@v2
         with:
           app-id: ${{ vars.TODD_APP_ID }}
           private-key: ${{ secrets.TODD_PRIVATE_KEY }}
-          owner: tod-org  # Ensure token is scoped to the target org
+          owner: tod-org
+          repositories: homebrew-tod
 
-      - name: Trigger homebrew-tod update
-        uses: peter-evans/repository-dispatch@v3
+      - name: Install tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq curl coreutils
+
+      - name: Checkout homebrew tap
+        uses: actions/checkout@v4
         with:
-          token: ${{ steps.app-token.outputs.token }}
           repository: tod-org/homebrew-tod
-          event-type: update-homebrew
+          ref: main
+          token: ${{ steps.app-token.outputs.token }}
+          persist-credentials: false
+
+      - name: Resolve version
+        id: resolve_version
+        shell: bash
+        env:
+          INPUT_TAG: ${{ github.event.inputs.tag }}
+        run: |
+          set -euo pipefail
+          if [[ -n "${INPUT_TAG:-}" ]]; then
+            tag="${INPUT_TAG}"
+            version="${tag#v}"
+            echo "Using provided tag: ${tag}"
+          else
+            echo "No tag provided; fetching latest release from tod-org/tod…"
+            tag="$(curl -fsSL https://api.github.com/repos/tod-org/tod/releases/latest | jq -r .tag_name)"
+            if [[ -z "${tag}" || "${tag}" == "null" ]]; then
+              echo "Failed to fetch latest tag from tod-org/tod"
+              exit 1
+            fi
+            version="${tag#v}"
+            echo "Latest tag: ${tag}"
+          fi
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+
+      - name: Compute SHAs for release artifacts
+        id: shas
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${{ steps.resolve_version.outputs.version }}"
+          tag="v${version}"
+          base="https://github.com/tod-org/tod/releases/download/${tag}"
+
+          declare -A files=(
+            [mac_arm]="tod-${version}-darwin-arm64.tar.gz"
+            [mac_intel]="tod-${version}-darwin-amd64.tar.gz"
+            [linux_arm]="tod-${version}-linux-arm64.tar.gz"
+            [linux_intel]="tod-${version}-linux-amd64.tar.gz"
+          )
+
+          for k in "${!files[@]}"; do
+            url="${base}/${files[$k]}"
+            echo "Downloading $k: $url"
+            curl -fsSL "$url" -o "$k.tgz"
+            sha=$(sha256sum "$k.tgz" | awk '{print $1}')
+            echo "$k=$sha" >> "$GITHUB_OUTPUT"
+            echo "SHA256($k)=$sha"
+          done
+
+      - name: Update formula with Python (no Ruby)
+        run: |
+          python3 - <<'PY'
+          import re, sys, pathlib
+          version = "${{ steps.resolve_version.outputs.version }}"
+          shas = {
+            "mac_arm":     "${{ steps.shas.outputs.mac_arm }}",
+            "mac_intel":   "${{ steps.shas.outputs.mac_intel }}",
+            "linux_arm":   "${{ steps.shas.outputs.linux_arm }}",
+            "linux_intel": "${{ steps.shas.outputs.linux_intel }}",
+          }
+          files = {
+            "mac_arm":     f"tod-{version}-darwin-arm64.tar.gz",
+            "mac_intel":   f"tod-{version}-darwin-amd64.tar.gz",
+            "linux_arm":   f"tod-{version}-linux-arm64.tar.gz",
+            "linux_intel": f"tod-{version}-linux-amd64.tar.gz",
+          }
+          tag = f"v{version}"
+          base = f"https://github.com/tod-org/tod/releases/download/{tag}"
+
+          p = pathlib.Path("Formula/tod.rb")
+          text = p.read_text()
+
+          # Always set version
+          text = re.sub(r'version\s+"[^"]+"', f'version "{version}"', text)
+
+          def replace_block(txt, os_label, cpu_label, filename, sha):
+            # Match the smallest on_<os> ... on_<cpu> block that contains url/sha256 lines
+            # and replace those two lines only.
+            pattern = (
+              rf'(on_{os_label}\s+do.*?on_{cpu_label}\s+do.*?)(url\s+"[^"]+"\s*\n\s*sha256\s+"[0-9a-f]+"\s*)(.*?end\s*\n\s*end)'
+            )
+            # In case url/sha are on separate lines with comments/spaces, use a more flexible inner matcher:
+            pattern = (
+              rf'(on_{os_label}\s+do.*?on_{cpu_label}\s+do.*?)(?:\n|\r|\r\n)'
+              rf'(?:(?:(?!end).)*?)'
+              rf'url\s+"[^"]+"\s*\n\s*sha256\s+"[0-9a-f]+"'  # the pair we want to swap
+              rf'(?:(?:(?!end).)*?)'
+              rf'(end\s*\n\s*end)'
+            )
+
+            # To do a reliable targeted replacement, re-find the exact url/sha lines first:
+            block_re = re.compile(
+              rf'on_{os_label}\s+do(?P<os_blk>.*?)on_{cpu_label}\s+do(?P<cpu_blk>.*?end)(?P<rest>.*?end)',
+              re.DOTALL
+            )
+            m = block_re.search(txt)
+            if not m:
+              return txt, False
+
+            # Now patch the first url/sha pair inside cpu block
+            cpu_blk = m.group("cpu_blk")
+            url_re = re.compile(r'url\s+"[^"]+"')
+            sha_re = re.compile(r'sha256\s+"[0-9a-f]+"')
+
+            if not url_re.search(cpu_blk) or not sha_re.search(cpu_blk):
+              return txt, False
+
+            new_url = f'url "{base}/{filename}"'
+            new_sha = f'sha256 "{sha}"'
+            cpu_blk = url_re.sub(new_url, cpu_blk, count=1)
+            cpu_blk = sha_re.sub(new_sha, cpu_blk, count=1)
+
+            new_txt = txt[:m.start("cpu_blk")] + cpu_blk + txt[m.end("cpu_blk"):]
+            return new_txt, True
+
+          ok = True
+          for (os_label, cpu_label, key) in [
+            ("macos", "arm", "mac_arm"),
+            ("macos", "intel", "mac_intel"),
+            ("linux", "arm", "linux_arm"),
+            ("linux", "intel", "linux_intel"),
+          ]:
+            new_text, changed = replace_block(text, os_label, cpu_label, files[key], shas[key])
+            if not changed:
+              ok = False
+            text = new_text
+
+          if not ok:
+            print("ERROR: One or more platform blocks failed to update.", file=sys.stderr)
+            sys.exit(1)
+
+          pathlib.Path("Formula/tod.rb").write_text(text)
+          print("Formula updated for", version)
+          PY
+
+      - name: Show diff (for logs)
+        run: git --no-pager diff --stat || true
+
+      - name: Commit & push changes (if any)
+        env:
+          APP_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          set -euo pipefail
+          if git diff --quiet; then
+            echo "ℹ️ No changes to commit."
+            exit 0
+          fi
+
+          git config user.name "tod-deploy[bot]"
+          git config user.email "tod-deploy[bot]@users.noreply.github.com"
+          git add Formula/tod.rb
+          git commit -m "chore(homebrew): update formula for ${{ steps.resolve_version.outputs.version }}"
+          git push "https://x-access-token:${APP_TOKEN}@github.com/tod-org/homebrew-tod.git" HEAD:main
+          echo "✅ Homebrew formula updated and pushed successfully."
