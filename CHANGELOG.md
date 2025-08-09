@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.11.0](https://github.com/tod-org/tod/compare/v0.10.0...v0.11.0) (2025-08-09)
+
+
+### Features
+
+* add tod config about ([5b61a35](https://github.com/tod-org/tod/commit/5b61a35c8d7906c9e7609e9fee0bc48033bfcb37))
+
+
+### Bug Fixes
+
+* create config at correct path ([7d40d12](https://github.com/tod-org/tod/commit/7d40d1228d53ec6f14ae80a4687b01cdf32e9d1d))
+
 ## [0.10.0](https://github.com/alanvardy/tod/compare/v0.9.1...v0.10.0) (2025-07-14)
 
 ### Features
