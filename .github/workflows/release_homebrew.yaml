@@ -22,8 +22,6 @@ concurrency:
 
 jobs:
   update-homebrew:
-    # Manual? always.
-    # Auto? only proceed when the given workflow_run concluded success AND our guard confirms both macOS & Linux are successful for the same commit.
     if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
 
