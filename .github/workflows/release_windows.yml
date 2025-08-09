@@ -99,7 +99,7 @@ jobs:
           private-key: ${{ secrets.TODD_PRIVATE_KEY }}
           owner: tod-org
 
-      - name: Checkout repository (no persisted PAT)
+      - name: Checkout repository (App token authentication)
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
