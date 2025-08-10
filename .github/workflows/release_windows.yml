@@ -29,6 +29,7 @@ jobs:
           app-id: ${{ vars.TODD_APP_ID }}
           private-key: ${{ secrets.TODD_PRIVATE_KEY }}
           owner: tod-org
+          repositories: tod
 
       - name: Checkout repository
         uses: actions/checkout@v4
