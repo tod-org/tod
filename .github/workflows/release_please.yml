@@ -23,6 +23,8 @@ jobs:
         with:
           app-id: ${{ vars.TODD_APP_ID }}
           private-key: ${{ secrets.TODD_PRIVATE_KEY }}
+          owner: tod-org
+          repositories: tod
 
       - id: release
         uses: googleapis/release-please-action@v4
