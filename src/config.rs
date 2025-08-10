@@ -660,11 +660,7 @@ pub async fn get_or_create(
         ..config
     };
 
-    let redacted_config = Config {
-        token: Some("REDACTED".into()),
-        ..config.clone()
-    };
-    debug::maybe_print(&config, format!("{redacted_config:#?}"));
+    debug::maybe_print_redacted_config(&config);
     Ok(config)
 }
 //create the config file with settings
