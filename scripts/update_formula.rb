@@ -1,5 +1,6 @@
 require "digest"
 require "open-uri"
+require "net/http"
 
 version = ARGV[0] or abort("Usage: ruby update_formula.rb <version> (e.g. 0.8.0)")
 tag = "v#{version}"
@@ -19,7 +20,7 @@ platforms.each do |key, filename|
   url = "#{base_url}/#{filename}"
   begin
     puts "🔽 Downloading #{url}..."
-    file = URI.open(url).read
+    file = Net::HTTP.get(URI(url))
     sha256s[key] = Digest::SHA256.hexdigest(file)
     puts "✅ SHA256 for #{key}: #{sha256s[key]}"
   rescue => e
