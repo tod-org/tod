@@ -1,5 +1,5 @@
 # This GitHub Actions workflow updates the Homebrew formula for the tod application. It pulls the script from the homebrew-tod repository and then runs it to update the Formula, then pushes the new updated formula directly.
-name: Update Homebrew Formulae
+name: Update Homebrew Formula
 
 on:
   workflow_dispatch:
@@ -45,8 +45,30 @@ jobs:
           REPO: ${{ github.repository }}
           HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
-          sudo apt-get update
-          sudo apt-get install -y jq curl coreutils
+          set -euo pipefail
+          need=("macOS Build & Release" "Linux Build & Release")
+          for w in "${need[@]}"; do
+            # Find the most recent run for this workflow name & head_sha
+            run_json=$(gh api \
+              -H "Accept: application/vnd.github+json" \
+              "/repos/$REPO/actions/workflows" | jq -r --arg name "$w" '.workflows[] | select(.name==$name) | .id' | head -n1)
+            if [[ -z "${run_json:-}" ]]; then
+              echo "Could not find workflow id for '$w'"; exit 1
+            fi
+            run_id=$(gh api \
+              -H "Accept: application/vnd.github+json" \
+              "/repos/$REPO/actions/workflows/$run_json/runs?per_page=50&head_sha=$HEAD_SHA" \
+              | jq -r '.workflow_runs | map(select(.head_sha=="'"$HEAD_SHA"'")) | first | .id // empty')
+            if [[ -z "${run_id:-}" ]]; then
+              echo "No run of '$w' found for head_sha=$HEAD_SHA yet"; exit 1
+            fi
+            conclusion=$(gh api \
+              -H "Accept: application/vnd.github+json" \
+              "/repos/$REPO/actions/runs/$run_id" | jq -r '.conclusion')
+            if [[ "$conclusion" != "success" ]]; then
+              echo "'$w' is not successful yet (conclusion=$conclusion)"; exit 1
+            fi
+          done
           echo "Both platform workflows succeeded for $HEAD_SHA."
 
       - name: Checkout homebrew-tod
@@ -90,7 +112,6 @@ jobs:
       - name: Run formula updater (from tap repo)
         run: |
           ruby scripts/update_formula.rb "${{ steps.resolve_version.outputs.version }}"
-
 
       - name: Show diff
         run: git --no-pager diff --stat || true
