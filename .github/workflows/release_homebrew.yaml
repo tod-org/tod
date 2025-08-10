@@ -1,4 +1,5 @@
-name: Update Homebrew Formula
+# This GitHub Actions workflow updates the Homebrew formula for the tod application. It pulls the script from the homebrew-tod repository and then runs it to update the Formula, then pushes the new updated formula directly.
+name: Update Homebrew Formulae
 
 on:
   workflow_dispatch:
@@ -21,6 +22,8 @@ concurrency:
 
 jobs:
   update-homebrew:
+    # Manual? always.
+    # Auto? only proceed when the given workflow_run concluded success AND our guard confirms both macOS & Linux are successful for the same commit.
     if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
 
@@ -34,159 +37,62 @@ jobs:
           owner: tod-org
           repositories: homebrew-tod
 
-      - name: Install tools
+      # Avoid double-runs: only continue automatically when BOTH platform workflows have succeeded for the same head_sha.
+      - name: Ensure both macOS & Linux release workflows succeeded (skip on manual)
+        if: ${{ github.event_name == 'workflow_run' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
           sudo apt-get update
           sudo apt-get install -y jq curl coreutils
+          echo "Both platform workflows succeeded for $HEAD_SHA."
 
-      - name: Checkout homebrew tap
+      - name: Checkout homebrew-tod
         uses: actions/checkout@v4
         with:
           repository: tod-org/homebrew-tod
           ref: main
+          fetch-depth: 1
           token: ${{ steps.app-token.outputs.token }}
           persist-credentials: false
 
+      # Resolve version (manual input or latest release)
       - name: Resolve version
         id: resolve_version
-        shell: bash
         env:
+          GH_TOKEN: ${{ github.token }}
           INPUT_TAG: ${{ github.event.inputs.tag }}
         run: |
           set -euo pipefail
           if [[ -n "${INPUT_TAG:-}" ]]; then
             tag="${INPUT_TAG}"
             version="${tag#v}"
-            echo "Using provided tag: ${tag}"
+            echo "Using provided tag: $tag"
           else
-            echo "No tag provided; fetching latest release from tod-org/tod…"
-            tag="$(curl -fsSL https://api.github.com/repos/tod-org/tod/releases/latest | jq -r .tag_name)"
-            if [[ -z "${tag}" || "${tag}" == "null" ]]; then
-              echo "Failed to fetch latest tag from tod-org/tod"
-              exit 1
+            tag=$(gh api /repos/tod-org/tod/releases/latest --jq .tag_name)
+            if [[ -z "${tag:-}" || "${tag}" == "null" ]]; then
+              echo "Failed to fetch latest tag from tod-org/tod"; exit 1
             fi
             version="${tag#v}"
-            echo "Latest tag: ${tag}"
+            echo "Latest tag: $tag"
           fi
           echo "version=${version}" >> "$GITHUB_OUTPUT"
           echo "tag=${tag}" >> "$GITHUB_OUTPUT"
 
-      - name: Compute SHAs for release artifacts
-        id: shas
-        shell: bash
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.1'
+          bundler-cache: false
+
+      - name: Run formula updater (from tap repo)
         run: |
-          set -euo pipefail
-          version="${{ steps.resolve_version.outputs.version }}"
-          tag="v${version}"
-          base="https://github.com/tod-org/tod/releases/download/${tag}"
+          ruby scripts/update_formula.rb "${{ steps.resolve_version.outputs.version }}"
 
-          declare -A files=(
-            [mac_arm]="tod-${version}-darwin-arm64.tar.gz"
-            [mac_intel]="tod-${version}-darwin-amd64.tar.gz"
-            [linux_arm]="tod-${version}-linux-arm64.tar.gz"
-            [linux_intel]="tod-${version}-linux-amd64.tar.gz"
-          )
 
-          for k in "${!files[@]}"; do
-            url="${base}/${files[$k]}"
-            echo "Downloading $k: $url"
-            curl -fsSL "$url" -o "$k.tgz"
-            sha=$(sha256sum "$k.tgz" | awk '{print $1}')
-            echo "$k=$sha" >> "$GITHUB_OUTPUT"
-            echo "SHA256($k)=$sha"
-          done
-
-      - name: Update formula with Python (no Ruby)
-        run: |
-          python3 - <<'PY'
-          import re, sys, pathlib
-          version = "${{ steps.resolve_version.outputs.version }}"
-          shas = {
-            "mac_arm":     "${{ steps.shas.outputs.mac_arm }}",
-            "mac_intel":   "${{ steps.shas.outputs.mac_intel }}",
-            "linux_arm":   "${{ steps.shas.outputs.linux_arm }}",
-            "linux_intel": "${{ steps.shas.outputs.linux_intel }}",
-          }
-          files = {
-            "mac_arm":     f"tod-{version}-darwin-arm64.tar.gz",
-            "mac_intel":   f"tod-{version}-darwin-amd64.tar.gz",
-            "linux_arm":   f"tod-{version}-linux-arm64.tar.gz",
-            "linux_intel": f"tod-{version}-linux-amd64.tar.gz",
-          }
-          tag = f"v{version}"
-          base = f"https://github.com/tod-org/tod/releases/download/{tag}"
-
-          p = pathlib.Path("Formula/tod.rb")
-          text = p.read_text()
-
-          # Always set version
-          text = re.sub(r'version\s+"[^"]+"', f'version "{version}"', text)
-
-          def replace_block(txt, os_label, cpu_label, filename, sha):
-            # Match the smallest on_<os> ... on_<cpu> block that contains url/sha256 lines
-            # and replace those two lines only.
-            pattern = (
-              rf'(on_{os_label}\s+do.*?on_{cpu_label}\s+do.*?)(url\s+"[^"]+"\s*\n\s*sha256\s+"[0-9a-f]+"\s*)(.*?end\s*\n\s*end)'
-            )
-            # In case url/sha are on separate lines with comments/spaces, use a more flexible inner matcher:
-            pattern = (
-              rf'(on_{os_label}\s+do.*?on_{cpu_label}\s+do.*?)(?:\n|\r|\r\n)'
-              rf'(?:(?:(?!end).)*?)'
-              rf'url\s+"[^"]+"\s*\n\s*sha256\s+"[0-9a-f]+"'  # the pair we want to swap
-              rf'(?:(?:(?!end).)*?)'
-              rf'(end\s*\n\s*end)'
-            )
-
-            # To do a reliable targeted replacement, re-find the exact url/sha lines first:
-            block_re = re.compile(
-              rf'on_{os_label}\s+do(?P<os_blk>.*?)on_{cpu_label}\s+do(?P<cpu_blk>.*?end)(?P<rest>.*?end)',
-              re.DOTALL
-            )
-            m = block_re.search(txt)
-            if not m:
-              return txt, False
-
-            # Now patch the first url/sha pair inside cpu block
-            cpu_blk = m.group("cpu_blk")
-            url_re = re.compile(r'url\s+"[^"]+"')
-            sha_re = re.compile(r'sha256\s+"[0-9a-f]+"')
-
-            if not url_re.search(cpu_blk) or not sha_re.search(cpu_blk):
-              return txt, False
-
-            new_url = f'url "{base}/{filename}"'
-            new_sha = f'sha256 "{sha}"'
-            cpu_blk = url_re.sub(new_url, cpu_blk, count=1)
-            cpu_blk = sha_re.sub(new_sha, cpu_blk, count=1)
-
-            new_txt = txt[:m.start("cpu_blk")] + cpu_blk + txt[m.end("cpu_blk"):]
-            return new_txt, True
-
-          ok = True
-          for (os_label, cpu_label, key) in [
-            ("macos", "arm", "mac_arm"),
-            ("macos", "intel", "mac_intel"),
-            ("linux", "arm", "linux_arm"),
-            ("linux", "intel", "linux_intel"),
-          ]:
-            new_text, changed = replace_block(text, os_label, cpu_label, files[key], shas[key])
-            if not changed:
-              ok = False
-            text = new_text
-
-          if not ok:
-              failed_platforms.append(key)
-            text = new_text
-
-          if not ok:
-            print(f"ERROR: The following platform blocks failed to update: {', '.join(failed_platforms)}.", file=sys.stderr)
-            sys.exit(1)
-
-          pathlib.Path("Formula/tod.rb").write_text(text)
-          print("Formula updated for", version)
-          PY
-
-      - name: Show diff (for logs)
+      - name: Show diff
         run: git --no-pager diff --stat || true
 
       - name: Commit & push changes (if any)
@@ -198,10 +104,10 @@ jobs:
             echo "ℹ️ No changes to commit."
             exit 0
           fi
-
+          echo "✅ Changes detected. Committing…"
           git config user.name "tod-deploy[bot]"
           git config user.email "tod-deploy[bot]@users.noreply.github.com"
           git add Formula/tod.rb
-          git commit -m "chore(homebrew): update formula for ${{ steps.resolve_version.outputs.version }}"
+          git commit -m "Update formula to version ${{ steps.resolve_version.outputs.version }}"
           git push "https://x-access-token:${APP_TOKEN}@github.com/tod-org/homebrew-tod.git" HEAD:main
-          echo "✅ Homebrew formula updated and pushed successfully."
+          echo "Changes pushed to homebrew-tod repository."
