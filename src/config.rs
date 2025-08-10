@@ -660,8 +660,12 @@ pub async fn get_or_create(
         ..config
     };
 
+    let token = config.token.as_ref().map(|t| {
+        let start = t.len().saturating_sub(5);
+        format!("---REDACTED---{}", &t[start..].to_string())
+    });
     let redacted_config = Config {
-        token: Some("REDACTED".into()),
+        token,
         ..config.clone()
     };
     debug::maybe_print(&config, format!("{redacted_config:#?}"));
