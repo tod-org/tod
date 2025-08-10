@@ -110,7 +110,11 @@ jobs:
       - name: Run formula updater (from tap repo)
         run: |
           ruby scripts/update_formula.rb "${{ steps.resolve_version.outputs.version }}"
-
+          if [ ! -f scripts/update_formula.rb ]; then
+            echo "Error: scripts/update_formula.rb not found!" >&2
+            exit 1
+          fi
+          ruby scripts/update_formula.rb "${{ steps.resolve_version.outputs.version }}"
       - name: Show diff
         run: git --no-pager diff --stat || true
 
