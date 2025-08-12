@@ -25,7 +25,7 @@ jobs:
     # Run all tests using nextest
     name: Cargo CI Tests
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: taiki-e/install-action@nextest
 
       - name: Install Rust Toolchain
@@ -40,7 +40,7 @@ jobs:
     runs-on: ubuntu-latest
     name: Cargo Check
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
         with:
@@ -52,7 +52,7 @@ jobs:
     name: TODO and FIXME 
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - run: ./scripts/lint_string.sh "TODO "
       - run: ./scripts/lint_string.sh "TODO:"
       - run: ./scripts/lint_string.sh "FIXME "
@@ -67,7 +67,7 @@ jobs:
     name: Rust-fmt (Cargo Format)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
         with:
@@ -81,7 +81,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       
       - name: Install Rust Toolchain
         run: rustup toolchain install
