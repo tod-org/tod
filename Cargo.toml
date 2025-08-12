@@ -37,7 +37,7 @@ tokio = { version = "1.47.1", features = ["full"] }
 futures = "0.3.31"
 supports-hyperlinks = "3.1.0"
 terminal_size = "0.4.3"
-clap_complete = "4.5.56"
+clap_complete = "4.5.57"
 walkdir = "2.5.0"
 once_cell = "1.21.3"
 strum = { version = "0.27.2", features = ["strum_macros"] }
