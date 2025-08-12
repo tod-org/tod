@@ -38,7 +38,7 @@ jobs:
           repositories: tod
 
       - name: Checkout repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - uses: Swatinem/rust-cache@v2
         with:
@@ -96,7 +96,7 @@ jobs:
           owner: tod-org
 
       - name: Checkout repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Install Rust Toolchain
         run: rustup toolchain install
