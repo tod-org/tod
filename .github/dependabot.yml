@@ -1,6 +1,7 @@
 version: 2
 
 updates:
+  # ---- Cargo (Rust) ----
   - package-ecosystem: "cargo"
     directory: "/"
     schedule:
@@ -10,7 +11,12 @@ updates:
     commit-message:
       prefix: "chore"
       include: "scope"
+    groups:
+      cargo-all:
+        patterns: ["*"]                 # include all crates
+        update-types: ["major","minor","patch"]  # = all updates
 
+  # ---- GitHub Actions ----
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
@@ -20,3 +26,7 @@ updates:
     commit-message:
       prefix: "chore"
       include: "scope"
+    groups:
+      gha-all:
+        patterns: ["*"]                 # include all actions
+        update-types: ["major","minor","patch"]  # = all updates
