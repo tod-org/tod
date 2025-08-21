@@ -262,7 +262,7 @@ impl Task {
 
         let content = self.content.clone();
         let debug_text = format!("Value: {value}, Content: {content}");
-        debug::maybe_print(config, debug_text);
+        debug::maybe_print(config, &debug_text);
         value
     }
 
@@ -829,7 +829,7 @@ pub fn spawn_update_task_deadline(
 /// Updates task inside another thread
 pub fn spawn_comment_task(config: Config, task: Task, task_comment: String) -> JoinHandle<()> {
     tokio::spawn(async move {
-        if let Err(e) = todoist::create_comment(&config, &task, task_comment, false).await {
+        if let Err(e) = todoist::create_comment(&config, &task, &task_comment, false).await {
             config
                 .tx()
                 .send(e)
@@ -841,7 +841,7 @@ pub fn spawn_comment_task(config: Config, task: Task, task_comment: String) -> J
 /// Updates task inside another thread
 pub fn spawn_update_task_content(config: Config, task: Task, content: String) -> JoinHandle<()> {
     tokio::spawn(async move {
-        if let Err(e) = todoist::update_task_content(&config, &task, content, false).await {
+        if let Err(e) = todoist::update_task_content(&config, &task, &content, false).await {
             config
                 .tx()
                 .send(e)
@@ -857,7 +857,8 @@ pub fn spawn_update_task_description(
     description: String,
 ) -> JoinHandle<()> {
     tokio::spawn(async move {
-        if let Err(e) = todoist::update_task_description(&config, &task, description, false).await {
+        if let Err(e) = todoist::update_task_description(&config, &task, &description, false).await
+        {
             config
                 .tx()
                 .send(e)

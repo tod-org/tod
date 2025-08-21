@@ -643,7 +643,7 @@ pub async fn get_or_create(
     let config = match fs::File::open(&path).await {
         Ok(_) => Config::load(&path).await,
         Err(err) if err.kind() == std::io::ErrorKind::NotFound => {
-            debug::print("Config file not found, creating new config".into());
+            debug::print("Config file not found, creating new config");
             create_config(tx, path).await
         }
         Err(err) => Err(Error::new(
@@ -652,7 +652,7 @@ pub async fn get_or_create(
         )),
     }?;
 
-    let config = Config {
+    let mut config = Config {
         args: Args { timeout, verbose },
         internal: Internal {
             tx: Some(tx.clone()),
@@ -660,7 +660,7 @@ pub async fn get_or_create(
         ..config
     };
 
-    debug::maybe_print_redacted_config(&config);
+    debug::maybe_print_redacted_config(&mut config);
     Ok(config)
 }
 //create the config file with settings

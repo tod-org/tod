@@ -101,40 +101,38 @@ pub struct Empty {
     project: Option<String>,
 }
 
-pub async fn create(config: Config, args: &Create) -> Result<String, Error> {
+pub async fn create(config: &mut Config, args: &Create) -> Result<String, Error> {
     let Create {
         name,
         description,
         is_favorite,
     } = args;
-    let name = super::fetch_string(name.as_deref(), &config, input::NAME)?;
-    let description = description.clone().unwrap_or_default();
-    let mut config = config;
-    projects::create(&mut config, name, description, *is_favorite).await
+    let name = super::fetch_string(name.as_deref(), config, input::NAME)?;
+    let description = description.as_deref().unwrap_or_default();
+
+    projects::create(config, name, description, *is_favorite).await
 }
 
-pub async fn list(config: Config, _args: &List) -> Result<String, Error> {
-    let mut config = config.clone();
-    projects::list(&mut config).await
+pub async fn list(config: &mut Config, _args: &List) -> Result<String, Error> {
+    projects::list(config).await
 }
 
-pub async fn remove(config: Config, args: &Remove) -> Result<String, Error> {
+pub async fn remove(config: &mut Config, args: &Remove) -> Result<String, Error> {
     let Remove {
         all,
         auto,
         project,
         repeat,
     } = args;
-    let mut config = config.clone();
     match (all, auto) {
-        (true, false) => projects::remove_all(&mut config).await,
-        (false, true) => projects::remove_auto(&mut config).await,
+        (true, false) => projects::remove_all(config).await,
+        (false, true) => projects::remove_auto(config).await,
         (false, false) => loop {
-            let project = match super::fetch_project(project.as_deref(), &config).await? {
+            let project = match super::fetch_project(project.as_deref(), config).await? {
                 Flag::Project(project) => project,
                 _ => unreachable!(),
             };
-            let value = projects::remove(&mut config, &project).await;
+            let value = projects::remove(config, &project).await;
 
             if !repeat {
                 return value;
@@ -144,15 +142,14 @@ pub async fn remove(config: Config, args: &Remove) -> Result<String, Error> {
     }
 }
 
-pub async fn delete(config: Config, args: &Delete) -> Result<String, Error> {
+pub async fn delete(config: &mut Config, args: &Delete) -> Result<String, Error> {
     let Delete { project, repeat } = args;
-    let mut config = config.clone();
     loop {
-        let project = match super::fetch_project(project.as_deref(), &config).await? {
+        let project = match super::fetch_project(project.as_deref(), config).await? {
             Flag::Project(project) => project,
             _ => unreachable!(),
         };
-        let tasks = todoist::all_tasks_by_project(&config, &project, None).await?;
+        let tasks = todoist::all_tasks_by_project(config, &project, None).await?;
 
         if !tasks.is_empty() {
             println!();
@@ -165,7 +162,7 @@ pub async fn delete(config: Config, args: &Delete) -> Result<String, Error> {
                 return Ok("Cancelled".into());
             }
         }
-        let value = projects::delete(&mut config, &project).await;
+        let value = projects::delete(config, &project).await;
 
         if !repeat {
             return value;
@@ -173,33 +170,31 @@ pub async fn delete(config: Config, args: &Delete) -> Result<String, Error> {
     }
 }
 
-pub async fn rename(config: Config, args: &Rename) -> Result<String, Error> {
+pub async fn rename(config: &mut Config, args: &Rename) -> Result<String, Error> {
     let Rename { project } = args;
-    let project = match super::fetch_project(project.as_deref(), &config).await? {
+    let project = match super::fetch_project(project.as_deref(), config).await? {
         Flag::Project(project) => project,
         _ => unreachable!(),
     };
     debug::maybe_print(
-        &config,
-        format!("Calling projects::rename with project:\n{project}"),
+        config,
+        &format!("Calling projects::rename with project:\n{project}"),
     );
     projects::rename(config, &project).await
 }
 
-pub async fn import(config: Config, args: &Import) -> Result<String, Error> {
+pub async fn import(config: &mut Config, args: &Import) -> Result<String, Error> {
     let Import { auto } = args;
 
-    let mut config = config.clone();
-    projects::import(&mut config, auto).await
+    projects::import(config, auto).await
 }
 
-pub async fn empty(config: &Config, args: &Empty) -> Result<String, Error> {
+pub async fn empty(config: &mut Config, args: &Empty) -> Result<String, Error> {
     let Empty { project } = args;
     let project = match super::fetch_project(project.as_deref(), config).await? {
         Flag::Project(project) => project,
         _ => unreachable!(),
     };
 
-    let mut config = config.clone();
-    projects::empty(&mut config, &project).await
+    projects::empty(config, &project).await
 }

@@ -110,10 +110,10 @@ pub struct Comment {
     /// Content for comment
     content: Option<String>,
 }
-pub async fn quick_add(config: Config, args: &QuickAdd) -> Result<String, Error> {
+pub async fn quick_add(config: &Config, args: &QuickAdd) -> Result<String, Error> {
     let QuickAdd { content } = args;
     let maybe_string = content.as_ref().map(|c| c.join(" "));
-    let content = super::fetch_string(maybe_string.as_deref(), &config, input::CONTENT)?;
+    let content = super::fetch_string(maybe_string.as_deref(), config, input::CONTENT)?;
     let (content, reminder) = if let Some(index) = content.find('!') {
         let (before, after) = content.split_at(index);
         // after starts with '!', so skip it
@@ -124,7 +124,7 @@ pub async fn quick_add(config: Config, args: &QuickAdd) -> Result<String, Error>
     } else {
         (content, None)
     };
-    todoist::quick_create_task(&config, &content, reminder).await?;
+    todoist::quick_create_task(config, &content, reminder).await?;
     Ok(color::green_string("✓"))
 }
 
@@ -293,7 +293,7 @@ pub async fn comment(config: Config, args: &Comment) -> Result<String, Error> {
     match config.next_task() {
         Some(task) => {
             let content = super::fetch_string(content.as_deref(), &config, input::CONTENT)?;
-            todoist::create_comment(&config, &task, content, true).await?;
+            todoist::create_comment(&config, &task, &content, true).await?;
             Ok(color::green_string("Comment created successfully"))
         }
         None => Err(Error::new(
