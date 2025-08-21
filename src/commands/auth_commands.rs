@@ -11,7 +11,6 @@ pub enum AuthCommands {
 #[derive(Parser, Debug, Clone)]
 pub struct Login {}
 
-pub async fn login(config: Config, _args: &Login) -> Result<String, Error> {
-    let mut config = config;
-    oauth::login(&mut config, None).await
+pub async fn login(config: &mut Config, _args: &Login) -> Result<String, Error> {
+    oauth::login(config, None).await
 }
