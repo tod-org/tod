@@ -30,7 +30,7 @@ const HTTP_FORBIDDEN: u16 = 403;
 /// Pass in a Value::Null for the body if there is no payload
 pub async fn post_todoist(
     config: &Config,
-    url: String,
+    url: &str,
     body: serde_json::Value,
     spinner: bool,
 ) -> Result<String, Error> {
@@ -41,7 +41,7 @@ pub async fn post_todoist(
     let authorization = format!("Bearer {token}");
     let spinner = maybe_start_spinner(config, spinner);
 
-    debug::maybe_print(config, format!("POST {request_url}\nbody: {body}"));
+    debug::maybe_print(config, &format!("POST {request_url}\nbody: {body}"));
 
     let client = Client::new()
         .post(request_url.clone())
@@ -61,7 +61,7 @@ pub async fn post_todoist(
 
 pub async fn post_todoist_no_token(
     config: &Config,
-    url: String,
+    url: &str,
     body: serde_json::Value,
     spinner: bool,
 ) -> Result<String, Error> {
@@ -69,7 +69,7 @@ pub async fn post_todoist_no_token(
     let request_url = format!("{base_url}{url}");
     let spinner = maybe_start_spinner(config, spinner);
 
-    debug::maybe_print(config, format!("POST {request_url}\nbody: {body}"));
+    debug::maybe_print(config, &format!("POST {request_url}\nbody: {body}"));
 
     let client = Client::new()
         .post(request_url.clone())
@@ -95,7 +95,7 @@ fn get_token(config: &Config) -> Result<String, Error> {
 
 pub async fn delete_todoist(
     config: &Config,
-    url: String,
+    url: &str,
     body: serde_json::Value,
     spinner: bool,
 ) -> Result<String, Error> {
@@ -106,7 +106,7 @@ pub async fn delete_todoist(
     let authorization = format!("Bearer {token}");
     let spinner = maybe_start_spinner(config, spinner);
 
-    debug::maybe_print(config, format!("DELETE {request_url}\nbody: {body}"));
+    debug::maybe_print(config, &format!("DELETE {request_url}\nbody: {body}"));
 
     let response = Client::new()
         .delete(request_url.clone())
@@ -124,7 +124,7 @@ pub async fn delete_todoist(
 
 // Combine get and post into one function
 /// Get Todoist via REST api
-pub async fn get_todoist(config: &Config, url: String, spinner: bool) -> Result<String, Error> {
+pub async fn get_todoist(config: &Config, url: &str, spinner: bool) -> Result<String, Error> {
     let base_url = get_base_url(config);
     let token = get_token(config)?;
 
@@ -134,7 +134,7 @@ pub async fn get_todoist(config: &Config, url: String, spinner: bool) -> Result<
     if config.verbose.unwrap_or_default() {
         println!("GET {request_url}")
     }
-    debug::maybe_print(config, format!("GET {request_url}"));
+    debug::maybe_print(config, &format!("GET {request_url}"));
     let response = Client::new()
         .get(request_url.clone())
         .header(CONTENT_TYPE, "application/json")
@@ -151,14 +151,14 @@ async fn handle_response(
     config: &Config,
     response: Response,
     method: &str,
-    url: String,
+    url: &str,
     body: serde_json::Value,
 ) -> Result<String, Error> {
     let status = response.status();
     let status_code = status.as_u16();
     if status.is_success() {
         let json_string = response.text().await?;
-        debug::maybe_print(config, format!("{method} {url}\nresponse: {json_string}"));
+        debug::maybe_print(config, &format!("{method} {url}\nresponse: {json_string}"));
         Ok(json_string)
     } else if status_code == HTTP_UNAUTHORIZED || status_code == HTTP_FORBIDDEN {
         let command = color::blue_string("tod auth login");

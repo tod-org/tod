@@ -29,7 +29,7 @@ pub async fn get_labels(config: &Config, spinner: bool) -> Result<Vec<Label>, Er
     todoist::all_labels(config, spinner, None).await
 }
 
-pub fn json_to_labels_response(json: String) -> Result<LabelResponse, Error> {
-    let response: LabelResponse = serde_json::from_str(&json)?;
+pub fn json_to_labels_response(json: &str) -> Result<LabelResponse, Error> {
+    let response: LabelResponse = serde_json::from_str(json)?;
     Ok(response)
 }

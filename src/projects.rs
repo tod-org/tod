@@ -90,11 +90,10 @@ pub fn json_to_projects_response(json: String) -> Result<ProjectResponse, Error>
 pub async fn create(
     config: &mut Config,
     name: String,
-    description: String,
+    description: &str,
     is_favorite: bool,
 ) -> Result<String, Error> {
-    let project =
-        todoist::create_project(config, name.clone(), description, is_favorite, true).await?;
+    let project = todoist::create_project(config, &name, description, is_favorite, true).await?;
     add(config, &project).await?;
     Ok(format!("Created project {name} and added to config"))
 }
@@ -169,17 +168,15 @@ pub async fn delete(config: &mut Config, project: &Project) -> Result<String, Er
 }
 
 /// Rename a project in config
-pub async fn rename(config: Config, project: &Project) -> Result<String, Error> {
+pub async fn rename(config: &mut Config, project: &Project) -> Result<String, Error> {
     let new_name = input::string_with_default(input::NAME, &project.name)?;
-
-    let mut config = config;
 
     let new_project = Project {
         name: new_name,
         ..project.clone()
     };
-    remove(&mut config, project).await?;
-    add(&mut config, &new_project).await
+    remove(config, project).await?;
+    add(config, &new_project).await
 }
 
 /// Get the next task by priority and save its id to config
@@ -551,13 +548,12 @@ mod tests {
 
     #[tokio::test]
     async fn should_add_and_remove_projects() {
-        let config = test::fixtures::config()
+        let mut config = test::fixtures::config()
             .await
             .create()
             .await
             .expect("expected value or result, got None or Err");
 
-        let mut config = config;
         let binding = config
             .projects()
             .await

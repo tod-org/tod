@@ -19,15 +19,15 @@ pub struct Create {
     project: Option<String>,
 }
 
-pub async fn create(config: Config, args: &Create) -> Result<String, Error> {
+pub async fn create(config: &Config, args: &Create) -> Result<String, Error> {
     let Create { name, project } = args;
-    let name = super::fetch_string(name.as_deref(), &config, input::NAME)?;
+    let name = super::fetch_string(name.as_deref(), config, input::NAME)?;
 
-    let project = match super::fetch_project(project.as_deref(), &config).await? {
+    let project = match super::fetch_project(project.as_deref(), config).await? {
         Flag::Project(project) => project,
         _ => unreachable!(),
     };
 
-    todoist::create_section(&config, name, &project, true).await?;
+    todoist::create_section(config, &name, &project, true).await?;
     Ok(color::green_string("Section created successfully"))
 }
