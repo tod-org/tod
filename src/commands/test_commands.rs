@@ -12,6 +12,6 @@ pub enum TestCommands {
 #[derive(Parser, Debug, Clone)]
 pub struct All {}
 
-pub async fn all(config: Config, _args: &All) -> Result<String, Error> {
+pub async fn all(config: &Config, _args: &All) -> Result<String, Error> {
     todoist::test_all_endpoints(config).await
 }

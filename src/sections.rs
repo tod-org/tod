@@ -41,12 +41,12 @@ pub async fn all_sections(config: &mut Config) -> Result<Vec<Section>, Error> {
     Ok(sections)
 }
 
-pub fn json_to_section(json: String) -> Result<Section, Error> {
-    let section: Section = serde_json::from_str(&json)?;
+pub fn json_to_section(json: &str) -> Result<Section, Error> {
+    let section: Section = serde_json::from_str(json)?;
     Ok(section)
 }
-pub fn json_to_sections_response(json: String) -> Result<SectionResponse, Error> {
-    let response: SectionResponse = serde_json::from_str(&json)?;
+pub fn json_to_sections_response(json: &str) -> Result<SectionResponse, Error> {
+    let response: SectionResponse = serde_json::from_str(json)?;
     Ok(response)
 }
 
@@ -88,7 +88,7 @@ mod tests {
             is_deleted: false,
             is_collapsed: false,
         }];
-        let result = json_to_sections_response(ResponseFromFile::Sections.read().await)
+        let result = json_to_sections_response(&ResponseFromFile::Sections.read().await)
             .expect("expected value or result, got None or Err")
             .results;
         assert_eq!(result, sections);

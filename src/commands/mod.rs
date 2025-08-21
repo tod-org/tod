@@ -126,80 +126,80 @@ pub async fn select_command(
     match &cli.command {
         // Project
         Commands::Project(ProjectCommands::Create(args)) => {
-            let config = match fetch_config(&cli, &tx).await {
+            let mut config = match fetch_config(&cli, &tx).await {
                 Ok(config) => config,
                 Err(e) => return (true, true, Err(e)),
             };
             (
                 config.bell_on_success,
                 config.bell_on_failure,
-                project_commands::create(config, args).await,
+                project_commands::create(&mut config, args).await,
             )
         }
         Commands::Project(ProjectCommands::List(args)) => {
-            let config = match fetch_config(&cli, &tx).await {
+            let mut config = match fetch_config(&cli, &tx).await {
                 Ok(config) => config,
                 Err(e) => return (true, true, Err(e)),
             };
             (
                 config.bell_on_success,
                 config.bell_on_failure,
-                project_commands::list(config, args).await,
+                project_commands::list(&mut config, args).await,
             )
         }
         Commands::Project(ProjectCommands::Remove(args)) => {
-            let config = match fetch_config(&cli, &tx).await {
+            let mut config = match fetch_config(&cli, &tx).await {
                 Ok(config) => config,
                 Err(e) => return (true, true, Err(e)),
             };
             (
                 config.bell_on_success,
                 config.bell_on_failure,
-                project_commands::remove(config, args).await,
+                project_commands::remove(&mut config, args).await,
             )
         }
         Commands::Project(ProjectCommands::Rename(args)) => {
-            let config = match fetch_config(&cli, &tx).await {
+            let mut config = match fetch_config(&cli, &tx).await {
                 Ok(config) => config,
                 Err(e) => return (true, true, Err(e)),
             };
             (
                 config.bell_on_success,
                 config.bell_on_failure,
-                project_commands::rename(config, args).await,
+                project_commands::rename(&mut config, args).await,
             )
         }
         Commands::Project(ProjectCommands::Import(args)) => {
-            let config = match fetch_config(&cli, &tx).await {
+            let mut config = match fetch_config(&cli, &tx).await {
                 Ok(config) => config,
                 Err(e) => return (true, true, Err(e)),
             };
             (
                 config.bell_on_success,
                 config.bell_on_failure,
-                project_commands::import(config, args).await,
+                project_commands::import(&mut config, args).await,
             )
         }
         Commands::Project(ProjectCommands::Empty(args)) => {
-            let config = match fetch_config(&cli, &tx).await {
+            let mut config = match fetch_config(&cli, &tx).await {
                 Ok(config) => config,
                 Err(e) => return (true, true, Err(e)),
             };
             (
                 config.bell_on_success,
                 config.bell_on_failure,
-                project_commands::empty(&config, args).await,
+                project_commands::empty(&mut config, args).await,
             )
         }
         Commands::Project(ProjectCommands::Delete(args)) => {
-            let config = match fetch_config(&cli, &tx).await {
+            let mut config = match fetch_config(&cli, &tx).await {
                 Ok(config) => config,
                 Err(e) => return (true, true, Err(e)),
             };
             (
                 config.bell_on_success,
                 config.bell_on_failure,
-                project_commands::delete(config, args).await,
+                project_commands::delete(&mut config, args).await,
             )
         }
 
@@ -211,7 +211,7 @@ pub async fn select_command(
             (
                 config.bell_on_success,
                 config.bell_on_failure,
-                section_commands::create(config, args).await,
+                section_commands::create(&config, args).await,
             )
         }
 
@@ -224,7 +224,7 @@ pub async fn select_command(
             (
                 config.bell_on_success,
                 config.bell_on_failure,
-                task_commands::quick_add(config, args).await,
+                task_commands::quick_add(&config, args).await,
             )
         }
         Commands::Task(TaskCommands::Create(args)) => {
@@ -285,14 +285,14 @@ pub async fn select_command(
 
         // List
         Commands::List(ListCommands::View(args)) => {
-            let config = match fetch_config(&cli, &tx).await {
+            let mut config = match fetch_config(&cli, &tx).await {
                 Ok(config) => config,
                 Err(e) => return (true, true, Err(e)),
             };
             (
                 config.bell_on_success,
                 config.bell_on_failure,
-                list_commands::view(config, args).await,
+                list_commands::view(&mut config, args).await,
             )
         }
         Commands::List(ListCommands::Process(args)) => {
@@ -401,7 +401,7 @@ pub async fn select_command(
         }
 
         Commands::Auth(AuthCommands::Login(args)) => {
-            let config = match get_existing_config_exists(cli.config.clone()).await {
+            let mut config = match get_existing_config_exists(cli.config.clone()).await {
                 Ok(config) => config,
                 Err(_) => match fetch_config(&cli, &tx).await {
                     Ok(config) => config,
@@ -411,7 +411,7 @@ pub async fn select_command(
             (
                 config.bell_on_success,
                 config.bell_on_failure,
-                auth_commands::login(config, args).await,
+                auth_commands::login(&mut config, args).await,
             )
         }
 
@@ -429,7 +429,7 @@ pub async fn select_command(
             (
                 config.bell_on_success,
                 config.bell_on_failure,
-                test_commands::all(config, args).await,
+                test_commands::all(&config, args).await,
             )
         }
     }
