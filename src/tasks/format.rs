@@ -1,9 +1,10 @@
-use regex::Regex;
 use std::borrow::Cow;
 use supports_hyperlinks::Stream;
 
 use super::{DateTimeInfo, Duration, Task, Unit, priority};
-use crate::{color, comments::Comment, config::Config, errors::Error, projects::Project, time};
+use crate::{
+    color, comments::Comment, config::Config, errors::Error, projects::Project, regexes, time,
+};
 
 pub fn content(task: &Task, config: &Config) -> String {
     let content = match task.priority {
@@ -105,12 +106,7 @@ pub fn due(task: &Task, config: &Config, buffer: &str) -> String {
 
 // Formats a string for all style/formatted links (including markdown) and formats them as a hyperlink
 fn create_links(content: &str) -> String {
-    // Define the regex pattern for Markdown links
-    let link_regex =
-        Regex::new(r"\[([^\]]+)\]\(([^)]+)\)").expect("invalid markdown link regex pattern");
-
-    // Use `replace_all` to replace all matches
-    let result = link_regex.replace_all(content, |caps: &regex::Captures| {
+    let result = regexes::MARKDOWN_LINK.replace_all(content, |caps: &regex::Captures| {
         let text = &caps[1];
         let url = &caps[2];
         Cow::from(format!("\x1b]8;;{url}\x07[{text}]\x1b]8;;\x07"))
