@@ -1,15 +1,13 @@
+use crate::config::Config;
+use crate::errors::Error;
+use crate::filters;
+use crate::input;
+use crate::lists::{self, Flag};
+use crate::projects;
+use crate::tasks::SortOrder;
 use clap::{Parser, Subcommand};
 use std::path::Path;
 use walkdir::WalkDir;
-
-use crate::{
-    config::Config,
-    errors::Error,
-    filters, input,
-    lists::{self, Flag},
-    projects,
-    tasks::SortOrder,
-};
 
 #[derive(Subcommand, Debug, Clone)]
 pub enum ListCommands {
@@ -36,6 +34,10 @@ pub enum ListCommands {
     #[clap(alias = "s")]
     /// (s) Assign dates to all tasks individually
     Schedule(Schedule),
+
+    #[clap(alias = "r")]
+    /// (r) Assign reminders to all tasks individually that do not have reminders already
+    Remind(Remind),
 
     #[clap(alias = "d")]
     /// (d) Assign deadlines to all non-recurring tasks without deadlines individually
@@ -142,6 +144,25 @@ pub struct Schedule {
     #[arg(short, long, default_value_t = false)]
     /// Only schedule overdue tasks
     overdue: bool,
+
+    #[arg(short = 't', long, default_value_t = SortOrder::Value)]
+    /// Choose how results should be sorted
+    sort: SortOrder,
+}
+
+#[derive(Parser, Debug, Clone)]
+pub struct Remind {
+    #[arg(short, long)]
+    /// The project containing the tasks
+    project: Option<String>,
+
+    #[arg(short, long)]
+    /// The filter containing the tasks. Can add multiple filters separated by commas.
+    filter: Option<String>,
+
+    #[arg(short, long, default_value_t = false)]
+    /// Include tasks that already have reminders
+    include_reminders: bool,
 
     #[arg(short = 't', long, default_value_t = SortOrder::Value)]
     /// Choose how results should be sorted
