@@ -26,6 +26,7 @@ mod labels;
 mod lists;
 mod oauth;
 mod projects;
+mod regexes;
 mod sections;
 mod shell;
 mod tasks;
