@@ -1,10 +1,8 @@
-use crate::config::Config;
 use crate::errors::Error;
+use crate::{config::Config, regexes};
 
 use chrono::{DateTime, Duration, NaiveDate, NaiveDateTime, Utc};
 use chrono_tz::Tz;
-use once_cell::sync::Lazy;
-use regex::Regex;
 use std::str::FromStr;
 
 pub const FORMAT_DATE: &str = "%Y-%m-%d";
@@ -14,14 +12,6 @@ const FORMAT_DATETIME_ZULU: &str = "%Y-%m-%dT%H:%M:%SZ";
 const FORMAT_DATETIME_LONG: &str = "%Y-%m-%dT%H:%M:%S%.fZ";
 
 pub const FORMAT_DATE_AND_TIME: &str = "%Y-%m-%d %H:%M";
-
-static DATE_REGEX: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"^\d{4}-\d{2}-\d{2}$").expect("invalid DATE_REGEX pattern YYYY-MM-DD")
-});
-static DATETIME_REGEX: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$")
-        .expect("invalid DATETIME_REGEX pattern YYYY-MM-DD HH:MM")
-});
 
 #[cfg(test)] //Fixed Time Provider for Testing
 use crate::test_time::FixedTimeProvider;
@@ -132,7 +122,7 @@ fn naive_datetime_to_datetime(
 
 /// Checks if string is a datetime in format YYYY-MM-DD HH:MM
 pub fn is_datetime(string: &str) -> bool {
-    DATETIME_REGEX.is_match(string)
+    regexes::DATETIME_REGEX.is_match(string)
 }
 
 // ----------- DATE FUNCTIONS --------------
@@ -162,7 +152,7 @@ pub fn date_from_str(str: &str, timezone: Tz) -> Result<NaiveDate, Error> {
 
 /// Checks if string is a date in format YYYY-MM-DD
 pub fn is_date(string: &str) -> bool {
-    DATE_REGEX.is_match(string)
+    regexes::DATE_REGEX.is_match(string)
 }
 /// Return today's date in Utc from the config timezone (defaults to UTC)
 /// This is used for the "today" command
