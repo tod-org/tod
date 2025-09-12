@@ -169,9 +169,7 @@ pub struct Import {
     /// The file or directory to fuzzy find in
     path: Option<String>,
 }
-pub async fn view(config: Config, args: &View) -> Result<String, Error> {
-    let mut config = config;
-
+pub async fn view(config: &mut Config, args: &View) -> Result<String, Error> {
     let View {
         project,
         filter,
@@ -179,8 +177,8 @@ pub async fn view(config: Config, args: &View) -> Result<String, Error> {
     } = args;
 
     let flag =
-        super::fetch_project_or_filter(project.as_deref(), filter.as_deref(), &config).await?;
-    lists::view(&mut config, flag, sort).await
+        super::fetch_project_or_filter(project.as_deref(), filter.as_deref(), config).await?;
+    lists::view(config, flag, sort).await
 }
 
 pub async fn label(config: Config, args: &Label) -> Result<String, Error> {

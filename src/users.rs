@@ -11,9 +11,9 @@ pub struct TzInfo {
     pub timezone: String,
 }
 
-pub fn json_to_user(json: String) -> Result<User, Error> {
+pub fn json_to_user(json: &str) -> Result<User, Error> {
     // Deserializes JSON string into a `User` struct using Serde.
     // Returns an error if the JSON string does not match the `User` struct format.
-    let user: User = serde_json::from_str(&json)?;
+    let user: User = serde_json::from_str(json)?;
     Ok(user)
 }

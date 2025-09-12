@@ -4,7 +4,7 @@ const TOKEN_SUFFIX_LENGTH: usize = 5;
 const TOKEN_LENGTH: usize = 40;
 
 // Print a debug statement if in verbose mode
-pub fn maybe_print(config: &Config, text: String) {
+pub fn maybe_print(config: &Config, text: &str) {
     if config.verbose.unwrap_or_default() || config.args.verbose {
         print(text)
     }
@@ -12,21 +12,20 @@ pub fn maybe_print(config: &Config, text: String) {
 
 // Print config with token redacted to console if in verbose mode
 // Everything but the last 5 characters are turned into x's before being printed to console
-pub fn maybe_print_redacted_config(config: &Config) {
+pub fn maybe_print_redacted_config(config: &mut Config) {
     if config.verbose.unwrap_or_default() || config.args.verbose {
         let token = config.token.as_ref().map(|t| {
             let redacted = "x".repeat(TOKEN_LENGTH - TOKEN_SUFFIX_LENGTH);
             let suffix = t.len().saturating_sub(TOKEN_SUFFIX_LENGTH);
             format!("{}{}", redacted, &t[suffix..])
         });
-        let mut config = config.clone();
         config.token = token;
-        print(format!("{config:#?}"));
+        print(&format!("{config:#?}"));
     }
 }
 
 // Print a debug statement
-pub fn print(text: String) {
+pub fn print(text: &str) {
     let text = format!("=== DEBUG ===\n{text}\n===");
     let text = color::debug_string(&text);
 
