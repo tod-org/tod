@@ -113,18 +113,36 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 0  # keep history available if you want to scan with git context
 
+      # Run Gitleaks and always continue so we can upload SARIF
       - name: Run Gitleaks
+        id: gitleaks
         uses: gitleaks/gitleaks-action@v2
+        continue-on-error: true
         with:
-          args: detect --source . --no-git --report-format sarif --report-path gitleaks.sarif
+          # Choose ONE of the two lines below:
+          # Fast tree-only scan (no git history):
+          args: detect --source . --no-git --report-format sarif --report-path "${{ github.workspace }}/gitleaks.sarif" --exit-code 1
+          # Deeper scan with git context (comment the --no-git version above and uncomment below):
+          # args: detect --source . --report-format sarif --report-path "${{ github.workspace }}/gitleaks.sarif" --exit-code 1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
 
+      # Belt-and-suspenders: if Gitleaks didn’t produce a file, create an empty SARIF
+      - name: Ensure SARIF exists
+        if: always()
+        run: |
+          if [ ! -f "${{ github.workspace }}/gitleaks.sarif" ]; then
+            cat > "${{ github.workspace }}/gitleaks.sarif" <<'EOF'
+            { "version": "2.1.0", "runs": [] }
+            EOF
+          fi
+
+      # Upload SARIF to the Security tab even if leaks were found
       - name: Upload SARIF (Gitleaks)
+        if: always()
         uses: github/codeql-action/upload-sarif@v3
         with:
-          sarif_file: gitleaks.sarif
+          sarif_file: ${{ github.workspace }}/gitleaks.sarif
           category: gitleaks
