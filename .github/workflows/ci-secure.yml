@@ -63,7 +63,7 @@ jobs:
         with:
           languages: ${{ matrix.language }}
           build-mode: ${{ matrix.build-mode }}
-          config-file: ./.github/codeql/codeql.yml
+          config-file: ./.github/workflows/codeql/codeql.yml
 
       # Manual build for Rust (so CodeQL has full db)
       - if: matrix.language == 'rust'
