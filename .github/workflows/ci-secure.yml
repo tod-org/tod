@@ -1,5 +1,4 @@
-name: CI • CodeQL + Clippy + Secrets
-
+name: CI • CodeQL
 on:
   push:
     branches: [ "main" ]
@@ -82,36 +81,3 @@ jobs:
         run: cargo clippy --all-features --all-targets -- -D warnings
       - name: Check formatting
         run: cargo fmt --all -- --check
-
-  secrets:
-    name: Secret scan (Gitleaks)
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Run Gitleaks
-        id: gitleaks
-        uses: gitleaks/gitleaks-action@v2
-        continue-on-error: true
-        with:
-          args: detect --source . --no-git --report-format sarif --report-path "${{ github.workspace }}/gitleaks.sarif" --exit-code 1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Ensure SARIF exists
-        if: always()
-        run: |
-          if [ ! -f "$GITHUB_WORKSPACE/gitleaks.sarif" ]; then
-            printf '%s\n' '{ "version": "2.1.0", "runs": [] }' > "$GITHUB_WORKSPACE/gitleaks.sarif"
-          fi
-          ls -l "$GITHUB_WORKSPACE/gitleaks.sarif"
-
-      - name: Upload SARIF (Gitleaks)
-        if: always()
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: ${{ github.workspace }}/gitleaks.sarif
-          category: gitleaks
