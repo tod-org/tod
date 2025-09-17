@@ -32,7 +32,7 @@ jobs:
           - language: javascript-typescript
             build-mode: none
           - language: rust
-            build-mode: manual   # we’ll build Rust explicitly
+            build-mode: none
 
     steps:
       - name: Checkout repository
