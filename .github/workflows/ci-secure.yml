@@ -28,10 +28,8 @@ jobs:
         include:
           - language: actions
             build-mode: none
-          - language: javascript-typescript
-            build-mode: none
           - language: rust
-            build-mode: none  # <-- Rust: manual not supported
+            build-mode: none
 
     steps:
       - name: Checkout repository
