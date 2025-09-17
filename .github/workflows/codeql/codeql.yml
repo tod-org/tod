@@ -1,11 +1,23 @@
 name: "Advanced Rust CodeQL Config"
 
+# Use maintained query suites (no repo cloning)
 queries:
-  # Official Rust queries
-  - uses: github/codeql/rust-queries@latest
-  # Local custom queries (optional, keep in .github/codeql/custom/*.ql)
-  - uses: ./.github/codeql/custom
+  - uses: security-and-quality
+  # - uses: security-extended   # uncomment if you want extra security checks
 
+# Optional: add query packs (pin versions!)
+# packs:
+#   - name: github/security-queries
+#     version: 1.0.7
+#   # - name: your-org/rust-security-pack
+#   #   version: 0.3.2
+
+# Local custom queries (if any). Put .ql/.qls under .github/codeql/custom/
+# (This path is resolved relative to the repo root.)
+additional_queries:
+  - ./.github/codeql/custom
+
+# Limit analysis scope (adjust to your repo)
 paths:
   - src
   - crates
@@ -14,7 +26,7 @@ paths-ignore:
   - "**/*.gen.rs"
   - "**/tests/data/**"
 
-# Filter out low-signal queries
+# Trim noisy results
 query-filters:
   - exclude:
       problem.severity: recommendation
