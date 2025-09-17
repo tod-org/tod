@@ -22,7 +22,6 @@ jobs:
   analyze:
     name: CodeQL (${{ matrix.language }})
     runs-on: ${{ (matrix.language == 'swift' && 'macos-latest') || 'ubuntu-latest' }}
-
     strategy:
       fail-fast: false
       matrix:
@@ -32,7 +31,7 @@ jobs:
           - language: javascript-typescript
             build-mode: none
           - language: rust
-            build-mode: none
+            build-mode: none  # <-- Rust: manual not supported
 
     steps:
       - name: Checkout repository
@@ -40,23 +39,12 @@ jobs:
         with:
           fetch-depth: 0
 
+      # (Optional) Rust toolchain only if you want clippy/fmt in this job; not needed for CodeQL itself.
       - name: Setup Rust (if needed)
         if: matrix.language == 'rust'
         uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy,rustfmt
-
-      - name: Cache cargo dirs
-        if: matrix.language == 'rust'
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: cargo-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            cargo-${{ runner.os }}-
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v3
@@ -65,29 +53,23 @@ jobs:
           build-mode: ${{ matrix.build-mode }}
           config-file: ./.github/workflows/codeql/codeql.yml
 
-      # Manual build for Rust (so CodeQL has full db)
-      - if: matrix.language == 'rust'
-        name: Build Rust project
-        run: cargo build --locked --all-features --all-targets
+      # NOTE: Do NOT run a "manual build" for Rust here. It's ignored by CodeQL when build-mode=none.
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3
         with:
-          category: "/language:${{matrix.language}}"
+          category: "/language:${{ matrix.language }}"
 
   clippy:
     name: Clippy + fmt
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy,rustfmt
-
       - name: Cache cargo dirs
         uses: actions/cache@v4
         with:
@@ -98,48 +80,37 @@ jobs:
           key: cargo-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
             cargo-${{ runner.os }}-
-
       - name: Run Clippy
         run: cargo clippy --all-features --all-targets -- -D warnings
-
       - name: Check formatting
         run: cargo fmt --all -- --check
 
   secrets:
     name: Secret scan (Gitleaks)
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # keep history available if you want to scan with git context
+          fetch-depth: 0
 
-      # Run Gitleaks and always continue so we can upload SARIF
       - name: Run Gitleaks
         id: gitleaks
         uses: gitleaks/gitleaks-action@v2
         continue-on-error: true
         with:
-          # Choose ONE of the two lines below:
-          # Fast tree-only scan (no git history):
           args: detect --source . --no-git --report-format sarif --report-path "${{ github.workspace }}/gitleaks.sarif" --exit-code 1
-          # Deeper scan with git context (comment the --no-git version above and uncomment below):
-          # args: detect --source . --report-format sarif --report-path "${{ github.workspace }}/gitleaks.sarif" --exit-code 1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # Belt-and-suspenders: if Gitleaks didn’t produce a file, create an empty SARIF
       - name: Ensure SARIF exists
         if: always()
         run: |
-          if [ ! -f "${{ github.workspace }}/gitleaks.sarif" ]; then
-            cat > "${{ github.workspace }}/gitleaks.sarif" <<'EOF'
-            { "version": "2.1.0", "runs": [] }
-            EOF
+          if [ ! -f "$GITHUB_WORKSPACE/gitleaks.sarif" ]; then
+            printf '%s\n' '{ "version": "2.1.0", "runs": [] }' > "$GITHUB_WORKSPACE/gitleaks.sarif"
           fi
+          ls -l "$GITHUB_WORKSPACE/gitleaks.sarif"
 
-      # Upload SARIF to the Security tab even if leaks were found
       - name: Upload SARIF (Gitleaks)
         if: always()
         uses: github/codeql-action/upload-sarif@v3
