@@ -1,0 +1,20 @@
+name: "Advanced Rust CodeQL Config"
+
+queries:
+  # Official Rust queries
+  - uses: github/codeql/rust-queries@latest
+  # Local custom queries (optional, keep in .github/codeql/custom/*.ql)
+  - uses: ./.github/codeql/custom
+
+paths:
+  - src
+  - crates
+paths-ignore:
+  - target/**
+  - "**/*.gen.rs"
+  - "**/tests/data/**"
+
+# Filter out low-signal queries
+query-filters:
+  - exclude:
+      problem.severity: recommendation
