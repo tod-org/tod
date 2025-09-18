@@ -17,13 +17,10 @@ concurrency:
   group: rust-clippy-${{ github.ref }}
   cancel-in-progress: true
 
-# Reusable condition: skip PR jobs when the PR branch lives in this repo
-x-job-condition: &job-condition
-  if: ${{ !(github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) }}
-
 jobs:
   rust-clippy-analyze:
-    <<: *job-condition
+    # Skip PR jobs when the PR branch lives in this repo (push already covers it)
+    if: ${{ !(github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) }}
     name: Run rust-clippy analyzing
     runs-on: ubuntu-latest
     permissions:
