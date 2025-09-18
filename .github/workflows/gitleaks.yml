@@ -1,21 +1,45 @@
 name: gitleaks
 permissions:
   contents: read
+
 on:
-  pull_request:
-  push:
+  push:                # run on pushes to any branch
+  pull_request_target: # also run on PRs (needed for secrets)
   workflow_dispatch:
   schedule:
-    - cron: "0 4 * * *" # run once a day at 4 AM
+    - cron: "0 4 * * *"
+
+concurrency:
+  group: gitleaks-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   scan:
     name: gitleaks
     runs-on: ubuntu-latest
+    # If this is a PR event AND the branch also just had a push, skip it.
+    if: ${{ !(github.event_name == 'pull_request_target' && github.event.pull_request.head.repo.full_name == github.repository) }}
+
     steps:
-      - uses: actions/checkout@v5
+      # Checkout PR commit securely
+      - name: Checkout PR commit
+        if: ${{ github.event_name == 'pull_request_target' }}
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      # Checkout for push/schedule/dispatch
+      - name: Checkout push commit
+        if: ${{ github.event_name != 'pull_request_target' }}
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
-      - uses: gitleaks/gitleaks-action@v2
+          persist-credentials: false
+
+      - name: Run gitleaks
+        uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }} # Only required for Organizations, not personal accounts.
+          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
