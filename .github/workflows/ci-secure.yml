@@ -1,9 +1,5 @@
 name: CI • CodeQL
 on:
-  push:
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
   schedule:
     - cron: '26 17 * * 4'
 
