@@ -1,0 +1,26 @@
+name: Publish to crates.io
+on:
+  push:
+    tags:
+      - 'v*'   # triggers when pushing tags starting with 'v'
+
+jobs:
+  publish:
+    # only run if the tag is created on main
+    if: github.ref_type == 'tag' && startsWith(github.ref_name, 'v') && github.event.base_ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: release  # optional: gives you env protection rules
+    permissions:
+      contents: read
+      id-token: write     # required for OIDC token exchange
+      packages: write     # optional, if you also publish GitHub packages
+      
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: rust-lang/crates-io-auth-action@v1
+        id: auth
+
+      - run: cargo publish --locked
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
