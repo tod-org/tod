@@ -2,11 +2,9 @@
 
 ## [0.11.0](https://github.com/tod-org/tod/compare/v0.10.0...v0.11.0) (2025-08-09)
 
-
 ### Features
 
 * add tod config about ([5b61a35](https://github.com/tod-org/tod/commit/5b61a35c8d7906c9e7609e9fee0bc48033bfcb37))
-
 
 ### Bug Fixes
 
