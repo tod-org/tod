@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.1](https://github.com/tod-org/tod/compare/v0.11.0...v0.11.1) (2025-09-18)
+
+
+### Bug Fixes
+
+* bump release version ([81867a9](https://github.com/tod-org/tod/commit/81867a944111555e55a5736557f56da5f5662b83))
+
 ## [0.11.0](https://github.com/tod-org/tod/compare/v0.10.0...v0.11.0) (2025-08-09)
 
 ### Features
