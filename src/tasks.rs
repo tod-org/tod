@@ -134,7 +134,7 @@ pub struct Duration {
     pub amount: u32,
     pub unit: Unit,
 }
-
+#[allow(dead_code)] // Body Struct is not currently used/constructed
 #[derive(Serialize, Deserialize, Debug)]
 struct Body {
     items: Vec<Task>,
