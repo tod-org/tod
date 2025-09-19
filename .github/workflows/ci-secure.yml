@@ -1,4 +1,4 @@
-name: CI • CodeQL
+name: CodeQL Analysis (Weekly)
 on:
   schedule:
     - cron: '26 17 * * 4'
@@ -51,27 +51,37 @@ jobs:
         with:
           category: "/language:${{ matrix.language }}"
 
-  clippy:
-    name: Clippy + fmt
+  clippy-analyze:
+    name: Run rust-clippy analyzing
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+      actions: read  # for upload-sarif in private repos to get run status
     steps:
-      - name: Checkout
+      - name: Checkout code
         uses: actions/checkout@v5
-      - name: Set up Rust
+
+      - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          components: clippy,rustfmt
-      - name: Cache cargo dirs
-        uses: actions/cache@v4
+          components: clippy
+
+      - name: Install required cargo
+        run: cargo install clippy-sarif sarif-fmt
+
+      - name: Run rust-clippy
+        run: |
+          cargo clippy \
+            --all-features \
+            --message-format=json \
+          | clippy-sarif \
+          | tee rust-clippy-results.sarif \
+          | sarif-fmt
+        continue-on-error: true
+
+      - name: Upload analysis results to GitHub
+        uses: github/codeql-action/upload-sarif@v3
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: cargo-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            cargo-${{ runner.os }}-
-      - name: Run Clippy
-        run: cargo clippy --all-features --all-targets -- -D warnings
-      - name: Check formatting
-        run: cargo fmt --all -- --check
+          sarif_file: rust-clippy-results.sarif
+          wait-for-processing: true

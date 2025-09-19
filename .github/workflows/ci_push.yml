@@ -1,9 +1,9 @@
 # This file performs CI testing for Tod using GitHub Actions.
 # It runs tests, checks code quality, and ensures no TODO/FIXME comments are left in the code.
 
-name: ci
+name: CI Push
 
-on: [push, pull_request, workflow_dispatch]  # Trigger on push, pull request, or manual dispatch
+on: [push, workflow_dispatch]
 
 env:
   CARGO_TERM_COLOR: always
@@ -25,7 +25,6 @@ jobs:
     name: Cargo CI Tests
     runs-on: ubuntu-latest
     # Run on push, workflow_dispatch, OR PRs from forks.
-    if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository) }}
     steps:
       - uses: actions/checkout@v5
       - uses: taiki-e/install-action@nextest
@@ -40,7 +39,6 @@ jobs:
   check:
     name: Cargo Check
     runs-on: ubuntu-latest
-    if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository) }}
     steps:
       - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
@@ -53,7 +51,6 @@ jobs:
   todos:
     name: TODO and FIXME
     runs-on: ubuntu-latest
-    if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository) }}
     steps:
       - uses: actions/checkout@v5
       - run: ./scripts/lint_string.sh "TODO "
@@ -69,7 +66,6 @@ jobs:
   fmt:
     name: Rust-fmt (Cargo Format)
     runs-on: ubuntu-latest
-    if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository) }}
     steps:
       - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
@@ -82,7 +78,6 @@ jobs:
   clippy:
     name: Clippy (Cargo Clippy Lint Check)
     runs-on: ubuntu-latest
-    if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository) }}
     steps:
       - uses: actions/checkout@v5
       - name: Install Rust Toolchain
