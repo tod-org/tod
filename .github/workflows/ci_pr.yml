@@ -1,0 +1,89 @@
+# This file performs CI testing for Tod using GitHub Actions.
+# It runs tests, checks code quality, and ensures no TODO/FIXME comments are left in the code.
+
+name: CI PR
+
+on: [pull_request, workflow_dispatch]
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0
+  CARGO_PROFILE_TEST_DEBUG: 0
+  CARGO_PROFILE_RELEASE_LTO: true
+  CARGO_PROFILE_RELEASE_CODEGEN_UNITS: 1
+
+permissions:
+  contents: read
+
+# Optional but recommended: cancel superseded runs on the same ref
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Cargo CI Tests
+    runs-on: ubuntu-latest
+    # Run on push, workflow_dispatch, OR PRs from forks.
+    steps:
+      - uses: actions/checkout@v5
+      - uses: taiki-e/install-action@nextest
+      - name: Install Rust Toolchain
+        run: rustup toolchain install stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-all-crates: true
+      - name: Cargo Test
+        run: cargo nextest run --all-features
+
+  check:
+    name: Cargo Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-all-crates: true
+      - name: Check
+        run: cargo check --locked --all-features
+
+  todos:
+    name: TODO and FIXME
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - run: ./scripts/lint_string.sh "TODO "
+      - run: ./scripts/lint_string.sh "TODO:"
+      - run: ./scripts/lint_string.sh "FIXME "
+      - run: ./scripts/lint_string.sh "FIXME:"
+      - run: ./scripts/lint_string.sh "todo "
+      - run: ./scripts/lint_string.sh "todo:"
+      - run: ./scripts/lint_string.sh "fixme "
+      - run: ./scripts/lint_string.sh "fixme:"
+      - run: ./scripts/lint_string.sh "dbg!"
+
+  fmt:
+    name: Rust-fmt (Cargo Format)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-all-crates: true
+      - run: rustup component add rustfmt
+      - run: cargo fmt --all -- --check
+
+  clippy:
+    name: Clippy (Cargo Clippy Lint Check)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install Rust Toolchain
+        run: rustup toolchain install stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-all-crates: true
+      - run: rustup component add clippy
+      - run: cargo clippy -- -D warnings
