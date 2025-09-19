@@ -1,5 +1,6 @@
 # Already present in Repo
 /target
+/src/target
 tarpaulin-report.html
 lcov.info
 *.tar.gz
