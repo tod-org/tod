@@ -44,9 +44,7 @@ jobs:
         with:
           languages: ${{ matrix.language }}
           build-mode: ${{ matrix.build-mode }}
-          config-file: ./.github/workflows/codeql/codeql.yml
-
-      # NOTE: Do NOT run a "manual build" for Rust here. It's ignored by CodeQL when build-mode=none.
+          config-file: .github/workflows/codeql/codeql.yml
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3
