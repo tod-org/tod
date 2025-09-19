@@ -1,10 +1,9 @@
 # This file performs CI testing for Tod using GitHub Actions.
 # It runs tests, checks code quality, and ensures no TODO/FIXME comments are left in the code.
 
+name: ci
 
 on: [push, pull_request, workflow_dispatch]  # Trigger on push, pull request, or manual dispatch
-
-#can also run manually via the GitHub Actions UI
 
 env:
   CARGO_TERM_COLOR: always
@@ -13,32 +12,35 @@ env:
   CARGO_PROFILE_RELEASE_LTO: true
   CARGO_PROFILE_RELEASE_CODEGEN_UNITS: 1
 
-name: ci
-
 permissions:
-  contents: read  # This grants read access specifically to the 'contents' scope
+  contents: read
 
+# Optional but recommended: cancel superseded runs on the same ref
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   test:
-    runs-on: ubuntu-latest
-    # Run all tests using nextest
     name: Cargo CI Tests
+    runs-on: ubuntu-latest
+    # Run on push, workflow_dispatch, OR PRs from forks.
+    if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository) }}
     steps:
       - uses: actions/checkout@v5
       - uses: taiki-e/install-action@nextest
-
       - name: Install Rust Toolchain
-        run: rustup toolchain install
+        run: rustup toolchain install stable
       - uses: Swatinem/rust-cache@v2
         with:
           cache-all-crates: true
-
       - name: Cargo Test
         run: cargo nextest run --all-features
+
   check:
-    runs-on: ubuntu-latest
     name: Cargo Check
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository) }}
     steps:
       - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
@@ -47,10 +49,11 @@ jobs:
           cache-all-crates: true
       - name: Check
         run: cargo check --locked --all-features
-#Lint Check for any TODO or FIXME comments in the codebase.
+
   todos:
-    name: TODO and FIXME 
+    name: TODO and FIXME
     runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository) }}
     steps:
       - uses: actions/checkout@v5
       - run: ./scripts/lint_string.sh "TODO "
@@ -62,37 +65,30 @@ jobs:
       - run: ./scripts/lint_string.sh "fixme "
       - run: ./scripts/lint_string.sh "fixme:"
       - run: ./scripts/lint_string.sh "dbg!"
-  #Ensure code is formatted correctly using Rust's formatting tool (rustfmt).
+
   fmt:
     name: Rust-fmt (Cargo Format)
     runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository) }}
     steps:
       - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
         with:
-         cache-all-crates: true
+          cache-all-crates: true
       - run: rustup component add rustfmt
       - run: cargo fmt --all -- --check
-# Lint code using Clippy, a Rust linter that helps catch common mistakes and improve code quality.
+
   clippy:
     name: Clippy (Cargo Clippy Lint Check)
     runs-on: ubuntu-latest
-
+    if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository) }}
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v5
-      
+      - uses: actions/checkout@v5
       - name: Install Rust Toolchain
-        run: rustup toolchain install
-
-      - name: Cache Rust Dependencies
-        uses: Swatinem/rust-cache@v2
+        run: rustup toolchain install stable
+      - uses: Swatinem/rust-cache@v2
         with:
           cache-all-crates: true
-
-      - name: Install Clippy
-        run: rustup component add clippy
-
-      - name: Run Clippy
-        run: cargo clippy -- -D warnings
+      - run: rustup component add clippy
+      - run: cargo clippy -- -D warnings
