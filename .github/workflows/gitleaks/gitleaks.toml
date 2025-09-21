@@ -1,11 +1,5 @@
 title = "Gitleaks Config"
 
-# Extend the default rules so you still catch new secrets.
+# Extend the default rules
 [extend]
 useDefault = true
-
-# Global allowlist (v8.25.0+ syntax uses [[allowlists]])
-# Narrowly targets a false positive.
-[[allowlists]]
-description = "False positive: sample curl auth header in src/request.rs@30fc14d9"
-commits = ["30fc14d9afc8e44ce831dc2fdfba48e39318c274"]
