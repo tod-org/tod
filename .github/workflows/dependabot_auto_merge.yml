@@ -3,16 +3,27 @@
 
 name: Auto Merge
 permissions:
-  pull-requests: write  # Allow the workflow to write to pull requests
+  pull-requests: write   # Needed to approve & merge PRs
   contents: write
 
 on:
-    pull_request:
+  pull_request:
 
 jobs:
+  auto-approve:
+    name: Dependabot Auto Approve
+    if: ${{ github.event.pull_request.user.login == 'dependabot[bot]' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Approve Dependabot PR
+        uses: hmarr/auto-approve-action@v4
+        with:
+          github-token: ${{ secrets.MYTOKEN }}
+          review-message: "dependabot PR auto-approved ✅"
+
   auto-merge:
     name: Dependabot Auto Merge
-    # Only run on pull requests created by Dependabot
+    needs: auto-approve   # ensure merge happens after approval
     if: ${{ github.event.pull_request.user.login == 'dependabot[bot]' }}
     runs-on: ubuntu-latest
     steps:
@@ -20,5 +31,4 @@ jobs:
       - uses: ahmadnassri/action-dependabot-auto-merge@v2
         with:
           target: minor
-          github-token: ${{ secrets.MYTOKEN }} 
-
+          github-token: ${{ secrets.MYTOKEN }}
