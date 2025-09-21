@@ -1,10 +1,9 @@
 # This job will only run for pull requests, specifically those created by Dependabot.
 # This will auto-merge Dependabot PRs that are minor updates and if they pass all tests.
-
 name: Auto Merge
 permissions:
-  pull-requests: write   # Needed to approve & merge PRs
-  contents: write
+  pull-requests: write   # needed to approve + merge PRs
+  contents: write        # needed to update the repo on merge
 
 on:
   pull_request:
@@ -15,20 +14,38 @@ jobs:
     if: ${{ github.event.pull_request.user.login == 'dependabot[bot]' }}
     runs-on: ubuntu-latest
     steps:
+      - id: app-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ vars.TODD_APP_ID }}
+          private-key: ${{ secrets.TODD_PRIVATE_KEY }}
+          owner: tod-org
+          repositories: tod
+
       - name: Approve Dependabot PR
         uses: hmarr/auto-approve-action@v4
         with:
-          github-token: ${{ secrets.MYTOKEN }}
+          github-token: ${{ steps.app-token.outputs.token }}
           review-message: "dependabot PR auto-approved ✅"
 
   auto-merge:
     name: Dependabot Auto Merge
-    needs: auto-approve   # ensure merge happens after approval
+    needs: auto-approve
     if: ${{ github.event.pull_request.user.login == 'dependabot[bot]' }}
     runs-on: ubuntu-latest
     steps:
+      - id: app-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ vars.TODD_APP_ID }}
+          private-key: ${{ secrets.TODD_PRIVATE_KEY }}
+          owner: tod-org
+          repositories: tod
+
       - uses: actions/checkout@v5
-      - uses: ahmadnassri/action-dependabot-auto-merge@v2
+
+      - name: Merge minor Dependabot updates
+        uses: ahmadnassri/action-dependabot-auto-merge@v2
         with:
           target: minor
-          github-token: ${{ secrets.MYTOKEN }}
+          github-token: ${{ steps.app-token.outputs.token }}
