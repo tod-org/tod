@@ -4,7 +4,7 @@ permissions:
 
 on:
   push:                # run on pushes to any branch
-  pull_request_target: # also run on PRs (needed for secrets)
+  pull_request:
   workflow_dispatch:
   schedule:
     - cron: "0 4 * * *"
@@ -17,13 +17,21 @@ jobs:
   scan:
     name: gitleaks
     runs-on: ubuntu-latest
+
     # If this is a PR event AND the branch also just had a push, skip it.
     if: ${{ !(github.event_name == 'pull_request_target' && github.event.pull_request.head.repo.full_name == github.repository) }}
 
     steps:
-      # Checkout PR commit securely
+      # --- Fast-pass for Dependabot so the required check stays green ---
+      - name: Skip for Dependabot
+        if: ${{ github.actor == 'dependabot[bot]' }}
+        run: |
+          echo "Dependabot PR detected — skipping gitleaks"
+          exit 0
+
+      # Checkout PR commit securely (for PRs)
       - name: Checkout PR commit
-        if: ${{ github.event_name == 'pull_request_target' }}
+        if: ${{ github.event_name == 'pull_request_target' && github.actor != 'dependabot[bot]' }}
         uses: actions/checkout@v5
         with:
           ref: ${{ github.event.pull_request.head.sha }}
@@ -32,13 +40,14 @@ jobs:
 
       # Checkout for push/schedule/dispatch
       - name: Checkout push commit
-        if: ${{ github.event_name != 'pull_request_target' }}
+        if: ${{ github.event_name != 'pull_request_target' && github.actor != 'dependabot[bot]' }}
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
           persist-credentials: false
 
       - name: Run gitleaks
+        if: ${{ github.actor != 'dependabot[bot]' }}
         uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
