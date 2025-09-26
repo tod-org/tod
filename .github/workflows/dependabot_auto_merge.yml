@@ -6,7 +6,7 @@ permissions:
   contents: write        # needed to update the repo on merge
 
 on:
-  pull_request:
+  pull_request_target:
 
 jobs:
   auto-approve:
