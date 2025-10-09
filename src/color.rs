@@ -1,61 +1,48 @@
 use colored::*;
 
-pub fn green_string(str: &str) -> String {
+fn apply_color(str: &str, color: fn(String) -> ColoredString) -> String {
     if cfg!(test) {
-        return normal_string(str);
+        return str.to_string();
     }
 
-    String::from(str).green().to_string()
+    color(str.to_string()).to_string()
+}
+
+pub fn green_string(str: &str) -> String {
+    apply_color(str, |s| s.green())
 }
 
 pub fn red_string(str: &str) -> String {
-    if cfg!(test) {
-        return normal_string(str);
-    }
-
-    String::from(str).red().to_string()
+    apply_color(str, |s| s.red())
 }
 
 pub fn cyan_string(str: &str) -> String {
-    if cfg!(test) {
-        return normal_string(str);
-    }
-
-    String::from(str).bright_cyan().to_string()
+    apply_color(str, |s| s.cyan())
 }
 
 pub fn purple_string(str: &str) -> String {
-    if cfg!(test) {
-        return normal_string(str);
-    }
-
-    String::from(str).purple().to_string()
+    apply_color(str, |s| s.purple())
 }
 
 pub fn blue_string(str: &str) -> String {
-    if cfg!(test) {
-        return normal_string(str);
-    }
-
-    String::from(str).blue().to_string()
+    apply_color(str, |s| s.blue())
 }
 
 pub fn yellow_string(str: &str) -> String {
-    if cfg!(test) {
-        return normal_string(str);
-    }
-
-    String::from(str).yellow().to_string()
+    apply_color(str, |s| s.yellow())
 }
 
 pub fn debug_string(str: &str) -> String {
-    if cfg!(test) {
-        return normal_string(str);
-    }
-
-    String::from(str).bright_blue().on_yellow().to_string()
+    apply_color(str, |s| s.bright_blue().on_yellow())
 }
 
 pub fn normal_string(str: &str) -> String {
     String::from(str).normal().to_string()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    //TODO(rvbcldud): Fill out test cases
 }
