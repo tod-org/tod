@@ -17,7 +17,7 @@ pub fn red_string(str: &str) -> String {
 }
 
 pub fn cyan_string(str: &str) -> String {
-    apply_color(str, |s| s.cyan())
+    apply_color(str, |s| s.bright_cyan())
 }
 
 pub fn purple_string(str: &str) -> String {
@@ -44,5 +44,11 @@ pub fn normal_string(str: &str) -> String {
 mod tests {
     use super::*;
 
-    //TODO(rvbcldud): Fill out test cases
+    #[test]
+    fn test_blue_string() {
+        let base_string = "TEST".blue().to_string();
+        let test_string = blue_string("TEST");
+
+        assert_eq!(test_string, base_string);
+    }
 }
