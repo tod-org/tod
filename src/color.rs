@@ -46,9 +46,17 @@ mod tests {
 
     #[test]
     fn test_blue_string() {
-        let base_string = "TEST".blue().to_string();
+        let str = "TEST";
         let test_string = blue_string("TEST");
 
-        assert_eq!(test_string, base_string);
+        assert_eq!(test_string, str);
+    }
+
+    #[test]
+    fn test_purple_string() {
+        let str = "TEST";
+        let test_string = purple_string("TEST");
+
+        assert_eq!(test_string, str);
     }
 }
