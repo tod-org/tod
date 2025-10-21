@@ -9,6 +9,7 @@ permissions:
 
 on:
   pull_request_target:
+  workflow_dispatch:
 
 jobs:
   auto-approve:
@@ -23,8 +24,6 @@ jobs:
           private-key: ${{ secrets.TODD_PRIVATE_KEY }}
           owner: tod-org
           repositories: tod
-          permissions-contents: write
-          permissions-pull-requests: write
 
       - id: meta
         name: Fetch Dependabot metadata
@@ -33,7 +32,7 @@ jobs:
           github-token: ${{ steps.app-token.outputs.token }}
 
       - name: Approve Dependabot PR (minor/patch only)
-        if: contains('version-update:semver-minor,version-update:semver-patch', steps.meta.outputs.update-type)
+        if: contains(fromJSON('["version-update:semver-minor","version-update:semver-patch"]'), steps.meta.outputs.update-type)
         uses: hmarr/auto-approve-action@v4
         with:
           github-token: ${{ steps.app-token.outputs.token }}
@@ -52,8 +51,6 @@ jobs:
           private-key: ${{ secrets.TODD_PRIVATE_KEY }}
           owner: tod-org
           repositories: tod
-          permission-contents: write
-          permission-pull-requests: write
 
       - id: meta
         name: Fetch Dependabot metadata
@@ -62,7 +59,7 @@ jobs:
           github-token: ${{ steps.app-token.outputs.token }}
 
       - name: Update branch to latest base (if required)
-        if: contains('version-update:semver-minor,version-update:semver-patch', steps.meta.outputs.update-type)
+        if: contains(fromJSON('["version-update:semver-minor","version-update:semver-patch"]'), steps.meta.outputs.update-type)
         run: |
           gh api \
             --method PUT \
@@ -72,7 +69,7 @@ jobs:
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
 
       - name: Enable auto-merge (rebase) for minor/patch
-        if: contains('version-update:semver-minor,version-update:semver-patch', steps.meta.outputs.update-type)
+        if: contains(fromJSON('["version-update:semver-minor","version-update:semver-patch"]'), steps.meta.outputs.update-type)
         run: |
           gh pr merge ${{ github.event.pull_request.number }} --rebase --auto --delete-branch
         env:
