@@ -1,51 +1,69 @@
-# This job will only run for pull requests, specifically those created by Dependabot.
-# This will auto-merge Dependabot PRs that are minor updates and if they pass all tests.
-name: Auto Merge
-permissions:
-  pull-requests: write   # needed to approve + merge PRs
-  contents: write        # needed to update the repo on merge
+name: Dependabot • Auto-approve & Rebase-merge
 
 on:
   pull_request_target:
 
+# These permissions are for GITHUB_TOKEN; we use the App token for writes.
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
 jobs:
-  auto-approve:
-    name: Dependabot Auto Approve
+  approve-and-merge:
+    name: Approve + Rebase-merge (minor/patch)
     if: ${{ github.event.pull_request.user.login == 'dependabot[bot]' }}
     runs-on: ubuntu-latest
+
     steps:
       - id: app-token
+        name: Create GitHub App token (todd-deploy)
         uses: actions/create-github-app-token@v2
         with:
           app-id: ${{ vars.TODD_APP_ID }}
           private-key: ${{ secrets.TODD_PRIVATE_KEY }}
           owner: tod-org
           repositories: tod
+          # Explicitly request the needed perms on the issued token:
+          permission-contents: write
+          permission-pull-requests: write
 
-      - name: Approve Dependabot PR
+      - id: meta
+        name: Fetch Dependabot metadata
+        uses: dependabot/fetch-metadata@v2
+        with:
+          github-token: ${{ steps.app-token.outputs.token }}
+
+      - name: Auto-approve (minor/patch only)
+        if: contains('version-update:semver-minor,version-update:semver-patch', steps.meta.outputs.update-type)
         uses: hmarr/auto-approve-action@v4
         with:
           github-token: ${{ steps.app-token.outputs.token }}
-          review-message: "dependabot PR auto-approved ✅"
+          review-message: "Auto-approving safe update (minor/patch) ✅"
 
-  auto-merge:
-    name: Dependabot Auto Merge
-    needs: auto-approve
-    if: ${{ github.event.pull_request.user.login == 'dependabot[bot]' }}
-    runs-on: ubuntu-latest
-    steps:
-      - id: app-token
-        uses: actions/create-github-app-token@v2
-        with:
-          app-id: ${{ vars.TODD_APP_ID }}
-          private-key: ${{ secrets.TODD_PRIVATE_KEY }}
-          owner: tod-org
-          repositories: tod
+      # If branch protections require "up to date", trigger the official update-branch endpoint.
+      - name: Update branch to latest base (if required)
+        if: contains('version-update:semver-minor,version-update:semver-patch', steps.meta.outputs.update-type)
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          gh api \
+            --method PUT \
+            "repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/update-branch" \
+            --silent || echo "Update-branch not needed or already up to date."
 
-      - uses: actions/checkout@v5
+      # Enable auto-merge using the rebase strategy.
+      # GitHub will merge only AFTER all required checks pass and branch protection rules are satisfied.
+      - name: Enable auto-merge (rebase) for minor/patch
+        if: contains('version-update:semver-minor,version-update:semver-patch', steps.meta.outputs.update-type)
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          gh pr merge ${{ github.event.pull_request.number }} --rebase --auto --delete-branch
 
-      - name: Merge minor Dependabot updates
-        uses: ahmadnassri/action-dependabot-auto-merge@v2
-        with:
-          target: minor
-          github-token: ${{ steps.app-token.outputs.token }}
+      - name: Skip majors
+        if: steps.meta.outputs.update-type == 'version-update:semver-major'
+        run: echo "Major update detected — leaving for manual review."
