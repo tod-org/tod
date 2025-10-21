@@ -23,8 +23,8 @@ jobs:
           private-key: ${{ secrets.TODD_PRIVATE_KEY }}
           owner: tod-org
           repositories: tod
-          permission-contents: write
-          permission-pull-requests: write
+          permissions-contents: write
+          permissions-pull-requests: write
 
       - id: meta
         name: Fetch Dependabot metadata
