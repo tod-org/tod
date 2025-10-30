@@ -39,7 +39,6 @@ jobs:
           review-message: "Minor Dependabot PR auto-approved ✅"
 
   auto-merge:
-  auto-merge:
     name: Dependabot Auto Merge
     needs: auto-approve
     if: ${{ github.event.pull_request.user.login == 'dependabot[bot]' }}
