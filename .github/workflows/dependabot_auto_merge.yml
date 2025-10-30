@@ -60,20 +60,23 @@ jobs:
 
       - name: Update branch to latest base (if required)
         if: steps.meta.outputs.update-type == 'version-update:semver-minor' || steps.meta.outputs.update-type == 'version-update:semver-patch'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }} 
         run: |
           gh api \
             --method PUT \
+            --repo "${{ github.repository }}" \   # <- make repo explicit (optional here, but safe)
             "repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/update-branch" \
             --silent || echo "Branch already up to date or update not required."
-        env:
-          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
 
       - name: Enable auto-merge (rebase) for minor/patch
         if: steps.meta.outputs.update-type == 'version-update:semver-minor' || steps.meta.outputs.update-type == 'version-update:semver-patch'
-        run: |
-          gh pr merge ${{ github.event.pull_request.number }} --rebase --auto --delete-branch
         env:
-          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          gh pr merge ${{ github.event.pull_request.number }} \
+            --repo "${{ github.repository }}" \  # <- this avoids needing a git checkout
+            --rebase --auto --delete-branch
 
       - name: Skip major updates
         if: steps.meta.outputs.update-type == 'version-update:semver-major'
