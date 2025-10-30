@@ -39,6 +39,7 @@ jobs:
           review-message: "Minor Dependabot PR auto-approved ✅"
 
   auto-merge:
+  auto-merge:
     name: Dependabot Auto Merge
     needs: auto-approve
     if: ${{ github.event.pull_request.user.login == 'dependabot[bot]' }}
@@ -61,11 +62,11 @@ jobs:
       - name: Update branch to latest base (if required)
         if: steps.meta.outputs.update-type == 'version-update:semver-minor' || steps.meta.outputs.update-type == 'version-update:semver-patch'
         env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }} 
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
           gh api \
             --method PUT \
-            --repo "${{ github.repository }}" \   # <- make repo explicit (optional here, but safe)
+            --repo "${{ github.repository }}" \
             "repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/update-branch" \
             --silent || echo "Branch already up to date or update not required."
 
@@ -75,7 +76,7 @@ jobs:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
           gh pr merge ${{ github.event.pull_request.number }} \
-            --repo "${{ github.repository }}" \  # <- this avoids needing a git checkout
+            --repo "${{ github.repository }}" \  
             --rebase --auto --delete-branch
 
       - name: Skip major updates
