@@ -16,7 +16,7 @@ categories = ["command-line-utilities"]
 [dependencies]
 serde_json = "1.0.145"
 serde = { version = "1.0.228", features = ["derive"] }
-reqwest = { version = "0.12.24", features = ["json"] }
+reqwest = { version = "0.12.25", features = ["json"] }
 uuid = { version = "1.19", features = ["serde", "v4"] }
 dirs = "6.0.0"
 matches = "0.1.10"
