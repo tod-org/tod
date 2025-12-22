@@ -4,7 +4,6 @@ use crate::lists::Flag;
 use crate::tasks::priority::{self, Priority};
 use crate::{input, labels};
 use auth_commands::AuthCommands;
-use clap::command;
 use clap::{Parser, Subcommand};
 use config_commands::ConfigCommands;
 use list_commands::ListCommands;
