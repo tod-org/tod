@@ -12,7 +12,7 @@ pub struct Section {
     pub added_at: String,
     pub updated_at: Option<String>,
     pub archived_at: Option<String>,
-    pub section_order: u32,
+    pub section_order: i32,
     pub is_archived: bool,
     pub is_deleted: bool,
     pub is_collapsed: bool,
