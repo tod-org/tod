@@ -73,6 +73,28 @@ mod tests {
     use crate::test::{self, responses::ResponseFromFile};
     use pretty_assertions::assert_eq;
 
+    #[test]
+    fn should_deserialize_section_with_negative_order() {
+        let json = r#"{
+            "id": "1234",
+            "project_id": "5678",
+            "user_id": "910",
+            "section_order": -1,
+            "name": "Top Section",
+            "added_at": "2020-06-11T14:51:08.056500Z",
+            "updated_at": null,
+            "archived_at": null,
+            "is_archived": false,
+            "is_deleted": false,
+            "is_collapsed": false
+        }"#;
+
+        let result = json_to_section(json).expect("should deserialize section with negative order");
+
+        assert_eq!(result.section_order, -1);
+        assert_eq!(result.name, "Top Section");
+    }
+
     #[tokio::test]
     async fn should_convert_json_to_sections() {
         let sections = vec![Section {
