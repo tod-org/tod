@@ -1,13 +1,13 @@
 {
-  "version": "0.11.1",
+  "version": "0.11.2",
   "description": "unofficial Todoist command-line client",
   "homepage": "https://www.tod.cx",
   "license": "MIT",
   "architecture": {
     "64bit": {
-      "url": "https://github.com/tod-org/tod/releases/download/v0.11.1/tod-0.11.1-windows-amd64.zip",
+      "url": "https://github.com/tod-org/tod/releases/download/v0.11.2/tod-0.11.2-windows-amd64.zip",
       "bin": "tod.exe",
-      "hash": "3a542658c6ebc8c6dfb0b25ae26ffc7b9e4c2875b9aee36286ac1ecdf0a3e582"
+      "hash": "3de9bc5809a146a4e87fc6bc951148acf11cb456786f23a2b9e6467deb690daa"
     }
   }
 }
