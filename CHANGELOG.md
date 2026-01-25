@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.2](https://github.com/tod-org/tod/compare/v0.11.1...v0.11.2) (2026-01-25)
+
+
+### Bug Fixes
+
+* change section_order type from u32 to i32 ([0058f23](https://github.com/tod-org/tod/commit/0058f23422d9583973b739f4c3d69e2a64705cfb))
+
 ## [0.11.1](https://github.com/tod-org/tod/compare/v0.11.0...v0.11.1) (2025-09-18)
 
 
