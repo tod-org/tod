@@ -39,5 +39,5 @@ jobs:
       - name: Run tests with coverage
         run: cargo tarpaulin --all-features --out xml --frozen --skip-clean
       - name: Upload to codecov.io
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v6
 
