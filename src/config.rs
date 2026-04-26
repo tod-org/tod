@@ -652,7 +652,7 @@ pub async fn get_or_create(
         )),
     }?;
 
-    let mut config = Config {
+    let config = Config {
         args: Args { timeout, verbose },
         internal: Internal {
             tx: Some(tx.clone()),
@@ -660,7 +660,7 @@ pub async fn get_or_create(
         ..config
     };
 
-    debug::maybe_print_redacted_config(&mut config);
+    debug::maybe_print_redacted_config(&config);
     Ok(config)
 }
 //create the config file with settings
