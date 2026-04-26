@@ -95,6 +95,18 @@ mod tests {
         assert_eq!(result.name, "Top Section");
     }
 
+    #[test]
+    fn json_to_section_invalid_json_returns_error() {
+        let result = json_to_section("not json");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn json_to_sections_response_invalid_json_returns_error() {
+        let result = json_to_sections_response("not json");
+        assert!(result.is_err());
+    }
+
     #[tokio::test]
     async fn should_convert_json_to_sections() {
         let sections = vec![Section {

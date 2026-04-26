@@ -59,4 +59,38 @@ mod tests {
 
         assert_eq!(test_string, str);
     }
+
+    #[test]
+    fn test_green_string() {
+        assert_eq!(green_string("OK"), "OK");
+    }
+
+    #[test]
+    fn test_red_string() {
+        assert_eq!(red_string("ERR"), "ERR");
+    }
+
+    #[test]
+    fn test_cyan_string() {
+        assert_eq!(cyan_string("INFO"), "INFO");
+    }
+
+    #[test]
+    fn test_yellow_string() {
+        assert_eq!(yellow_string("WARN"), "WARN");
+    }
+
+    #[test]
+    fn test_debug_string() {
+        assert_eq!(debug_string("DBG"), "DBG");
+    }
+
+    #[test]
+    fn test_normal_string() {
+        // normal_string does not strip ANSI codes in cfg(test) like the others;
+        // it calls .normal().to_string() which may add codes outside test mode,
+        // but in test mode we just verify the content is preserved.
+        let result = normal_string("plain");
+        assert!(result.contains("plain"));
+    }
 }

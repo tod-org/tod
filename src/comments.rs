@@ -276,6 +276,62 @@ mod tests {
         assert!(output.contains("Just a plain comment"));
     }
 
+    #[test]
+    fn test_json_to_comment_valid() {
+        let json = r#"{
+            "id": "c1",
+            "posted_uid": null,
+            "content": "Hello world",
+            "uids_to_notify": null,
+            "is_deleted": false,
+            "posted_at": "2024-01-15T10:00:00Z",
+            "reactions": null,
+            "item_id": "task1",
+            "file_attachment": null
+        }"#;
+        let comment = json_to_comment(json.to_string()).expect("should parse comment JSON");
+        assert_eq!(comment.id, "c1");
+        assert_eq!(comment.content, "Hello world");
+        assert!(!comment.is_deleted);
+    }
+
+    #[test]
+    fn test_json_to_comment_invalid() {
+        let result = json_to_comment("not json".to_string());
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_json_to_comment_response_valid() {
+        let json = r#"{
+            "results": [
+                {
+                    "id": "c1",
+                    "posted_uid": null,
+                    "content": "Test",
+                    "uids_to_notify": null,
+                    "is_deleted": false,
+                    "posted_at": "2024-01-15T10:00:00Z",
+                    "reactions": null,
+                    "item_id": "t1",
+                    "file_attachment": null
+                }
+            ],
+            "next_cursor": null
+        }"#;
+        let response =
+            json_to_comment_response(json.to_string()).expect("should parse comment response JSON");
+        assert_eq!(response.results.len(), 1);
+        assert_eq!(response.results[0].content, "Test");
+        assert!(response.next_cursor.is_none());
+    }
+
+    #[test]
+    fn test_json_to_comment_response_invalid() {
+        let result = json_to_comment_response("not json".to_string());
+        assert!(result.is_err());
+    }
+
     /// Test with inline JSON to simulate the behavior of excluding comments
     /// This needs to be updated to work with the actual Regex and Mockito setup
     #[tokio::test]

@@ -356,4 +356,153 @@ mod tests {
         // Assert that the `time_provider` in the default config behaves like `SystemTimeProvider`
         assert_eq!(today_from_provider, today_from_system)
     }
+
+    #[test]
+    fn test_datetime_from_str_zulu() {
+        let tz = Tz::UTC;
+        let result = datetime_from_str("2024-01-15T10:30:00Z", tz);
+        assert!(result.is_ok());
+        let dt = result.expect("should parse Zulu datetime");
+        assert_eq!(dt.format(FORMAT_DATE).to_string(), "2024-01-15");
+    }
+
+    #[test]
+    fn test_datetime_from_str_naive() {
+        let tz = Tz::America__Los_Angeles;
+        let result = datetime_from_str("2024-01-15T10:30:00", tz);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_datetime_from_str_long() {
+        let tz = Tz::UTC;
+        // 27-character format: YYYY-MM-DDTHH:MM:SS.ffffffZ
+        let result = datetime_from_str("2024-01-15T10:30:00.000000Z", tz);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_datetime_from_str_invalid_length() {
+        let tz = Tz::UTC;
+        let result = datetime_from_str("2024", tz);
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert_eq!(err.source, "datetime_from_str");
+    }
+
+    #[test]
+    fn test_date_from_str_date_only() {
+        let tz = Tz::UTC;
+        let result = date_from_str("2024-01-15", tz);
+        assert!(result.is_ok());
+        assert_eq!(
+            result.expect("should parse date-only string").to_string(),
+            "2024-01-15"
+        );
+    }
+
+    #[test]
+    fn test_date_from_str_datetime_naive() {
+        let tz = Tz::UTC;
+        let result = date_from_str("2024-01-15T10:30:00", tz);
+        assert!(result.is_ok());
+        assert_eq!(
+            result
+                .expect("should parse datetime-naive string")
+                .to_string(),
+            "2024-01-15"
+        );
+    }
+
+    #[test]
+    fn test_date_from_str_datetime_zulu() {
+        let tz = Tz::UTC;
+        let result = date_from_str("2024-01-15T10:30:00Z", tz);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_date_from_str_invalid() {
+        let tz = Tz::UTC;
+        let result = date_from_str("2024", tz);
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert_eq!(err.source, "date_from_str");
+    }
+
+    #[test]
+    fn test_timezone_from_str_invalid() {
+        let result = timezone_from_str("Not/ATimezone");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_timezone_from_str_gmt_positive() {
+        // GMT +5:30 -> Etc/GMT-5 (note sign inversion in Etc/GMT)
+        let result = timezone_from_str("GMT +5:00");
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_is_date_in_past() {
+        let config = crate::test::fixtures::config()
+            .await
+            .with_timezone("America/Vancouver");
+        let past = NaiveDate::from_ymd_opt(2020, 1, 1).expect("valid past date");
+        let future = NaiveDate::from_ymd_opt(2099, 1, 1).expect("valid future date");
+        assert!(is_date_in_past(past, &config).expect("past should not error"));
+        assert!(!is_date_in_past(future, &config).expect("future should not error"));
+    }
+
+    #[tokio::test]
+    async fn test_naive_date_days_in_future() {
+        let config = crate::test::fixtures::config()
+            .await
+            .with_timezone("America/Vancouver");
+        let far_future = NaiveDate::from_ymd_opt(2099, 1, 1).expect("valid future date");
+        let days = naive_date_days_in_future(far_future, &config)
+            .expect("should compute days in future");
+        assert!(days > 0);
+
+        let far_past = NaiveDate::from_ymd_opt(2000, 1, 1).expect("valid past date");
+        let days_past = naive_date_days_in_future(far_past, &config)
+            .expect("should compute days in past");
+        assert!(days_past < 0);
+    }
+
+    #[tokio::test]
+    async fn test_date_to_string_today() {
+        let config = crate::test::fixtures::config()
+            .await
+            .with_timezone("America/Vancouver");
+        let today = naive_date_today(&config).expect("should get today");
+        let result = date_to_string(&today, &config).expect("should format today");
+        assert_eq!(result, "Today");
+    }
+
+    #[tokio::test]
+    async fn test_date_to_string_not_today() {
+        let config = crate::test::fixtures::config()
+            .await
+            .with_timezone("America/Vancouver");
+        let past = NaiveDate::from_ymd_opt(2020, 6, 15).expect("valid date");
+        let result = date_to_string(&past, &config).expect("should format past date");
+        assert_eq!(result, "2020-06-15");
+    }
+
+    #[tokio::test]
+    async fn test_date_string_to_naive_date() {
+        let result = date_string_to_naive_date("2024-03-20");
+        assert!(result.is_ok());
+        assert_eq!(
+            result.expect("should parse date string").to_string(),
+            "2024-03-20"
+        );
+    }
+
+    #[test]
+    fn test_date_string_to_naive_date_invalid() {
+        let result = date_string_to_naive_date("not-a-date");
+        assert!(result.is_err());
+    }
 }
