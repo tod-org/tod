@@ -177,6 +177,20 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     #[test]
+    fn test_format_osc8_link() {
+        // URL used as display text (e.g. maybe_format_url)
+        assert_eq!(
+            format_osc8_link("https://example.com", "https://example.com"),
+            "\x1B]8;;https://example.com\x07https://example.com\x1B]8;;\x07"
+        );
+        // Custom label (e.g. maybe_format_task_id, create_links)
+        assert_eq!(
+            format_osc8_link("https://example.com", "[link]"),
+            "\x1B]8;;https://example.com\x07[link]\x1B]8;;\x07"
+        );
+    }
+
+    #[test]
     fn test_create_links() {
         assert_eq!(create_links("hello"), String::from("hello"));
         assert_eq!(
