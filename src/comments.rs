@@ -1,4 +1,4 @@
-use crate::{config::Config, errors::Error, time};
+use crate::{config::Config, errors::Error, tasks::format::format_osc8_link, time};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
@@ -135,7 +135,7 @@ impl Comment {
     }
 
     fn render_link(url: &str, label: &str) -> String {
-        format!("\nAttachment \x1B]8;;{url}\x1B\\[{label}]\x1B]8;;\x1B\\")
+        format!("\nAttachment {}", format_osc8_link(url, &format!("[{label}]")))
     }
 }
 
