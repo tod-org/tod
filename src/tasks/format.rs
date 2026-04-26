@@ -104,12 +104,17 @@ pub fn due(task: &Task, config: &Config, buffer: &str) -> String {
     }
 }
 
+/// Formats a URL and display text as an OSC8 hyperlink sequence.
+pub(crate) fn format_osc8_link(url: &str, text: &str) -> String {
+    format!("\x1B]8;;{url}\x07{text}\x1B]8;;\x07")
+}
+
 // Formats a string for all style/formatted links (including markdown) and formats them as a hyperlink
 fn create_links(content: &str) -> String {
     let result = regexes::MARKDOWN_LINK.replace_all(content, |caps: &regex::Captures| {
         let text = &caps[1];
         let url = &caps[2];
-        Cow::from(format!("\x1b]8;;{url}\x07[{text}]\x1b]8;;\x07"))
+        Cow::from(format_osc8_link(url, &format!("[{text}]")))
     });
 
     result.into_owned()
@@ -120,7 +125,7 @@ pub fn maybe_format_url(url: &str, config: &Config) -> String {
     if hyperlinks_disabled(config) {
         return url.to_string();
     }
-    format!("\x1B]8;;{url}\x07[{url}]\x1B]8;;\x07")
+    format_osc8_link(url, url)
 }
 pub fn number_comments(quantity: usize) -> String {
     let comment_icon = color::purple_string("★");
@@ -136,7 +141,7 @@ pub fn maybe_format_task_id(task_id: &str, config: &Config) -> String {
     if hyperlinks_disabled(config) {
         url
     } else {
-        format!("\x1B]8;;{url}\x07[link]\x1B]8;;\x07")
+        format_osc8_link(&url, "[link]")
     }
 }
 
@@ -190,7 +195,7 @@ mod tests {
         }
         assert_eq!(
             maybe_format_task_id("1", &config),
-            String::from("\x1B]8;;https://app.todoist.com/app/task/1\x1B\\[link]\x1B]8;;\x1B\\")
+            String::from("\x1B]8;;https://app.todoist.com/app/task/1\x07[link]\x1B]8;;\x07")
         );
     }
 
@@ -258,7 +263,7 @@ mod tests {
     async fn test_format_url_hyperlinks_enabled() {
         let url = "https://www.rust-lang.org/";
         let expected =
-            "\x1B]8;;https://www.rust-lang.org/\x1B\\[https://www.rust-lang.org/]\x1B]8;;\x1B\\";
+            "\x1B]8;;https://www.rust-lang.org/\x07https://www.rust-lang.org/\x1B]8;;\x07";
         let config = Config::default();
         // Skip the test if hyperlinks are not supported in the current environment (otherwise test fails)
         if !supports_hyperlinks::on(Stream::Stdout) {
