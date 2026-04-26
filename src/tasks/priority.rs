@@ -81,6 +81,13 @@ mod tests {
         let expected = Some(Priority::High);
 
         assert_eq!(result, expected);
+
+        // All variants
+        assert_eq!(from_integer(&Some(2)), Some(Priority::Low));
+        assert_eq!(from_integer(&Some(3)), Some(Priority::Medium));
+
+        // None input
+        assert_eq!(from_integer(&None), None);
     }
 
     #[test]
@@ -94,6 +101,10 @@ mod tests {
         let expected = 4;
 
         assert_eq!(result, expected);
+
+        // All variants
+        assert_eq!(Priority::Low.to_integer(), 2);
+        assert_eq!(Priority::Medium.to_integer(), 3);
     }
 
     #[test]
@@ -107,5 +118,9 @@ mod tests {
         let expected = String::from("HIGH (P1)");
 
         assert_eq!(result, expected);
+
+        // Remaining variants
+        assert_eq!(Priority::Low.to_string(), "LOW (P3)");
+        assert_eq!(Priority::Medium.to_string(), "MEDIUM (P2)");
     }
 }

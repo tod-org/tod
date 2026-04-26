@@ -1043,6 +1043,173 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     #[tokio::test]
+    async fn test_json_to_task_valid() {
+        let json = ResponseFromFile::TodayTask.read().await;
+        let task = json_to_task(json).expect("should parse TodayTask JSON");
+        assert_eq!(task.content, "TEST");
+        assert_eq!(task.user_id, "910");
+    }
+
+    #[test]
+    fn test_json_to_task_invalid() {
+        let result = json_to_task("not json".to_string());
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_json_to_tasks_response_valid() {
+        let json = ResponseFromFile::TodayTasks.read().await;
+        let response = json_to_tasks_response(json).expect("should parse TodayTasks JSON");
+        assert!(!response.results.is_empty());
+    }
+
+    #[test]
+    fn test_json_to_tasks_response_invalid() {
+        let result = json_to_tasks_response("not json".to_string());
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_sort_order_display() {
+        assert_eq!(SortOrder::Value.to_string(), "value");
+        assert_eq!(SortOrder::Datetime.to_string(), "datetime");
+        assert_eq!(SortOrder::Todoist.to_string(), "todoist");
+    }
+
+    #[tokio::test]
+    async fn test_sort_todoist_preserves_order() {
+        let config = test::fixtures::config().await;
+        let t1 = test::fixtures::today_task().await;
+        let t2 = Task {
+            id: "other".into(),
+            ..test::fixtures::today_task().await
+        };
+        let tasks = vec![t1.clone(), t2.clone()];
+        let sorted = sort(tasks.clone(), &config, &SortOrder::Todoist);
+        assert_eq!(sorted, tasks);
+    }
+
+    #[tokio::test]
+    async fn test_filter_not_in_future_keeps_today_and_overdue() {
+        let config = test::fixtures::config().await;
+        let today = test::fixtures::today_task().await;
+        let overdue = Task {
+            id: "overdue-id".into(),
+            due: Some(DateInfo {
+                date: "2020-01-01".into(),
+                is_recurring: false,
+                lang: "en".into(),
+                string: "2020-01-01".into(),
+                timezone: None,
+            }),
+            ..today.clone()
+        };
+        let future = Task {
+            id: "future-id".into(),
+            due: Some(DateInfo {
+                date: "2099-12-31".into(),
+                is_recurring: false,
+                lang: "en".into(),
+                string: "2099-12-31".into(),
+                timezone: None,
+            }),
+            ..today.clone()
+        };
+        let tasks = vec![today.clone(), overdue.clone(), future.clone()];
+        let result =
+            filter_not_in_future(tasks, &config).expect("filter_not_in_future should not error");
+        // today and overdue should remain; future should be filtered
+        assert!(result.iter().any(|t| t.id == today.id));
+        assert!(result.iter().any(|t| t.id == "overdue-id"));
+        assert!(!result.iter().any(|t| t.id == "future-id"));
+    }
+
+    #[tokio::test]
+    async fn test_filter_not_in_future_keeps_no_date() {
+        let config = test::fixtures::config().await;
+        let no_date = Task {
+            due: None,
+            ..test::fixtures::today_task().await
+        };
+        let result = filter_not_in_future(vec![no_date.clone()], &config)
+            .expect("filter should not error");
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].id, no_date.id);
+    }
+
+    #[tokio::test]
+    async fn test_is_recurring_true() {
+        let task = Task {
+            due: Some(DateInfo {
+                date: "2024-01-01".into(),
+                is_recurring: true,
+                lang: "en".into(),
+                string: "every day".into(),
+                timezone: None,
+            }),
+            ..test::fixtures::today_task().await
+        };
+        assert!(task.is_recurring());
+    }
+
+    #[tokio::test]
+    async fn test_is_recurring_false_no_due() {
+        let task = Task {
+            due: None,
+            ..test::fixtures::today_task().await
+        };
+        assert!(!task.is_recurring());
+    }
+
+    #[tokio::test]
+    async fn test_is_recurring_false_non_recurring_due() {
+        let task = Task {
+            due: Some(DateInfo {
+                date: "2024-01-01".into(),
+                is_recurring: false,
+                lang: "en".into(),
+                string: "2024-01-01".into(),
+                timezone: None,
+            }),
+            ..test::fixtures::today_task().await
+        };
+        assert!(!task.is_recurring());
+    }
+
+    #[tokio::test]
+    async fn test_edit_task_attributes_contains_all() {
+        let attrs = edit_task_attributes();
+        assert!(attrs.contains(&TaskAttribute::Content));
+        assert!(attrs.contains(&TaskAttribute::Description));
+        assert!(attrs.contains(&TaskAttribute::Priority));
+        assert!(attrs.contains(&TaskAttribute::Due));
+        assert!(attrs.contains(&TaskAttribute::Labels));
+        assert!(attrs.contains(&TaskAttribute::Deadline));
+    }
+
+    #[tokio::test]
+    async fn test_create_task_attributes_contains_expected() {
+        let attrs = create_task_attributes();
+        assert!(attrs.contains(&TaskAttribute::Description));
+        assert!(attrs.contains(&TaskAttribute::Priority));
+        assert!(attrs.contains(&TaskAttribute::Due));
+        assert!(attrs.contains(&TaskAttribute::Labels));
+        assert!(attrs.contains(&TaskAttribute::Deadline));
+        // Content should not be in create (it's set at creation time)
+        assert!(!attrs.contains(&TaskAttribute::Content));
+    }
+
+    #[tokio::test]
+    async fn test_task_attribute_display() {
+        assert_eq!(TaskAttribute::Content.to_string(), "Content");
+        assert_eq!(TaskAttribute::Description.to_string(), "Description");
+        assert_eq!(TaskAttribute::Priority.to_string(), "Priority");
+        assert_eq!(TaskAttribute::Due.to_string(), "Due");
+        assert_eq!(TaskAttribute::Labels.to_string(), "Labels");
+        assert_eq!(TaskAttribute::Deadline.to_string(), "Deadline");
+    }
+
+    #[tokio::test]
     async fn date_value_can_handle_date() {
         let config = test::fixtures::config().await;
         // On another day

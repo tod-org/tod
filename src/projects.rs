@@ -1048,4 +1048,60 @@ mod tests {
         mock3.expect(4);
         mock4.expect(4);
     }
+
+    #[tokio::test]
+    async fn test_json_to_project_valid() {
+        let json = ResponseFromFile::Project.read().await;
+        let project = json_to_project(json).expect("should parse project JSON");
+        assert_eq!(project.name, "Doomsday");
+    }
+
+    #[test]
+    fn test_json_to_project_invalid() {
+        let result = json_to_project("not json".to_string());
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_json_to_projects_response_valid() {
+        let json = ResponseFromFile::Projects.read().await;
+        let response = json_to_projects_response(json).expect("should parse projects response");
+        assert!(!response.results.is_empty());
+    }
+
+    #[test]
+    fn test_json_to_projects_response_invalid() {
+        let result = json_to_projects_response("not json".to_string());
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_project_display() {
+        let project = test::fixtures::project();
+        let displayed = project.to_string();
+        assert!(displayed.contains("myproject"));
+        assert!(displayed.contains("https://app.todoist.com/app/project"));
+        assert!(displayed.contains(&project.id));
+    }
+
+    #[test]
+    fn test_legacy_project_display() {
+        let project = LegacyProject {
+            id: "1".to_string(),
+            name: "My Legacy".to_string(),
+            color: "blue".to_string(),
+            comment_count: 0,
+            order: 1,
+            is_shared: false,
+            is_favorite: false,
+            is_inbox_project: false,
+            is_team_inbox: false,
+            view_style: "list".to_string(),
+            url: "https://todoist.com/project/1".to_string(),
+            parent_id: None,
+        };
+        let displayed = project.to_string();
+        assert!(displayed.contains("My Legacy"));
+        assert!(displayed.contains("https://todoist.com/project/1"));
+    }
 }

@@ -33,3 +33,45 @@ pub fn json_to_labels_response(json: &str) -> Result<LabelResponse, Error> {
     let response: LabelResponse = serde_json::from_str(json)?;
     Ok(response)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use pretty_assertions::assert_eq;
+
+    #[test]
+    fn test_label_fmt() {
+        let label = Label {
+            id: "1".to_string(),
+            name: "work".to_string(),
+            color: "red".to_string(),
+            order: Some(1),
+            is_favorite: false,
+        };
+        assert_eq!(label.to_string(), "work");
+    }
+
+    #[test]
+    fn test_json_to_labels_response_valid() {
+        let json = r#"{"results":[{"id":"1","name":"work","color":"red","order":1,"is_favorite":false}],"next_cursor":null}"#;
+        let response = json_to_labels_response(json).expect("should parse labels response");
+        assert_eq!(response.results.len(), 1);
+        assert_eq!(response.results[0].name, "work");
+        assert_eq!(response.results[0].color, "red");
+        assert!(response.next_cursor.is_none());
+    }
+
+    #[test]
+    fn test_json_to_labels_response_with_cursor() {
+        let json = r#"{"results":[],"next_cursor":"abc123"}"#;
+        let response = json_to_labels_response(json).expect("should parse labels response with cursor");
+        assert!(response.results.is_empty());
+        assert_eq!(response.next_cursor, Some("abc123".to_string()));
+    }
+
+    #[test]
+    fn test_json_to_labels_response_invalid() {
+        let result = json_to_labels_response("not json");
+        assert!(result.is_err());
+    }
+}
