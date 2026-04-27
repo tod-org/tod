@@ -3,17 +3,17 @@
 name: Codecov
 
 permissions:
-  contents: read  # Allow the workflow to read repository contents
-  pull-requests: write  # Allow the workflow to write to pull requests
+  contents: read # Allow the workflow to read repository contents
+  pull-requests: write # Allow the workflow to write to pull requests
 
 on:
   push:
-    # Trigger the workflow on push    
+    # Trigger the workflow on push
     paths:
-      - '**/*.rs'  # Run if there are changes in Rust source files.
-      - '**/*.json'  # Run if there are changes in JSON files.
-      - '**/*.lock'  # Run if there are changes in lock files.
-      - '**/*.toml'  # Run if there are changes in TOML files.
+      - "**/*.rs" # Run if there are changes in Rust source files.
+      - "**/*.json" # Run if there are changes in JSON files.
+      - "**/*.lock" # Run if there are changes in lock files.
+      - "**/*.toml" # Run if there are changes in TOML files.
 
 env:
   CARGO_TERM_COLOR: always
@@ -31,13 +31,13 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
         with:
-         cache-all-crates: true
+          cache-all-crates: true
       - uses: taiki-e/install-action@v2
         with:
           tool: cargo-tarpaulin
-          # Run cargo-tarpaulin to collect code coverage data and upload it to Codecov
       - name: Run tests with coverage
         run: cargo tarpaulin --all-features --out xml --frozen --skip-clean
       - name: Upload to codecov.io
         uses: codecov/codecov-action@v6
-
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
