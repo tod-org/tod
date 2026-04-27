@@ -64,7 +64,8 @@ mod tests {
     #[test]
     fn test_json_to_labels_response_with_cursor() {
         let json = r#"{"results":[],"next_cursor":"abc123"}"#;
-        let response = json_to_labels_response(json).expect("should parse labels response with cursor");
+        let response =
+            json_to_labels_response(json).expect("should parse labels response with cursor");
         assert!(response.results.is_empty());
         assert_eq!(response.next_cursor, Some("abc123".to_string()));
     }
