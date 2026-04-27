@@ -438,7 +438,7 @@ mod tests {
 
     #[test]
     fn test_timezone_from_str_gmt_positive() {
-        // GMT +5:30 -> Etc/GMT-5 (note sign inversion in Etc/GMT)
+        // GMT +5:00 -> Etc/GMT-5 (note sign inversion in Etc/GMT)
         let result = timezone_from_str("GMT +5:00");
         assert!(result.is_ok());
     }
