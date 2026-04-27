@@ -1131,8 +1131,8 @@ mod tests {
             due: None,
             ..test::fixtures::today_task().await
         };
-        let result = filter_not_in_future(vec![no_date.clone()], &config)
-            .expect("filter should not error");
+        let result =
+            filter_not_in_future(vec![no_date.clone()], &config).expect("filter should not error");
         assert_eq!(result.len(), 1);
         assert_eq!(result[0].id, no_date.id);
     }

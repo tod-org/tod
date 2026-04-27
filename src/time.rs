@@ -460,13 +460,13 @@ mod tests {
             .await
             .with_timezone("America/Vancouver");
         let far_future = NaiveDate::from_ymd_opt(2099, 1, 1).expect("valid future date");
-        let days = naive_date_days_in_future(far_future, &config)
-            .expect("should compute days in future");
+        let days =
+            naive_date_days_in_future(far_future, &config).expect("should compute days in future");
         assert!(days > 0);
 
         let far_past = NaiveDate::from_ymd_opt(2000, 1, 1).expect("valid past date");
-        let days_past = naive_date_days_in_future(far_past, &config)
-            .expect("should compute days in past");
+        let days_past =
+            naive_date_days_in_future(far_past, &config).expect("should compute days in past");
         assert!(days_past < 0);
     }
 
