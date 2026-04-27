@@ -50,7 +50,7 @@ pub struct Cli {
     pub verbose: bool,
 
     #[arg(short, long)]
-    /// Absolute path of configuration. Defaults to $XDG_CONFIG_HOME/tod.cfg
+    /// Absolute PathBuf path of configuration file. Defaults to $XDG_CONFIG_HOME/tod.cfg
     pub config: Option<PathBuf>,
 
     #[arg(short, long)]

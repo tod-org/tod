@@ -376,7 +376,7 @@ impl Config {
         })
     }
 
-    pub async fn load(path: &PathBuf) -> Result<Config, Error> {
+    pub async fn load(path: &Path) -> Result<Config, Error> {
         let mut json = String::new();
         fs::File::open(path)
             .await?
@@ -689,7 +689,8 @@ pub async fn generate_path() -> Result<PathBuf, Error> {
         let random_string = Alphanumeric.sample_string(&mut rand::rng(), 100);
         Ok(PathBuf::from(format!("tests/{random_string}.testcfg")))
     } else {
-        let config_directory = dirs::config_dir().expect("Could not find config directory");
+        let config_directory = dirs::config_dir()
+            .ok_or_else(|| Error::new("dirs", "Could not find config directory"))?;
         Ok(config_directory.join("tod.cfg"))
     }
 }
