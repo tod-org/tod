@@ -122,6 +122,10 @@ pub async fn select_command(
     cli: Cli,
     tx: UnboundedSender<Error>,
 ) -> (bool, bool, Result<String, Error>) {
+    if cli.verbose {
+        crate::debug::print(LONG_VERSION);
+    }
+
     match &cli.command {
         // Project
         Commands::Project(ProjectCommands::Create(args)) => {
