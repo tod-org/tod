@@ -109,15 +109,15 @@ pub(crate) fn format_osc8_link(url: &str, text: &str) -> String {
     format!("\x1B]8;;{url}\x07{text}\x1B]8;;\x07")
 }
 
-// Formats a string for all style/formatted links (including markdown) and formats them as a hyperlink
+// Converts markdown links to OSC8 hyperlinks showing only the link text (no URL).
 fn create_links(content: &str) -> String {
-    let result = regexes::MARKDOWN_LINK.replace_all(content, |caps: &regex::Captures| {
-        let text = &caps[1];
-        let url = &caps[2];
-        Cow::from(format_osc8_link(url, &format!("[{text}]")))
-    });
-
-    result.into_owned()
+    regexes::MARKDOWN_LINK
+        .replace_all(content, |caps: &regex::Captures| {
+            let text = &caps[1];
+            let url = &caps[2];
+            Cow::from(format_osc8_link(url, text))
+        })
+        .into_owned()
 }
 
 // Formats a single URL as a hyperlinked URL (with the URL as the Hyperlink), if hyperlinks are enabled in the config - If hyperlinks are disabled, it returns the same URL as a plain string.
@@ -195,7 +195,7 @@ mod tests {
         assert_eq!(create_links("hello"), String::from("hello"));
         assert_eq!(
             create_links("This is text [Google](https://www.google.com/)"),
-            String::from("This is text \x1b]8;;https://www.google.com/\x07[Google]\x1b]8;;\x07")
+            String::from("This is text \x1b]8;;https://www.google.com/\x07Google\x1b]8;;\x07")
         );
     }
 
@@ -255,12 +255,12 @@ mod tests {
     fn test_create_links_multiple_and_edge_cases() {
         // Multiple links in one string
         let input = "Links: [Rust](https://www.rust-lang.org/) and [GitHub](https://github.com/)";
-        let expected = "Links: \x1b]8;;https://www.rust-lang.org/\x07[Rust]\x1b]8;;\x07 and \x1b]8;;https://github.com/\x07[GitHub]\x1b]8;;\x07";
+        let expected = "Links: \x1b]8;;https://www.rust-lang.org/\x07Rust\x1b]8;;\x07 and \x1b]8;;https://github.com/\x07GitHub\x1b]8;;\x07";
         assert_eq!(create_links(input), expected);
 
         // Single link
         let input = "Check this out: [Example](https://example.com)";
-        let expected = "Check this out: \x1b]8;;https://example.com\x07[Example]\x1b]8;;\x07";
+        let expected = "Check this out: \x1b]8;;https://example.com\x07Example\x1b]8;;\x07";
         assert_eq!(create_links(input), expected);
 
         // No links present
