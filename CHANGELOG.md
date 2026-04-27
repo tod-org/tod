@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.3](https://github.com/tod-org/tod/compare/v0.11.2...v0.11.3) (2026-04-27)
+
+
+### Bug Fixes
+
+* verbose token ([e577ca3](https://github.com/tod-org/tod/commit/e577ca3006e2798a34bb3d5103b33e3fa33ecce3))
+
 ## [0.11.2](https://github.com/tod-org/tod/compare/v0.11.1...v0.11.2) (2026-01-25)
 
 
