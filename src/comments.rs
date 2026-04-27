@@ -1,4 +1,9 @@
-use crate::{config::Config, errors::Error, tasks::format::format_osc8_link, time};
+use crate::{
+    config::Config,
+    errors::Error,
+    tasks::format::{format_osc8_link, hyperlinks_disabled},
+    time,
+};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
@@ -101,21 +106,21 @@ impl Comment {
                 site_name,
                 title,
                 ..
-            })) => Self::render_link(url, &format!("{site_name}: {title}")),
+            })) => Self::render_link(url, &format!("{site_name}: {title}"), config),
             Some(Attachment::ShortUrl(ShortUrlAttachment { url, title, .. })) => {
-                Self::render_link(url, title)
+                Self::render_link(url, title, config)
             }
             Some(Attachment::Video(VideoAttachment {
                 url,
                 site_name,
                 title,
                 ..
-            })) => Self::render_link(url, &format!("{site_name}: {title}")),
+            })) => Self::render_link(url, &format!("{site_name}: {title}"), config),
             Some(Attachment::File(FileAttachment {
                 file_url,
                 file_name,
                 ..
-            })) => Self::render_link(file_url, file_name),
+            })) => Self::render_link(file_url, file_name, config),
             Some(Attachment::Image(ImageAttachment {
                 url,
                 site_name,
@@ -124,7 +129,7 @@ impl Comment {
             })) => {
                 let site = site_name.as_deref().unwrap_or("Image");
                 let title = title.as_deref().unwrap_or(url);
-                Self::render_link(url, &format!("{site}: {title}"))
+                Self::render_link(url, &format!("{site}: {title}"), config)
             }
         };
 
@@ -134,8 +139,15 @@ impl Comment {
         ))
     }
 
-    fn render_link(url: &str, label: &str) -> String {
-        format!("\nAttachment {}", format_osc8_link(url, &format!("[{label}]")))
+    fn render_link(url: &str, label: &str, config: &Config) -> String {
+        if hyperlinks_disabled(config) {
+            format!("\nAttachment [{label}]({url})")
+        } else {
+            format!(
+                "\nAttachment {}",
+                format_osc8_link(url, &format!("[{label}]"))
+            )
+        }
     }
 }
 
@@ -330,6 +342,55 @@ mod tests {
     fn test_json_to_comment_response_invalid() {
         let result = json_to_comment_response("not json".to_string());
         assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_fmt_attachment_links_enabled() {
+        // With hyperlinks enabled (disable_links = false, default), the output should contain
+        // an OSC8 escape sequence for the attachment link.
+        let config = fixtures::config().await;
+        // Skip the test if hyperlinks are not supported in this environment
+        if !supports_hyperlinks::on(supports_hyperlinks::Stream::Stdout) {
+            eprintln!("Skipping test: hyperlinks not supported in this environment");
+            return;
+        }
+        let comment = load_comments()
+            .await
+            .into_iter()
+            .find(|c| c.id == "file-1")
+            .expect("Failed to find comment with id 'file-1'");
+        let output = comment
+            .fmt(&config)
+            .expect("Failed to format the comment with the provided config");
+        // OSC8 opener sequence must be present when links are enabled
+        assert!(
+            output.contains("\x1B]8;;"),
+            "Expected OSC8 hyperlink sequence in output"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_fmt_attachment_links_disabled() {
+        // With hyperlinks disabled, the output should contain a plain Markdown-style link
+        // and must not contain any OSC8 escape sequences.
+        let mut config = fixtures::config().await;
+        config.disable_links = true;
+        let comment = load_comments()
+            .await
+            .into_iter()
+            .find(|c| c.id == "file-1")
+            .expect("Failed to find comment with id 'file-1'");
+        let output = comment
+            .fmt(&config)
+            .expect("Failed to format the comment with the provided config");
+        assert!(
+            !output.contains("\x1B]8;;"),
+            "Expected no OSC8 hyperlink sequence in output when links are disabled"
+        );
+        assert!(
+            output.contains("file.pdf"),
+            "Expected plain-text label in output when links are disabled"
+        );
     }
 
     /// Test with inline JSON to simulate the behavior of excluding comments
