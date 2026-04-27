@@ -19,6 +19,8 @@ pub struct Create {
     project: Option<String>,
 }
 
+/// Creates a new section inside a Todoist project.
+/// Runs when the user executes `tod section create`.
 pub async fn create(config: &Config, args: &Create) -> Result<String, Error> {
     let Create { name, project } = args;
     let name = super::fetch_string(name.as_deref(), config, input::NAME)?;

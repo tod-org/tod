@@ -23,6 +23,8 @@ pub enum Version {
     Latest,
     Dated(String),
 }
+/// Compares the currently installed version against the latest published version on crates.io.
+/// Returns `Version::Latest` if up to date, or `Version::Dated(latest)` if an update is available.
 pub async fn compare_versions(_mock_url: Option<String>) -> Result<Version, Error> {
     match get_latest_version(_mock_url).await {
         Ok(version) if version.as_str() != VERSION => Ok(Version::Dated(version)),

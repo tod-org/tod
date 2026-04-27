@@ -25,10 +25,12 @@ impl Display for Label {
         write!(f, "{name}")
     }
 }
+/// Fetches all labels from the Todoist API, optionally showing a spinner.
 pub async fn get_labels(config: &Config, spinner: bool) -> Result<Vec<Label>, Error> {
     todoist::all_labels(config, spinner, None).await
 }
 
+/// Deserializes a JSON string into a `LabelResponse` (a paginated list of labels).
 pub fn json_to_labels_response(json: &str) -> Result<LabelResponse, Error> {
     let response: LabelResponse = serde_json::from_str(json)?;
     Ok(response)

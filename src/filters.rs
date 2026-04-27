@@ -10,6 +10,7 @@ use crate::{
     todoist,
 };
 
+/// Prompts the user to select a task from the given filter and then interactively edit its attributes.
 pub async fn edit_task(config: &Config, filter: String) -> Result<String, Error> {
     let tasks = todoist::all_tasks_by_filters(config, &filter)
         .await?

@@ -92,6 +92,7 @@ pub fn edit_task_attributes() -> Vec<TaskAttribute> {
     ]
 }
 
+/// Returns the list of `TaskAttribute` values that can be selected when creating a new task.
 pub fn create_task_attributes() -> Vec<TaskAttribute> {
     vec![
         TaskAttribute::Description,

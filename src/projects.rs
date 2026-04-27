@@ -78,21 +78,19 @@ impl Display for Project {
         write!(f, "{}\n{}/{}", self.name, PROJECT_URL, self.id)
     }
 }
+/// Deserializes a JSON string into a single `Project`.
 pub fn json_to_project(json: String) -> Result<Project, Error> {
     let project: Project = serde_json::from_str(&json)?;
     Ok(project)
 }
+/// Deserializes a JSON string into a `ProjectResponse` (a paginated list of projects).
 pub fn json_to_projects_response(json: String) -> Result<ProjectResponse, Error> {
     let response: ProjectResponse = serde_json::from_str(&json)?;
     Ok(response)
 }
 
+/// Creates a new project in Todoist and adds it to the local config.
 pub async fn create(
-    config: &mut Config,
-    name: String,
-    description: &str,
-    is_favorite: bool,
-) -> Result<String, Error> {
     let project = todoist::create_project(config, &name, description, is_favorite, true).await?;
     add(config, &project).await?;
     Ok(format!("Created project {name} and added to config"))
@@ -326,6 +324,7 @@ async fn maybe_add_project(
     }
 }
 
+/// Prompts the user to select and edit attributes of a task belonging to the given project.
 pub async fn edit_task(config: &Config, project: &Project) -> Result<String, Error> {
     let project_tasks = todoist::all_tasks_by_project(config, project, None).await?;
 
@@ -436,11 +435,8 @@ pub async fn schedule(
         )))
     }
 }
+/// Assigns a deadline to every non-recurring task in the project that does not already have one.
 pub async fn deadline(
-    config: &Config,
-    project: &Project,
-    sort: &SortOrder,
-) -> Result<String, Error> {
     let tasks = todoist::all_tasks_by_project(config, project, None).await?;
     let tasks = tasks::sort(tasks, config, sort);
 
@@ -470,6 +466,7 @@ pub async fn deadline(
     }
 }
 
+/// Prompts the user to move a task to another project (or complete/skip/delete it).
 pub async fn move_task_to_project(
     config: &mut Config,
     task: Task,

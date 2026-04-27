@@ -25,6 +25,7 @@ pub struct SectionResponse {
 }
 
 // Fetch all sections for all projects
+/// Fetches all sections for every project stored in config, in parallel.
 pub async fn all_sections(config: &mut Config) -> Result<Vec<Section>, Error> {
     let projects = config.projects().await?;
 
@@ -41,15 +42,18 @@ pub async fn all_sections(config: &mut Config) -> Result<Vec<Section>, Error> {
     Ok(sections)
 }
 
+/// Deserializes a JSON string into a single `Section`.
 pub fn json_to_section(json: &str) -> Result<Section, Error> {
     let section: Section = serde_json::from_str(json)?;
     Ok(section)
 }
+/// Deserializes a JSON string into a `SectionResponse` (a paginated list of sections).
 pub fn json_to_sections_response(json: &str) -> Result<SectionResponse, Error> {
     let response: SectionResponse = serde_json::from_str(json)?;
     Ok(response)
 }
 
+/// Prompts the user to pick a section from those available in the given project, or returns `None` if there are none.
 pub async fn select_section(config: &Config, project: &Project) -> Result<Option<Section>, Error> {
     let sections = todoist::all_sections_by_project(config, project, None).await?;
     let mut section_names: Vec<String> = sections.clone().into_iter().map(|x| x.name).collect();

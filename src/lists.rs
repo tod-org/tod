@@ -252,6 +252,7 @@ pub async fn label(
     Ok(color::green_string(&success))
 }
 
+/// Reads a Markdown file line by line and creates one Todoist task per non-empty line using NLP.
 pub async fn import(config: &Config, file_path: &str) -> Result<String, Error> {
     let mut lines = String::new();
     fs::File::open(file_path)

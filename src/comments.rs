@@ -93,6 +93,7 @@ pub struct ImageAttachment {
 }
 
 impl Comment {
+    /// Formats a comment into a human-readable string, including the posted date and any attachment link.
     pub fn fmt(&self, config: &Config) -> Result<String, Error> {
         let timezone = config.get_timezone()?;
         let timezone = time::timezone_from_str(&timezone)?;
@@ -151,11 +152,13 @@ impl Comment {
     }
 }
 
+/// Deserializes a JSON string into a `CommentResponse` (a paginated list of comments).
 pub fn json_to_comment_response(json: String) -> Result<CommentResponse, Error> {
     let response: CommentResponse = serde_json::from_str(&json)?;
     Ok(response)
 }
 
+/// Deserializes a JSON string into a single `Comment`.
 pub fn json_to_comment(json: String) -> Result<Comment, Error> {
     let comment: Comment = serde_json::from_str(&json)?;
     Ok(comment)

@@ -17,6 +17,8 @@ pub struct Completions {
     shell: Shell,
 }
 
+/// Prints shell completion scripts for the requested shell to stdout.
+/// Runs when the user executes `tod shell completions`.
 pub async fn completions(args: &Completions) -> Result<String, Error> {
     shell::generate_completions(args.shell);
 

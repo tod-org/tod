@@ -118,6 +118,8 @@ impl Display for FlagOptions {
     }
 }
 
+/// Parses the CLI command and dispatches to the appropriate handler.
+/// Returns a tuple of `(bell_on_success, bell_on_failure, result)`.
 pub async fn select_command(
     cli: Cli,
     tx: UnboundedSender<Error>,

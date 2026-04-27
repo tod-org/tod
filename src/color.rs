@@ -8,34 +8,42 @@ fn apply_color(str: &str, color: fn(String) -> ColoredString) -> String {
     color(str.to_string()).to_string()
 }
 
+/// Wraps `str` in green terminal color codes.
 pub fn green_string(str: &str) -> String {
     apply_color(str, |s| s.green())
 }
 
+/// Wraps `str` in red terminal color codes.
 pub fn red_string(str: &str) -> String {
     apply_color(str, |s| s.red())
 }
 
+/// Wraps `str` in bright-cyan terminal color codes.
 pub fn cyan_string(str: &str) -> String {
     apply_color(str, |s| s.bright_cyan())
 }
 
+/// Wraps `str` in purple terminal color codes.
 pub fn purple_string(str: &str) -> String {
     apply_color(str, |s| s.purple())
 }
 
+/// Wraps `str` in blue terminal color codes.
 pub fn blue_string(str: &str) -> String {
     apply_color(str, |s| s.blue())
 }
 
+/// Wraps `str` in yellow terminal color codes.
 pub fn yellow_string(str: &str) -> String {
     apply_color(str, |s| s.yellow())
 }
 
+/// Wraps `str` in bright-blue-on-yellow terminal color codes, used for debug output.
 pub fn debug_string(str: &str) -> String {
     apply_color(str, |s| s.bright_blue().on_yellow())
 }
 
+/// Returns `str` with default (normal) terminal styling applied.
 pub fn normal_string(str: &str) -> String {
     String::from(str).normal().to_string()
 }

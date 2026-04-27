@@ -35,6 +35,8 @@ pub struct AccessToken {
     pub access_token: String,
 }
 
+/// Initiates the Todoist OAuth 2.0 login flow: opens the authorization URL, starts a local callback
+/// server, exchanges the code for an access token, and persists it in config.
 pub async fn login(config: &mut Config, test_tx: Option<Sender<()>>) -> Result<String, Error> {
     // Use the provided config, not a new default every time
     let csrf_token = print_oauth_url(config);
@@ -135,6 +137,7 @@ async fn receive_callback(
     }
 }
 
+/// Deserializes a JSON string into an `AccessToken`.
 pub fn json_to_access_token(json: String) -> Result<AccessToken, Error> {
     let token: AccessToken = serde_json::from_str(&json)?;
     Ok(token)

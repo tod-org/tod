@@ -110,6 +110,8 @@ pub struct Comment {
     /// Content for comment
     content: Option<String>,
 }
+/// Creates a task in the inbox using Todoist's natural-language processing (NLP).
+/// Runs when the user executes `tod task quick-add`.
 pub async fn quick_add(config: &Config, args: &QuickAdd) -> Result<String, Error> {
     let QuickAdd { content } = args;
     let maybe_string = content.as_ref().map(|c| c.join(" "));
@@ -133,6 +135,8 @@ fn is_no_sections(args: &Create, config: &Config) -> bool {
     args.no_section || config.no_sections.unwrap_or_default()
 }
 
+/// Creates a task with full attribute control (content, description, priority, due date, labels).
+/// Runs when the user executes `tod task create`.
 pub async fn create(config: Config, args: &Create) -> Result<String, Error> {
     if no_flags_used(args) {
         let options = tasks::create_task_attributes();
@@ -259,6 +263,8 @@ fn no_flags_used(args: &Create) -> bool {
         && label.is_empty()
 }
 
+/// Edits one or more attributes of an existing task selected from a project or filter.
+/// Runs when the user executes `tod task edit`.
 pub async fn edit(config: Config, args: &Edit) -> Result<String, Error> {
     let Edit { project, filter } = args;
     match super::fetch_project_or_filter(project.as_deref(), filter.as_deref(), &config).await? {
@@ -266,6 +272,8 @@ pub async fn edit(config: Config, args: &Edit) -> Result<String, Error> {
         Flag::Filter(filter) => filters::edit_task(&config, filter).await,
     }
 }
+/// Fetches and displays the highest-priority task from a project or filter and saves it as the "next task".
+/// Runs when the user executes `tod task next`.
 pub async fn next(config: Config, args: &Next) -> Result<String, Error> {
     let Next { project, filter } = args;
     match super::fetch_project_or_filter(project.as_deref(), filter.as_deref(), &config).await? {
@@ -274,6 +282,8 @@ pub async fn next(config: Config, args: &Next) -> Result<String, Error> {
     }
 }
 
+/// Completes the task that was last retrieved with `tod task next`.
+/// Runs when the user executes `tod task complete`.
 pub async fn complete(config: Config, _args: &Complete) -> Result<String, Error> {
     match config.next_task() {
         Some(task) => {
@@ -288,6 +298,8 @@ pub async fn complete(config: Config, _args: &Complete) -> Result<String, Error>
     }
 }
 
+/// Adds a comment to the task that was last retrieved with `tod task next`.
+/// Runs when the user executes `tod task comment`.
 pub async fn comment(config: Config, args: &Comment) -> Result<String, Error> {
     let Comment { content } = args;
     match config.next_task() {

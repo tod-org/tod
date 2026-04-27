@@ -115,6 +115,7 @@ pub fn datetime(
     }
 }
 
+/// Displays an interactive calendar and returns the selected date as a `YYYY-MM-DD` string.
 pub fn date() -> Result<String, Error> {
     let string = DateSelect::new("Select Date")
         .with_help_message(

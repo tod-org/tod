@@ -248,6 +248,7 @@ impl Config {
         }
     }
     // Returns the maximum comment length if configured, otherwise estimates based on terminal window size (if supported)
+    /// Returns the configured maximum comment display length, or estimates one from the terminal dimensions.
     pub fn max_comment_length(&self) -> u32 {
         match self.max_comment_length {
             Some(length) => length,
@@ -264,6 +265,7 @@ impl Config {
         }
     }
 
+    /// Refreshes project data in config by re-fetching names/metadata from the Todoist API for all currently configured projects.
     pub async fn reload_projects(self: &mut Config) -> Result<String, Error> {
         let all_projects = todoist::all_projects(self, None).await?;
         let current_projects = self.projects.clone().unwrap_or_default();
@@ -287,6 +289,8 @@ impl Config {
         self.internal.tx.expect("No tx in Config")
     }
 
+    /// Checks crates.io for a newer version of Tod at most once per day and sends an error
+    /// notification through the channel if an update is available.
     pub async fn check_for_latest_version(self: Config) -> Result<(), Error> {
         let last_version = self.clone().last_version_check;
         let new_config = Config {
@@ -322,6 +326,7 @@ impl Config {
     }
 
     // Get timezone from config, or API if necessary
+    /// Returns the configured timezone string, or an error if it has not been set yet.
     pub fn get_timezone(&self) -> Result<String, Error> {
         self.timezone.clone().ok_or_else(|| Error {
             message: "Must set timezone".to_string(),
@@ -347,6 +352,7 @@ impl Config {
         Ok(config)
     }
 
+    /// Clears the stored "next task" from config, returning an updated `Config` value.
     pub fn clear_next_task(self) -> Config {
         let next_task: Option<Task> = None;
 
@@ -376,6 +382,7 @@ impl Config {
         })
     }
 
+    /// Loads and deserializes a `Config` from a JSON file at `path`.
     pub async fn load(path: &PathBuf) -> Result<Config, Error> {
         let mut json = String::new();
         fs::File::open(path)
@@ -396,6 +403,7 @@ impl Config {
         Ok(config)
     }
 
+    /// Constructs a new in-memory `Config` with default values and the given file path.
     pub async fn new(tx: Option<UnboundedSender<Error>>, path: PathBuf) -> Result<Config, Error> {
         Ok(Config {
             path,
@@ -434,6 +442,7 @@ impl Config {
         })
     }
 
+    /// Reloads the config from disk, preserving runtime-only fields (`internal`, `time_provider`).
     pub async fn reload(&self) -> Result<Self, Error> {
         Config::load(&self.path).await.map(|config| Config {
             internal: self.internal.clone(),
@@ -442,6 +451,7 @@ impl Config {
         })
     }
 
+    /// Appends a project to the in-memory project list.
     pub fn add_project(&mut self, project: Project) {
         let option_projects = &mut self.projects;
         match option_projects {
@@ -452,6 +462,7 @@ impl Config {
         }
     }
 
+    /// Removes a project from the in-memory project list by its ID.
     pub fn remove_project(&mut self, project: &Project) {
         let projects = self
             .projects
@@ -465,6 +476,7 @@ impl Config {
         self.projects = Some(projects);
     }
 
+    /// Stores a task as the current "next task" in config, returning an updated `Config` value.
     pub fn set_next_task(&self, task: Task) -> Config {
         let next_task: Option<Task> = Some(task);
 
@@ -474,6 +486,7 @@ impl Config {
         }
     }
 
+    /// Returns the number of tasks completed today, or 0 if none have been recorded for today.
     pub fn tasks_completed(&self) -> Result<u32, Error> {
         let date = time::naive_date_today(self)?.to_string();
         match &self.completed {
@@ -488,6 +501,7 @@ impl Config {
         }
     }
 
+    /// Returns the task that was last set as "next", if any.
     pub fn next_task(&self) -> Option<Task> {
         self.next_task.clone()
     }
@@ -508,6 +522,7 @@ impl Config {
             .unwrap_or(DEFAULT_DEADLINE_VALUE)
     }
 
+    /// Stores an OAuth access token in config and persists it to disk.
     pub async fn set_token(&mut self, access_token: String) -> Result<String, Error> {
         self.token = Some(access_token);
         self.save().await
@@ -664,6 +679,7 @@ pub async fn get_or_create(
     Ok(config)
 }
 //create the config file with settings
+/// Creates a new config file on disk and populates it with a token and timezone by prompting the user.
 pub async fn create_config(
     tx: &UnboundedSender<Error>,
     config_path: PathBuf,
@@ -684,6 +700,8 @@ pub async fn create_config(
 
     Ok(config)
 }
+/// Generates the default config file path.
+/// In test mode a random temporary path is returned; in production `$XDG_CONFIG_HOME/tod.cfg` is used.
 pub async fn generate_path() -> Result<PathBuf, Error> {
     if cfg!(test) {
         let random_string = Alphanumeric.sample_string(&mut rand::rng(), 100);
@@ -732,7 +750,7 @@ pub async fn config_reset(cli_config_path: Option<PathBuf>, force: bool) -> Resu
     .await
 }
 // Full config reset function, but accepts inputs for CI testing
-
+/// Deletes the config file after resolving its path; accepts a custom prompt function to allow testing without interactive input.
 pub async fn config_reset_with_prompt<F>(
     cli_config_path: Option<PathBuf>,
     force: bool,
@@ -777,6 +795,7 @@ mod tests {
     use std::path::PathBuf;
 
     impl Config {
+        /// Constructs a `Config` with sensible test defaults, using a fixed time provider.
         pub fn default_test() -> Self {
             Config {
                 token: Some("default-token".to_string()),
@@ -815,6 +834,7 @@ mod tests {
             }
         }
         // Mock the url used for fetching projects and tasks
+        /// Sets a mock URL so that HTTP requests are redirected to a test server.
         pub fn with_mock_url(self, url: String) -> Config {
             Config {
                 mock_url: Some(url),
@@ -822,6 +842,7 @@ mod tests {
             }
         }
         // Mock the string returned by the mock url
+        /// Sets a mock string to be returned by interactive string-input prompts during tests.
         pub fn with_mock_string(self, string: &str) -> Config {
             Config {
                 mock_string: Some(string.to_string()),
@@ -829,6 +850,7 @@ mod tests {
             }
         }
 
+        /// Sets the index used to pre-select an option in interactive selection prompts during tests.
         pub fn mock_select(self, index: usize) -> Config {
             Config {
                 mock_select: Some(index),
@@ -836,6 +858,7 @@ mod tests {
             }
         }
 
+        /// Returns a copy of `Config` with the file path overridden.
         pub fn with_path(self: &Config, path: PathBuf) -> Config {
             Config {
                 path,
@@ -843,6 +866,7 @@ mod tests {
             }
         }
 
+        /// Returns a copy of `Config` with the project list replaced.
         pub fn with_projects(self: &Config, projects: Vec<Project>) -> Config {
             Config {
                 projects: Some(projects),

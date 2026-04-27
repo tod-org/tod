@@ -144,6 +144,7 @@ impl From<inquire::InquireError> for Error {
 }
 
 impl Error {
+    /// Creates a new `Error` with the given `source` (module/context) and human-readable `message`.
     pub fn new(source: &str, message: &str) -> Error {
         Error {
             source: source.into(),

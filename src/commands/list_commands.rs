@@ -169,6 +169,8 @@ pub struct Import {
     /// The file or directory to fuzzy find in
     path: Option<String>,
 }
+/// Displays a list of tasks for a project or filter, sorted by the chosen order.
+/// Runs when the user executes `tod list view`.
 pub async fn view(config: &mut Config, args: &View) -> Result<String, Error> {
     let View {
         project,
@@ -181,6 +183,8 @@ pub async fn view(config: &mut Config, args: &View) -> Result<String, Error> {
     lists::view(config, flag, sort).await
 }
 
+/// Iterates through tasks and applies a label chosen from the provided (or fetched) label list.
+/// Runs when the user executes `tod list label`.
 pub async fn label(config: Config, args: &Label) -> Result<String, Error> {
     let Label {
         filter,
@@ -194,6 +198,8 @@ pub async fn label(config: Config, args: &Label) -> Result<String, Error> {
     lists::label(&config, flag, &labels, sort).await
 }
 
+/// Steps through tasks one by one in priority order, allowing complete, skip, schedule, comment, delete, or quit for each.
+/// Runs when the user executes `tod list process`.
 pub async fn process(config: Config, args: &Process) -> Result<String, Error> {
     let Process {
         project,
@@ -205,6 +211,8 @@ pub async fn process(config: Config, args: &Process) -> Result<String, Error> {
     lists::process(&config, flag, sort).await
 }
 
+/// Assigns a date, time, and duration to each task that lacks one.
+/// Runs when the user executes `tod list timebox`.
 pub async fn timebox(config: Config, args: &Timebox) -> Result<String, Error> {
     let Timebox {
         project,
@@ -216,6 +224,8 @@ pub async fn timebox(config: Config, args: &Timebox) -> Result<String, Error> {
     lists::timebox(&config, flag, sort).await
 }
 
+/// Assigns a priority to every task in a project or filter that does not already have one.
+/// Runs when the user executes `tod list prioritize`.
 pub async fn prioritize(config: Config, args: &Prioritize) -> Result<String, Error> {
     let Prioritize {
         project,
@@ -226,6 +236,8 @@ pub async fn prioritize(config: Config, args: &Prioritize) -> Result<String, Err
         super::fetch_project_or_filter(project.as_deref(), filter.as_deref(), &config).await?;
     lists::prioritize(&config, flag, sort).await
 }
+/// Creates one task per non-empty line in a Markdown file using natural-language processing.
+/// Runs when the user executes `tod list import`.
 pub async fn import(config: Config, args: &Import) -> Result<String, Error> {
     let Import { path } = args;
     let path = super::fetch_string(path.as_deref(), &config, input::PATH)?;
@@ -270,6 +282,8 @@ fn is_md_file(entry: &walkdir::DirEntry) -> bool {
         .ends_with(".md")
 }
 
+/// Assigns a due date to every unscheduled task in a project or filter individually.
+/// Runs when the user executes `tod list schedule`.
 pub async fn schedule(config: Config, args: &Schedule) -> Result<String, Error> {
     let Schedule {
         project,
@@ -292,6 +306,8 @@ pub async fn schedule(config: Config, args: &Schedule) -> Result<String, Error> 
     }
 }
 
+/// Assigns a deadline to every non-recurring task without a deadline in a project or filter.
+/// Runs when the user executes `tod list deadline`.
 pub async fn deadline(config: Config, args: &Deadline) -> Result<String, Error> {
     let Deadline {
         project,

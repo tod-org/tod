@@ -59,6 +59,9 @@ pub struct SetTimezone {
     /// TimeZone to add, i.e. "Canada/Pacific"
     timezone: Option<String>,
 }
+/// Checks whether the installed version of Tod is up to date with the latest crates.io release.
+/// Optionally performs an automatic update when `--force` is passed.
+/// Runs when the user executes `tod config check-version`.
 pub async fn check_version(args: &CheckVersion, mock_url: Option<String>) -> Result<String, Error> {
     let CheckVersion { force, repo } = args;
 
@@ -124,6 +127,8 @@ pub async fn check_version(args: &CheckVersion, mock_url: Option<String>) -> Res
     }
 }
 
+/// Updates the timezone stored in config by fetching it from the Todoist user profile.
+/// Runs when the user executes `tod config set-timezone`.
 pub async fn set_timezone(config: Config, _args: &SetTimezone) -> Result<String, Error> {
     match config.set_timezone().await {
         Ok(updated_config) => {
@@ -137,6 +142,8 @@ pub async fn set_timezone(config: Config, _args: &SetTimezone) -> Result<String,
     }
 }
 
+/// Prints build information (name, version, profile, target, timestamp) for this Tod binary.
+/// Runs when the user executes `tod config about`.
 pub async fn about(_args: &About) -> Result<String, Error> {
     Ok(format!(
         "APP:             {NAME}\nVERSION:         {VERSION}\nBUILD_PROFILE:   {BUILD_PROFILE}\nBUILD_TARGET:    {BUILD_TARGET}\nBUILD_TIMESTAMP: {BUILD_TIMESTAMP}"

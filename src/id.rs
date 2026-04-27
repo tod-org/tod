@@ -12,6 +12,7 @@ pub enum Resource {
 pub struct Id {
     pub new_id: String,
 }
+/// Deserializes a JSON array of `{"new_id": "…"}` objects into a `Vec<Id>`.
 pub fn json_to_ids(json: String) -> Result<Vec<Id>, Error> {
     let ids: Vec<Id> = serde_json::from_str(&json)?;
     Ok(ids)

@@ -101,6 +101,8 @@ pub struct Empty {
     project: Option<String>,
 }
 
+/// Creates a new project in Todoist and adds it to the local config.
+/// Runs when the user executes `tod project create`.
 pub async fn create(config: &mut Config, args: &Create) -> Result<String, Error> {
     let Create {
         name,
@@ -113,10 +115,14 @@ pub async fn create(config: &mut Config, args: &Create) -> Result<String, Error>
     projects::create(config, name, description, *is_favorite).await
 }
 
+/// Lists all projects stored in the local config.
+/// Runs when the user executes `tod project list`.
 pub async fn list(config: &mut Config, _args: &List) -> Result<String, Error> {
     projects::list(config).await
 }
 
+/// Removes a project from the local config (does not delete it from Todoist).
+/// Runs when the user executes `tod project remove`.
 pub async fn remove(config: &mut Config, args: &Remove) -> Result<String, Error> {
     let Remove {
         all,
@@ -142,6 +148,8 @@ pub async fn remove(config: &mut Config, args: &Remove) -> Result<String, Error>
     }
 }
 
+/// Permanently deletes a project from Todoist (and removes it from config).
+/// Runs when the user executes `tod project delete`.
 pub async fn delete(config: &mut Config, args: &Delete) -> Result<String, Error> {
     let Delete { project, repeat } = args;
     loop {
@@ -170,6 +178,8 @@ pub async fn delete(config: &mut Config, args: &Delete) -> Result<String, Error>
     }
 }
 
+/// Renames the selected project in the local config (name change is local only).
+/// Runs when the user executes `tod project rename`.
 pub async fn rename(config: &mut Config, args: &Rename) -> Result<String, Error> {
     let Rename { project } = args;
     let project = match super::fetch_project(project.as_deref(), config).await? {
@@ -183,12 +193,16 @@ pub async fn rename(config: &mut Config, args: &Rename) -> Result<String, Error>
     projects::rename(config, &project).await
 }
 
+/// Fetches projects from the Todoist API and prompts the user to add them to the local config.
+/// Runs when the user executes `tod project import`.
 pub async fn import(config: &mut Config, args: &Import) -> Result<String, Error> {
     let Import { auto } = args;
 
     projects::import(config, auto).await
 }
 
+/// Moves all tasks out of a project into other projects, then optionally empties it.
+/// Runs when the user executes `tod project empty`.
 pub async fn empty(config: &mut Config, args: &Empty) -> Result<String, Error> {
     let Empty { project } = args;
     let project = match super::fetch_project(project.as_deref(), config).await? {

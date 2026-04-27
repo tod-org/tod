@@ -4,6 +4,7 @@ const TOKEN_SUFFIX_LENGTH: usize = 5;
 const TOKEN_LENGTH: usize = 40;
 
 // Print a debug statement if in verbose mode
+/// Prints a formatted debug block to stdout when verbose mode is enabled in config or via the CLI flag.
 pub fn maybe_print(config: &Config, text: &str) {
     if config.verbose.unwrap_or_default() || config.args.verbose {
         print(text)
@@ -12,6 +13,7 @@ pub fn maybe_print(config: &Config, text: &str) {
 
 // Print config with token redacted to console if in verbose mode
 // Everything but the last 5 characters are turned into x's before being printed to console
+/// Prints the current config to stdout in verbose mode with the API token partially redacted (all but the last 5 characters replaced with `x`).
 pub fn maybe_print_redacted_config(config: &Config) {
     if config.verbose.unwrap_or_default() || config.args.verbose {
         let token = config.token.as_ref().map(|t| {
@@ -26,6 +28,7 @@ pub fn maybe_print_redacted_config(config: &Config) {
 }
 
 // Print a debug statement
+/// Unconditionally prints a formatted debug block (`=== DEBUG === … ===`) to stdout.
 pub fn print(text: &str) {
     let text = format!("=== DEBUG ===\n{text}\n===");
     let text = color::debug_string(&text);
