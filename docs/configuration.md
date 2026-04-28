@@ -11,6 +11,7 @@
     - [path](#path)
     - [natural_language_only](#natural_language_only)
     - [no_sections](#no_sections)
+    - [projectsv1](#projectsv1)
     - [sort_value](#sort_value)
     - [spinners](#spinners)
     - [timeout](#timeout)
@@ -20,7 +21,6 @@
     - [task_create_command](#task_create_command)
     - [task_comment_command](#task_comment_command)
     - [task_complete_command](#task_complete_command)
-    - [vecprojects](#vecprojects)
     - [verbose](#verbose)
 <!--toc:end-->
 
@@ -60,7 +60,6 @@ If the config does not exist, Tod will prompt for your initial Todoist API token
   "timeout": null,
   "timezone": "",
   "token": "Your Todoist API Todken",
-  "vecprojects": [],
   "verbose": null
 }
 ```
@@ -166,6 +165,16 @@ If true, the datetime selection in `project schedule` will go straight to natura
 
 If true will not prompt for a section whenever possible
 
+### projectsv1
+
+```json
+  type: Nullable array of objects
+  default: []
+  possible values: List of project objects from the Todoist API
+```
+
+Projects are stored locally in config to help save on API requests and speed up actions taken. Manage this with the `project` subcommands.
+
 ### sort_value
 
 Tasks are ranked by points and the first is returned, the points are the sum of the following:
@@ -264,16 +273,6 @@ You will be prompted for your [Todoist API token](https://todoist.com/prefs/inte
 ```
 
 Used for dev/testing only to return fixed time (fixture) for use in test cases. Otherwise defaults to SystemTimeProvider in all other cases.
-
-### vecprojects
-
-```json
-  type: Nullable array of objects
-  default: null
-  possible values: List of project objects from the Todoist API
-```
-
-Projects are stored locally in config to help save on API requests and speed up actions taken. Manage this with the `project` subcommands. The strange naming is because `projects` was used in previous versions of `tod`.
 
 ### task_comment_command
 

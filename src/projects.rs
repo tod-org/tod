@@ -13,23 +13,6 @@ use serde::{Deserialize, Serialize};
 const PAD_WIDTH: usize = 30;
 const PROJECT_URL: &str = "https://app.todoist.com/app/project";
 
-/// Projects are split into sections
-// This struct is from the v2 REST API and is deprecated
-#[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug)]
-pub struct LegacyProject {
-    pub id: String,
-    pub name: String,
-    pub color: String,
-    pub comment_count: u8,
-    pub order: u8,
-    pub is_shared: bool,
-    pub is_favorite: bool,
-    pub is_inbox_project: bool,
-    pub is_team_inbox: bool,
-    pub view_style: String,
-    pub url: String,
-    pub parent_id: Option<String>,
-}
 // Projects are split into sections
 #[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug)]
 pub struct Project {
@@ -68,11 +51,6 @@ pub enum TaskFilter {
     Recurring,
 }
 
-impl Display for LegacyProject {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}\n{}", self.name, self.url)
-    }
-}
 impl Display for Project {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}\n{}/{}", self.name, PROJECT_URL, self.id)
@@ -766,13 +744,6 @@ mod tests {
             .create_async()
             .await;
 
-        let mock4 = server
-            .mock("GET", "/api/v1/id_mappings/projects/123")
-            .with_status(200)
-            .with_header("content-type", "application/json")
-            .with_body(ResponseFromFile::Ids.read().await)
-            .create_async()
-            .await;
         let mock5 = server
             .mock(
                 "GET",
@@ -802,7 +773,6 @@ mod tests {
         mock.expect(2);
         mock2.assert();
         mock3.assert();
-        mock4.expect(2);
         mock5.expect(2);
     }
 
@@ -895,13 +865,6 @@ mod tests {
             .create_async()
             .await;
 
-        let mock3 = server
-            .mock("GET", "/api/v1/id_mappings/projects/123")
-            .with_status(200)
-            .with_header("content-type", "application/json")
-            .with_body(ResponseFromFile::Ids.read().await)
-            .create_async()
-            .await;
         let mock4 = server
             .mock("GET", "/api/v1/comments/?task_id=999999&limit=200")
             .with_status(200)
@@ -966,7 +929,6 @@ mod tests {
         );
         mock.expect(2);
         mock2.expect(2);
-        mock3.expect(4);
         mock4.expect(4);
     }
 
@@ -989,13 +951,6 @@ mod tests {
             .create_async()
             .await;
 
-        let mock3 = server
-            .mock("GET", "/api/v1/id_mappings/projects/123")
-            .with_status(200)
-            .with_header("content-type", "application/json")
-            .with_body(ResponseFromFile::Ids.read().await)
-            .create_async()
-            .await;
         let config = test::fixtures::config()
             .await
             .with_mock_url(server.url())
@@ -1045,7 +1000,6 @@ mod tests {
         );
         mock.expect(2);
         mock2.expect(2);
-        mock3.expect(4);
         mock4.expect(4);
     }
 
@@ -1082,26 +1036,5 @@ mod tests {
         assert!(displayed.contains("myproject"));
         assert!(displayed.contains("https://app.todoist.com/app/project"));
         assert!(displayed.contains(&project.id));
-    }
-
-    #[test]
-    fn test_legacy_project_display() {
-        let project = LegacyProject {
-            id: "1".to_string(),
-            name: "My Legacy".to_string(),
-            color: "blue".to_string(),
-            comment_count: 0,
-            order: 1,
-            is_shared: false,
-            is_favorite: false,
-            is_inbox_project: false,
-            is_team_inbox: false,
-            view_style: "list".to_string(),
-            url: "https://todoist.com/project/1".to_string(),
-            parent_id: None,
-        };
-        let displayed = project.to_string();
-        assert!(displayed.contains("My Legacy"));
-        assert!(displayed.contains("https://todoist.com/project/1"));
     }
 }

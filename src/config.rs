@@ -1,8 +1,7 @@
 use crate::cargo::Version;
 use crate::errors::Error;
-use crate::id::Resource;
 use crate::input::page_size;
-use crate::projects::{LegacyProject, Project};
+use crate::projects::Project;
 use crate::tasks::Task;
 use crate::tasks::format::maybe_format_url;
 use crate::time::{SystemTimeProvider, TimeProviderEnum};
@@ -45,9 +44,6 @@ pub struct Config {
     /// List of Todoist projects and their project numbers
     #[serde(rename = "projectsv1")]
     projects: Option<Vec<Project>>,
-    /// These are from the old v9 and SYNC endpoints
-    #[serde(rename = "vecprojects")]
-    legacy_projects: Option<Vec<LegacyProject>>,
     /// Path to config file
     pub path: PathBuf,
     /// The ID of the next task (NO LONGER IN USE)
@@ -219,33 +215,9 @@ impl Config {
         Ok(color::green_string("✓"))
     }
 
-    /// Converts legacy projects to the new projects if necessary
+    /// Returns projects from the config.
     pub async fn projects(self: &Config) -> Result<Vec<Project>, Error> {
-        let projects = self.projects.clone().unwrap_or_default();
-        let legacy_projects = self.legacy_projects.clone().unwrap_or_default();
-
-        if !projects.is_empty() {
-            Ok(projects)
-        } else if legacy_projects.is_empty() {
-            Ok(Vec::new())
-        } else {
-            let new_projects = todoist::all_projects(self, None).await?;
-            let legacy_ids = legacy_projects.into_iter().map(|lp| lp.id).collect();
-            let v1_ids = todoist::get_v1_ids(self, Resource::Project, legacy_ids).await?;
-
-            let new_projects: Vec<Project> = new_projects
-                .iter()
-                .filter(|p| v1_ids.contains(&p.id))
-                .map(|p| p.to_owned())
-                .collect();
-
-            let mut config = self.clone();
-            for project in &new_projects {
-                config.add_project(project.clone());
-                config.save().await?;
-            }
-            Ok(new_projects)
-        }
+        Ok(self.projects.clone().unwrap_or_default())
     }
     // Returns the maximum comment length if configured, otherwise estimates based on terminal window size (if supported)
     pub fn max_comment_length(&self) -> u32 {
@@ -425,7 +397,6 @@ impl Config {
                 verbose: false,
                 timeout: None,
             },
-            legacy_projects: Some(Vec::new()),
             time_provider: TimeProviderEnum::System(SystemTimeProvider),
             task_comment_command: None,
             task_create_command: None,
@@ -590,7 +561,6 @@ impl Default for Config {
                 verbose: false,
                 timeout: None,
             },
-            legacy_projects: Some(Vec::new()),
             time_provider: TimeProviderEnum::System(SystemTimeProvider),
             projects: Some(Vec::new()),
         }
@@ -836,7 +806,6 @@ mod tests {
                 internal: Internal { tx: None },
                 sort_value: Some(SortValue::default()),
                 projects: Some(vec![]),
-                legacy_projects: Some(vec![]),
                 next_id: None,
                 next_task: None,
                 bell_on_success: false,
