@@ -11,6 +11,10 @@ fn temp_config_path(label: &str) -> PathBuf {
     path
 }
 
+fn tod_command() -> Command {
+    Command::cargo_bin("tod").expect("failed to locate tod test binary")
+}
+
 struct TempConfig {
     path: PathBuf,
 }
@@ -24,12 +28,18 @@ impl TempConfig {
 
     fn ensure_missing(&self) {
         if self.path.exists() {
-            fs::remove_file(&self.path).expect("failed to remove existing temp config");
+            fs::remove_file(&self.path).expect(&format!(
+                "failed to remove existing temp config at {}",
+                self.path.display()
+            ));
         }
     }
 
     fn create_empty(&self) {
-        fs::write(&self.path, "{}").expect("failed to write temp config file");
+        fs::write(&self.path, "{}").expect(&format!(
+            "failed to write temp config file at {}",
+            self.path.display()
+        ));
     }
 }
 
@@ -43,8 +53,7 @@ impl Drop for TempConfig {
 
 #[test]
 fn cli_help_shows_commands() {
-    Command::cargo_bin("tod")
-        .expect("failed to find tod binary")
+    tod_command()
         .arg("--help")
         .assert()
         .success()
@@ -54,8 +63,7 @@ fn cli_help_shows_commands() {
 #[test]
 fn cli_version_prints_package_version() {
     let version = env!("CARGO_PKG_VERSION");
-    Command::cargo_bin("tod")
-        .expect("failed to find tod binary")
+    tod_command()
         .arg("--version")
         .assert()
         .success()
@@ -64,8 +72,7 @@ fn cli_version_prints_package_version() {
 
 #[test]
 fn cli_invalid_command_errors() {
-    Command::cargo_bin("tod")
-        .expect("failed to find tod binary")
+    tod_command()
         .arg("not-a-command")
         .assert()
         .failure()
@@ -74,8 +81,7 @@ fn cli_invalid_command_errors() {
 
 #[test]
 fn cli_config_about_succeeds() {
-    Command::cargo_bin("tod")
-        .expect("failed to find tod binary")
+    tod_command()
         .args(["config", "about"])
         .assert()
         .success()
@@ -84,8 +90,7 @@ fn cli_config_about_succeeds() {
 
 #[test]
 fn cli_shell_completions_bash_emits_output() {
-    Command::cargo_bin("tod")
-        .expect("failed to find tod binary")
+    tod_command()
         .args(["shell", "completions", "bash"])
         .assert()
         .success()
@@ -97,14 +102,13 @@ fn cli_config_reset_reports_missing_config() {
     let config_path = TempConfig::new("missing");
     config_path.ensure_missing();
 
-    Command::cargo_bin("tod")
-        .expect("failed to find tod binary")
+    tod_command()
         .args([
             "--config",
             config_path
                 .path
                 .to_str()
-                .expect("failed to render config path"),
+                .expect("config path contains invalid UTF-8"),
             "config",
             "reset",
             "--force",
@@ -122,14 +126,13 @@ fn cli_config_reset_deletes_existing_config() {
     let config_path = TempConfig::new("existing");
     config_path.create_empty();
 
-    Command::cargo_bin("tod")
-        .expect("failed to find tod binary")
+    tod_command()
         .args([
             "--config",
             config_path
                 .path
                 .to_str()
-                .expect("failed to render config path"),
+                .expect("config path contains invalid UTF-8"),
             "config",
             "reset",
             "--force",
