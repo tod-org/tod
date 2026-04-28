@@ -45,6 +45,7 @@ strum_macros = "0.28.0"
 axum = "0.8.9"
 serde_regex = "1.1.0"
 open = "5.3.4"
+edit = "0.1.5"
 
 
 [dev-dependencies]

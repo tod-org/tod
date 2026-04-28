@@ -767,6 +767,54 @@ where
     }
 }
 
+/// Opens the config file in the user's editor, creating a default config first if requested.
+pub async fn config_open(cli_config_path: Option<PathBuf>) -> Result<String, Error> {
+    config_open_with_prompt_and_editor(
+        cli_config_path,
+        |path| {
+            Confirm::new(&format!(
+                "No config file found at {}. Create it?",
+                path.display()
+            ))
+            .with_default(true)
+            .prompt()
+            .unwrap_or(false)
+        },
+        |path| edit::edit_file(path).map_err(Error::from),
+    )
+    .await
+}
+
+async fn config_open_with_prompt_and_editor<P, E>(
+    cli_config_path: Option<PathBuf>,
+    prompt_fn: P,
+    editor_fn: E,
+) -> Result<String, Error>
+where
+    P: FnOnce(&Path) -> bool,
+    E: FnOnce(&Path) -> Result<(), Error>,
+{
+    let path = resolve_config_path(cli_config_path).await?;
+
+    if !path.exists() {
+        if !prompt_fn(&path) {
+            return Ok("Aborted: Config not created.".to_string());
+        }
+
+        let mut config = Config::new(None, path.clone()).await?;
+        config.touch_file().await?;
+        config.save().await?;
+    }
+
+    editor_fn(&path)?;
+    Config::load(&path).await?;
+
+    Ok(format!(
+        "Config file at {} opened and validated successfully.",
+        path.display()
+    ))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1479,5 +1527,65 @@ mod tests {
         let msg = result.expect("Could not get reset config response");
         assert_eq!(msg, "Aborted: Config not deleted.");
         assert!(temp_path.exists(), "File should not be deleted after abort");
+    }
+
+    #[tokio::test]
+    async fn test_config_open_missing_prompt_no_aborts() {
+        let (_temp_dir, temp_path) = temp_config_path("missing_open_no.cfg");
+
+        let result = config_open_with_prompt_and_editor(
+            Some(temp_path.clone()),
+            |_| false,
+            |_| -> Result<(), Error> { panic!("editor should not be called") },
+        )
+        .await;
+
+        assert_eq!(result, Ok("Aborted: Config not created.".to_string()));
+        assert!(
+            !temp_path.exists(),
+            "Config file should not be created after abort"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_config_open_missing_prompt_yes_creates_and_validates() {
+        let (_temp_dir, temp_path) = temp_config_path("missing_open_yes.cfg");
+
+        let result =
+            config_open_with_prompt_and_editor(Some(temp_path.clone()), |_| true, |_| Ok(())).await;
+
+        assert!(result.is_ok(), "Expected Ok, got {result:?}");
+        assert!(temp_path.exists(), "Config file should be created");
+
+        let loaded = Config::load(&temp_path)
+            .await
+            .expect("Created config should load");
+        assert_eq!(loaded.path, temp_path);
+    }
+
+    #[tokio::test]
+    async fn test_config_open_invalid_after_editor_errors() {
+        let (_temp_dir, temp_path) = temp_config_path("invalid_after_open.cfg");
+        Config::default_test()
+            .with_path(temp_path.clone())
+            .create()
+            .await
+            .expect("Failed to create temp config");
+
+        let result = config_open_with_prompt_and_editor(
+            Some(temp_path.clone()),
+            |_| -> bool { panic!("prompt should not be called") },
+            |path| {
+                std::fs::write(path, "{ invalid").expect("Failed to write invalid config");
+                Ok(())
+            },
+        )
+        .await;
+
+        let err = result.expect_err("Invalid config should fail validation");
+        assert!(
+            err.message.contains("Error loading configuration file"),
+            "Expected config load error, got: {err}"
+        );
     }
 }
