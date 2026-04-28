@@ -2,6 +2,7 @@
 
 <!--toc:start-->
 - [Usage](#usage)
+  - [Features](#features)
   - [Discovering the commands](#discovering-the-commands)
   - [Usage Examples](#usage-examples)
   - [Shell script examples](#shell-script-examples)
@@ -9,6 +10,17 @@
   - [Update Tod](#update-tod)
   - [How task priority is determined](#how-task-priority-is-determined)
 <!--toc:end-->
+
+## Features
+
+Tod supports common Todoist workflows from the command line:
+
+- Create tasks with Todoist quick-add and natural language syntax.
+- Import projects and create, list, schedule, prioritize, and process tasks by project.
+- View and update groups of tasks with Todoist filters.
+- Add task comments, edit tasks, complete tasks, and move through one task at a time.
+- Label, schedule, prioritize, and process tasks in interactive or scripted flows.
+- Automatically adapt task and comment output to the current CLI window size.
 
 ## Discovering the commands
 
