@@ -47,19 +47,25 @@ pub async fn get_latest_version(mock_url: Option<String>) -> Result<String, Erro
         .await?;
 
     if response.status().is_success() {
-        let cr: CargoResponse = serde_json::from_str(&response.text().await?)?;
-        Ok(cr
-            .versions
-            .first()
-            .expect("crates.io response contained no versions")
-            .num
-            .clone())
+        let json = response.text().await?;
+        json_to_latest_version(&json)
     } else {
         let message = format!("Error: {:#?}", response.text().await);
         let source = "get_latest_version response failure".to_string();
         Err(Error { message, source })
     }
 }
+
+pub fn json_to_latest_version(json: &str) -> Result<String, Error> {
+    let cr: CargoResponse = serde_json::from_str(json)?;
+    Ok(cr
+        .versions
+        .first()
+        .expect("crates.io response contained no versions")
+        .num
+        .clone())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
