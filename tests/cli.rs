@@ -11,8 +11,34 @@ fn temp_config_path(label: &str) -> PathBuf {
     path
 }
 
-fn create_empty_config(path: &PathBuf) {
-    fs::write(path, "{}").expect("failed to write temp config file");
+struct TempConfig {
+    path: PathBuf,
+}
+
+impl TempConfig {
+    fn new(label: &str) -> Self {
+        Self {
+            path: temp_config_path(label),
+        }
+    }
+
+    fn ensure_missing(&self) {
+        if self.path.exists() {
+            fs::remove_file(&self.path).expect("failed to remove existing temp config");
+        }
+    }
+
+    fn create_empty(&self) {
+        fs::write(&self.path, "{}").expect("failed to write temp config file");
+    }
+}
+
+impl Drop for TempConfig {
+    fn drop(&mut self) {
+        if self.path.exists() {
+            let _ = fs::remove_file(&self.path);
+        }
+    }
 }
 
 #[test]
@@ -63,21 +89,20 @@ fn cli_shell_completions_bash_emits_output() {
         .args(["shell", "completions", "bash"])
         .assert()
         .success()
-        .stdout(contains("tod").and(contains("complete").or(contains("_tod"))));
+        .stdout(contains("tod").and(contains("complete -F")));
 }
 
 #[test]
 fn cli_config_reset_reports_missing_config() {
-    let config_path = temp_config_path("missing");
-    if config_path.exists() {
-        fs::remove_file(&config_path).expect("failed to remove existing temp config");
-    }
+    let config_path = TempConfig::new("missing");
+    config_path.ensure_missing();
 
     Command::cargo_bin("tod")
         .expect("failed to find tod binary")
         .args([
             "--config",
             config_path
+                .path
                 .to_str()
                 .expect("failed to render config path"),
             "config",
@@ -88,20 +113,21 @@ fn cli_config_reset_reports_missing_config() {
         .success()
         .stdout(
             contains("No config file found")
-                .and(contains(config_path.display().to_string())),
+                .and(contains(config_path.path.display().to_string())),
         );
 }
 
 #[test]
 fn cli_config_reset_deletes_existing_config() {
-    let config_path = temp_config_path("existing");
-    create_empty_config(&config_path);
+    let config_path = TempConfig::new("existing");
+    config_path.create_empty();
 
     Command::cargo_bin("tod")
         .expect("failed to find tod binary")
         .args([
             "--config",
             config_path
+                .path
                 .to_str()
                 .expect("failed to render config path"),
             "config",
@@ -111,11 +137,12 @@ fn cli_config_reset_deletes_existing_config() {
         .assert()
         .success()
         .stdout(
-            contains("deleted successfully").and(contains(config_path.display().to_string())),
+            contains("deleted successfully")
+                .and(contains(config_path.path.display().to_string())),
         );
 
     assert!(
-        !config_path.exists(),
+        !config_path.path.exists(),
         "expected config file to be deleted"
     );
 }
