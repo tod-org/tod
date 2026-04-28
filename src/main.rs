@@ -20,7 +20,6 @@ mod config;
 mod debug;
 mod errors;
 mod filters;
-mod id;
 mod input;
 mod labels;
 mod lists;

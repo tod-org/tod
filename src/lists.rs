@@ -353,14 +353,6 @@ mod tests {
             .create_async()
             .await;
 
-        let mock3 = server
-            .mock("GET", "/api/v1/id_mappings/projects/123")
-            .with_status(200)
-            .with_header("content-type", "application/json")
-            .with_body(ResponseFromFile::Ids.read().await)
-            .create_async()
-            .await;
-
         let mock4 = server
             .mock(
                 "GET",
@@ -423,7 +415,6 @@ mod tests {
         assert_matches!(result, Ok(x) if x.contains("Successfully timeboxed"));
         mock.expect(2);
         mock2.expect(2);
-        mock3.expect(1);
         mock4.expect(1);
     }
 

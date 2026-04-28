@@ -8,7 +8,6 @@ use crate::comments::{Comment, CommentResponse};
 use crate::config::Config;
 use crate::debug::maybe_print;
 use crate::errors::Error;
-use crate::id::{self, Resource};
 use crate::labels::{self, Label, LabelResponse};
 use crate::oauth::{CLIENT_ID, CLIENT_SECRET};
 use crate::projects::{Project, ProjectResponse};
@@ -29,7 +28,6 @@ const SECTIONS_URL: &str = "/api/v1/sections";
 const USER_URL: &str = "/api/v1/user";
 const PROJECTS_URL: &str = "/api/v1/projects";
 const LABELS_URL: &str = "/api/v1/labels";
-const IDS_URL: &str = "/api/v1/id_mappings/";
 const ACCESS_TOKEN_URL: &str = "/oauth/access_token";
 pub const OAUTH_URL: &str = "/oauth/authorize";
 
@@ -136,22 +134,6 @@ pub async fn test_all_endpoints(config: &Config) -> Result<String, Error> {
     let _data = get_user_data(config).await?;
 
     Ok(color::green_string("Completed successfully"))
-}
-
-pub async fn get_v1_ids(
-    config: &Config,
-    resource: Resource,
-    ids: Vec<String>,
-) -> Result<Vec<String>, Error> {
-    let ids = ids.join(",");
-    let url = format!("{IDS_URL}{resource}/{ids}");
-    let json = request::get_todoist(config, &url, true).await?;
-    let ids = id::json_to_ids(json)?
-        .into_iter()
-        .map(|i| i.new_id)
-        .collect();
-
-    Ok(ids)
 }
 
 /// Add a new task to the inbox with natural language support
