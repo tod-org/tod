@@ -9,6 +9,15 @@
 
 An unofficial Todoist command-line client. Takes simple input and dumps it in your inbox or another project. Takes advantage of natural language processing to assign due dates, tags, etc. Designed for single-tasking in a world filled with distraction.
 
+## Features
+
+- Todoist integration through the Todoist API.
+- Quick task capture with Todoist quick-add and natural language syntax.
+- Project import and project-aware task creation, listing, scheduling, prioritizing, and processing.
+- Filter-based task views and batch actions for reviewing, labeling, scheduling, and prioritizing tasks.
+- Interactive terminal flows for creating, editing, commenting on, completing, and processing tasks.
+- Task and comment output that adapts to the current CLI window size.
+
 Get started with [Homebrew](https://brew.sh) (macOS, Linux, WSL)
 
 ```bash
