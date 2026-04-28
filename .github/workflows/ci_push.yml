@@ -34,7 +34,17 @@ jobs:
         with:
           cache-all-crates: true
       - name: Cargo Test
-        run: cargo nextest run --all-features
+        run: cargo nextest run --profile ci --all-features
+      - name: Upload nextest JUnit test results to Codecov
+        if: ${{ !cancelled() }}
+        uses: codecov/codecov-action@v6
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: target/nextest/ci/junit.xml
+          disable_search: true
+          report_type: test_results
+          flags: nextest
+          name: nextest-junit
 
   check:
     name: Cargo Check
