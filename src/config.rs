@@ -772,10 +772,8 @@ mod tests {
     use super::*;
     use crate::test;
     use pretty_assertions::assert_eq;
-    use std::env::temp_dir;
-    use std::fs::File;
-    use std::path::Path;
     use std::path::PathBuf;
+    use tempfile::{TempDir, tempdir};
 
     impl Config {
         pub fn default_test() -> Self {
@@ -879,12 +877,21 @@ mod tests {
         tx
     }
 
+    fn temp_config_path(file_name: &str) -> (TempDir, PathBuf) {
+        let dir = tempdir().expect("Could not create temp config directory");
+        let path = dir.path().join(file_name);
+        (dir, path)
+    }
+
     #[tokio::test]
     async fn config_tests() {
         let server = mockito::Server::new_async().await;
         let mock_url = server.url();
+        let temp_dir = tempdir().expect("Could not create temp config directory");
 
-        let config_create = config_with_mock_and_token(&mock_url, "created").await;
+        let config_create = config_with_mock_and_token(&mock_url, "created")
+            .await
+            .with_path(temp_dir.path().join("created.cfg"));
         let path_created = config_create.path.clone();
         config_create
             .create()
@@ -895,9 +902,10 @@ mod tests {
             .await
             .expect("Failed to load config from path asynchronously");
         assert_eq!(loaded.token, Some("created".into()));
-        delete_config(&path_created).await;
 
-        let config_create = config_with_mock(&mock_url).await;
+        let config_create = config_with_mock(&mock_url)
+            .await
+            .with_path(temp_dir.path().join("create.cfg"));
         let path_create = config_create.path.clone();
         config_create
             .create()
@@ -908,9 +916,10 @@ mod tests {
             .await
             .expect("get_or_create (create) failed");
         assert!(created.token.is_some());
-        delete_config(&created.path).await;
 
-        let config_load = config_with_mock_and_token(&mock_url, "loaded").await;
+        let config_load = config_with_mock_and_token(&mock_url, "loaded")
+            .await
+            .with_path(temp_dir.path().join("loaded.cfg"));
         let path_load = config_load.path.clone();
         config_load
             .create()
@@ -925,11 +934,6 @@ mod tests {
 
         let fetched = get_or_create(Some(path_load.clone()), false, None, &tx()).await;
         assert_matches!(fetched, Ok(Config { .. }));
-        delete_config(&path_load).await;
-    }
-
-    async fn delete_config(path: &PathBuf) {
-        assert_matches!(fs::remove_file(path).await, Ok(_));
     }
 
     #[tokio::test]
@@ -945,7 +949,8 @@ mod tests {
 
     #[tokio::test]
     async fn reload_config_should_work() {
-        let config = test::fixtures::config().await;
+        let (_temp_dir, temp_path) = temp_config_path("reload.cfg");
+        let config = test::fixtures::config().await.with_path(temp_path);
         let mut config = config.create().await.expect("Failed to create test config");
         let project = test::fixtures::project();
         config.add_project(project);
@@ -1023,28 +1028,22 @@ mod tests {
 
     #[tokio::test]
     async fn load_should_fail_on_invalid_u8_value() {
-        use tokio::fs::write;
+        let (_temp_dir, bad_config_path) = temp_config_path("bad_config_invalid_u8.cfg");
+        let contents = serde_json::json!({
+            "token": "abc123",
+            "path": bad_config_path,
+            "sort_value": {
+                "priority_none": 500
+            }
+        })
+        .to_string();
 
-        let bad_config_path = "tests/bad_config_invalid_u8.cfg";
-        let contents = r#"{
-        "token": "abc123",
-        "path": "tests/bad_config_invalid_u8.cfg",
-        "sort_value": {
-            "priority_none": 500
-        }
-    }"#;
-
-        write(bad_config_path, contents)
+        tokio::fs::write(&bad_config_path, contents)
             .await
             .expect("Could not write to file");
 
-        let bad_config_path_buf = std::path::PathBuf::from(bad_config_path);
-        let result = Config::load(&bad_config_path_buf).await;
+        let result = Config::load(&bad_config_path).await;
         assert!(result.is_err(), "Expected error from invalid u8");
-
-        fs::remove_file(bad_config_path)
-            .await
-            .expect("Could not remove file");
     }
 
     #[tokio::test]
@@ -1232,7 +1231,7 @@ mod tests {
     }
     #[tokio::test]
     async fn test_create_config_with_custom_path() {
-        let path = PathBuf::from("/tmp/custom_path");
+        let (_temp_dir, path) = temp_config_path("custom_path.cfg");
         let mut config = Config {
             path,
             ..Config::default_test()
@@ -1256,7 +1255,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_create_config_saves_file() {
-        let mut config = Config::default_test();
+        let (_temp_dir, path) = temp_config_path("default_test.cfg");
+        let mut config = Config::default_test().with_path(path);
         config = config.create().await.expect("Should create file");
         config.save().await.expect("Should save file");
 
@@ -1296,9 +1296,7 @@ mod tests {
     }
     #[tokio::test]
     async fn test_load_config_rejects_invalid_regex() {
-        // Use test fixture to get temp config path
-        let config = test::fixtures::config().await;
-        let path = &config.path;
+        let (_temp_dir, path) = temp_config_path("invalid_regex.cfg");
 
         // Write the invalid regex string "[a-z" to the config file which should cause serde_json to fail
         let invalid_json = r#"
@@ -1309,11 +1307,11 @@ mod tests {
     }
     "#;
 
-        tokio::fs::write(path, invalid_json)
+        tokio::fs::write(&path, invalid_json)
             .await
             .expect("Failed to write invalid config");
 
-        let result = Config::load(path).await;
+        let result = Config::load(&path).await;
 
         assert!(
             result.is_err(),
@@ -1336,7 +1334,7 @@ mod tests {
     async fn test_create_config_populates_token_and_timezone() {
         // Manually set token and timezone and ensure they're saved
         let (tx, _rx) = tokio::sync::mpsc::unbounded_channel();
-        let path = generate_path().await.expect("Could not generate path");
+        let (_temp_dir, path) = temp_config_path("populated_config.cfg");
         let mut config = Config::new(Some(tx.clone()), path)
             .await
             .expect("Init default config");
@@ -1362,16 +1360,17 @@ mod tests {
 
     #[tokio::test]
     async fn test_config_reset_force_deletes_temp_file() {
-        let mut temp_path: PathBuf = temp_dir();
-        temp_path.push("temp_test_config.cfg");
+        let (_temp_dir, temp_path) = temp_config_path("temp_test_config.cfg");
 
-        File::create(&temp_path).expect("Failed to create temp config file");
+        tokio::fs::File::create(&temp_path)
+            .await
+            .expect("Failed to create temp config file");
         assert!(temp_path.exists(), "Temp config should exist before reset");
 
         let result = crate::config::config_reset(Some(temp_path.clone()), true).await;
         assert!(result.is_ok(), "Expected Ok, got {result:?}");
 
-        assert!(!Path::new(&temp_path).exists(), "File should be deleted");
+        assert!(!temp_path.exists(), "File should be deleted");
     }
 
     #[test]
@@ -1394,9 +1393,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_config_with_existing_path() {
-        // Create a temp config file
-        let dir = temp_dir();
-        let temp_path: PathBuf = dir.join("test_get_config_exists.cfg");
+        let (_temp_dir, temp_path) = temp_config_path("test_get_config_exists.cfg");
         let mut config = Config {
             path: temp_path.clone(),
             token: Some("abc".to_string()),
@@ -1412,17 +1409,11 @@ mod tests {
         assert!(loaded.is_ok(), "Expected Ok for existing config");
         let loaded = loaded.expect("No config found");
         assert_eq!(loaded.token, Some("abc".to_string()));
-
-        // Cleanup
-        tokio::fs::remove_file(&temp_path).await.ok();
     }
 
     #[tokio::test]
     async fn test_get_config_with_nonexistent_path() {
-        let dir = temp_dir();
-        let temp_path: PathBuf = dir.join("test_get_config_nonexistent.cfg");
-        // Ensure file does not exist
-        tokio::fs::remove_file(&temp_path).await.ok();
+        let (_temp_dir, temp_path) = temp_config_path("test_get_config_nonexistent.cfg");
 
         let loaded = get_config(Some(temp_path.clone())).await;
         assert!(loaded.is_err(), "Expected Err for nonexistent config");
@@ -1435,10 +1426,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_check_config_exists_true_and_false() {
-        let dir = temp_dir();
-        let temp_path: PathBuf = dir.join("test_check_config_exists.cfg");
-        // Should not exist yet
-        tokio::fs::remove_file(&temp_path).await.ok();
+        let (_temp_dir, temp_path) = temp_config_path("test_check_config_exists.cfg");
 
         let exists = check_config_exists(Some(temp_path.clone()))
             .await
@@ -1452,15 +1440,15 @@ mod tests {
             .await
             .expect("Could not check if config exists");
         assert!(exists, "Should be true for existing config");
-
-        tokio::fs::remove_file(&temp_path).await.ok();
     }
+
     #[tokio::test]
     async fn test_config_reset_with_prompt_yes_deletes_file() {
-        let mut temp_path: PathBuf = temp_dir();
-        temp_path.push("temp_test_config_prompt_yes.cfg");
+        let (_temp_dir, temp_path) = temp_config_path("temp_test_config_prompt_yes.cfg");
 
-        File::create(&temp_path).expect("Failed to create temp config file");
+        tokio::fs::File::create(&temp_path)
+            .await
+            .expect("Failed to create temp config file");
         assert!(temp_path.exists(), "Temp config should exist before reset");
 
         // Simulate user saying "yes"
@@ -1472,18 +1460,16 @@ mod tests {
             msg.contains("deleted successfully"),
             "Expected deletion message, got: {msg}"
         );
-        assert!(
-            !Path::new(&temp_path).exists(),
-            "File should be deleted after reset"
-        );
+        assert!(!temp_path.exists(), "File should be deleted after reset");
     }
 
     #[tokio::test]
     async fn test_config_reset_with_prompt_no_aborts() {
-        let mut temp_path: PathBuf = temp_dir();
-        temp_path.push("temp_test_config_prompt_no.cfg");
+        let (_temp_dir, temp_path) = temp_config_path("temp_test_config_prompt_no.cfg");
 
-        File::create(&temp_path).expect("Failed to create temp config file");
+        tokio::fs::File::create(&temp_path)
+            .await
+            .expect("Failed to create temp config file");
         assert!(temp_path.exists(), "Temp config should exist before reset");
 
         // Simulate user saying "no"
@@ -1492,12 +1478,6 @@ mod tests {
         assert!(result.is_ok(), "Expected Ok, got {result:?}");
         let msg = result.expect("Could not get reset config response");
         assert_eq!(msg, "Aborted: Config not deleted.");
-        assert!(
-            Path::new(&temp_path).exists(),
-            "File should not be deleted after abort"
-        );
-
-        // Cleanup
-        tokio::fs::remove_file(&temp_path).await.ok();
+        assert!(temp_path.exists(), "File should not be deleted after abort");
     }
 }
