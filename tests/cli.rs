@@ -28,22 +28,12 @@ impl TempConfig {
 
     fn ensure_missing(&self) {
         if self.path.exists() {
-            if let Err(err) = fs::remove_file(&self.path) {
-                panic!(
-                    "failed to remove existing temp config at {}: {err}",
-                    self.path.display()
-                );
-            }
+            fs::remove_file(&self.path).expect("failed to remove existing temp config");
         }
     }
 
     fn create_empty(&self) {
-        if let Err(err) = fs::write(&self.path, "{}") {
-            panic!(
-                "failed to write temp config file at {}: {err}",
-                self.path.display()
-            );
-        }
+        fs::write(&self.path, "{}").expect("failed to write temp config file");
     }
 }
 
