@@ -29,6 +29,10 @@ pub enum ConfigCommands {
     #[clap(alias = "r")]
     Reset(ConfigReset),
 
+    #[clap(alias = "o")]
+    /// (o) Open the configuration file in the default editor
+    Open(ConfigOpen),
+
     #[clap(alias = "tz")]
     /// (tz) Change the timezone in the configuration file
     SetTimezone(SetTimezone),
@@ -49,6 +53,9 @@ pub struct ConfigReset {
     #[arg(long)]
     pub force: bool,
 }
+
+#[derive(Parser, Debug, Clone)]
+pub struct ConfigOpen {}
 
 #[derive(Parser, Debug, Clone)]
 pub struct About {}

@@ -391,6 +391,12 @@ pub async fn select_command(
             crate::config::config_reset(cli.config.clone(), args.force).await,
         ),
 
+        Commands::Config(ConfigCommands::Open(_args)) => (
+            false,
+            false,
+            crate::config::config_open(cli.config.clone()).await,
+        ),
+
         Commands::Config(ConfigCommands::SetTimezone(args)) => {
             let config = match fetch_config(&cli, &tx).await {
                 Ok(config) => config,
