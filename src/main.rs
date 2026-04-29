@@ -47,26 +47,34 @@ async fn main() {
     let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<Error>();
 
     let (bell_success, bell_error, result) = commands::select_command(cli, tx).await;
-    while let Some(e) = rx.recv().await {
-        eprintln!("Error from async process: {e}");
-    }
 
-    match result {
+    let mut exit_code = match result {
         Ok(text) => {
-            if bell_success {
-                terminal_bell()
-            }
             println!("{text}");
-            std::process::exit(0);
+            0
         }
         Err(e) => {
-            if bell_error {
-                terminal_bell()
-            }
             eprintln!("\n\n{e}");
-            std::process::exit(1);
+            1
         }
+    };
+
+    while let Some(error) = rx.recv().await {
+        if error.source.as_str() == "shell command" {
+            exit_code = 1;
+        }
+        eprintln!("Error from async process: {error}");
     }
+
+    if exit_code == 0 {
+        if bell_success {
+            terminal_bell()
+        }
+    } else if bell_error {
+        terminal_bell()
+    }
+
+    std::process::exit(exit_code);
 }
 
 fn terminal_bell() {

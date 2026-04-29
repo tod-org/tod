@@ -146,7 +146,7 @@ pub async fn quick_create_task(
     let body = json!({"text": content, "auto_reminder": true, "reminder": reminder});
 
     let json = request::post_todoist(config, &url, body, true).await?;
-    maybe_run_command(config.task_create_command.as_deref()).await;
+    maybe_run_command(config.task_create_command.as_deref(), config)?;
     tasks::json_to_task(json)
 }
 
@@ -210,7 +210,7 @@ pub async fn create_task(
     let body = json!(body);
 
     let json = request::post_todoist(config, url, body, true).await?;
-    maybe_run_command(config.task_create_command.as_deref()).await;
+    maybe_run_command(config.task_create_command.as_deref(), config)?;
     tasks::json_to_task(json)
 }
 
@@ -546,7 +546,7 @@ pub async fn complete_task(config: &Config, task: &Task, spinner: bool) -> Resul
     request::post_todoist(config, &url, Value::Null, spinner).await?;
 
     if !cfg!(test) {
-        maybe_run_command(config.task_complete_command.as_deref()).await;
+        maybe_run_command(config.task_complete_command.as_deref(), config)?;
         config.reload().await?.clear_next_task().save().await?;
     }
     // Execute the execute_command() complete_task_command if set in config
@@ -612,7 +612,7 @@ pub async fn create_comment(
     let url = COMMENTS_URL.to_string();
 
     let response = request::post_todoist(config, &url, body, spinner).await?;
-    maybe_run_command(config.task_comment_command.as_deref()).await;
+    maybe_run_command(config.task_comment_command.as_deref(), config)?;
     comments::json_to_comment(response)
 }
 
@@ -665,10 +665,18 @@ pub async fn all_comments(
 }
 
 // Executes a CLI command (if set in the configuration).
-async fn maybe_run_command(command: Option<&str>) {
+fn maybe_run_command(command: Option<&str>, config: &Config) -> Result<(), Error> {
     if let Some(command) = command {
-        execute_command(command);
+        let tx = config.internal.tx.clone().ok_or_else(|| {
+            Error::new(
+                "shell command",
+                "Unable to report shell command errors because no async error channel is configured",
+            )
+        })?;
+        execute_command(command, tx);
     }
+
+    Ok(())
 }
 
 /// Filters (Excludes) tasks based on task title and configured task_exclude_regex

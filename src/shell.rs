@@ -1,8 +1,8 @@
 //File for shell functions used local to the system, such as command execution, shell completions.
-use crate::{Cli, LOWERCASE_NAME};
+use crate::{Cli, LOWERCASE_NAME, errors::Error};
 use clap::CommandFactory;
 use std::{io, process::Stdio};
-use tokio::process::Command;
+use tokio::{process::Command, sync::mpsc::UnboundedSender};
 
 #[derive(clap::ValueEnum, Debug, Copy, Clone)]
 pub enum Shell {
@@ -14,37 +14,56 @@ pub enum Shell {
     Elvish,
 }
 
-/// Executes a local system command  async with the given arguments and suppresses stdout.
-/// Captures stderr and prints it if the command fails.
-pub fn execute_command(command: &str) {
-    // Spawn the command execution in the background
-    let command = command.to_string(); // Clone the command string for the async task
+/// Starts a local system command in the background and reports failures through tx.
+/// Suppresses stdout so command output cannot interfere with terminal rendering.
+pub fn execute_command(command: &str, tx: UnboundedSender<Error>) {
+    let command = command.to_string();
     tokio::spawn(async move {
-        let output = Command::new("sh")
-            .arg("-c")
-            .arg(&command)
-            .stdout(if cfg!(test) {
-                // Only capture stdout in tests for test case validation
-                Stdio::piped()
-            } else {
-                Stdio::null()
-            }) // Suppress stdout
-            .stderr(Stdio::piped()) // Capture stderr
-            .output()
-            .await;
-
-        if let Err(e) = output {
-            eprintln!("Failed to execute command '{command}': {e}");
-        } else if let Ok(output) = output
-            && !output.status.success()
-        {
-            if let Ok(stderr) = String::from_utf8(output.stderr) {
-                eprintln!("Command '{command}' failed: {stderr}");
-            } else {
-                eprintln!("Command '{command}' failed with non-UTF-8 output.");
-            }
+        if let Err(error) = execute_command_inner(&command).await {
+            let _ = tx.send(error);
         }
     });
+}
+
+async fn execute_command_inner(command: &str) -> Result<(), Error> {
+    let output = shell_command(command)
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::piped())
+        .output()
+        .await
+        .map_err(|e| {
+            Error::new(
+                "shell command",
+                &format!("Failed to execute '{command}': {e}"),
+            )
+        })?;
+
+    if output.status.success() {
+        return Ok(());
+    }
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let stderr = stderr.trim();
+    let message = if stderr.is_empty() {
+        format!("Command '{command}' failed with status {}", output.status)
+    } else {
+        format!("Command '{command}' failed: {stderr}")
+    };
+
+    Err(Error::new("shell command", &message))
+}
+
+fn shell_command(command: &str) -> Command {
+    if cfg!(windows) {
+        let mut child = Command::new("cmd");
+        child.args(["/C", command]);
+        child
+    } else {
+        let mut child = Command::new("sh");
+        child.args(["-c", command]);
+        child
+    }
 }
 
 pub(crate) fn generate_completions(shell: Shell) {
@@ -81,30 +100,84 @@ mod tests {
     use predicates::prelude::*;
     // Contains is used to make CMD test cases cross-platform compatible
     use predicates::str::contains;
+    use tokio::sync::mpsc::unbounded_channel;
+    use tokio::time::{Duration, timeout};
 
     #[tokio::test]
     async fn test_execute_command_success() {
         // This should succeed and produce no stderr output.
-        execute_command("echo 'Hello, world!'");
+        let (tx, mut rx) = unbounded_channel();
+        execute_command("echo 'Hello, world!'", tx);
+
+        assert!(
+            timeout(Duration::from_secs(1), rx.recv())
+                .await
+                .unwrap()
+                .is_none()
+        );
     }
 
     #[tokio::test]
-    async fn test_execute_command_failure() {
-        // This should fail and print an error to stderr.
-        execute_command("nonexistent_command_12345");
+    async fn test_execute_command_invalid_command_reports_error() {
+        let (tx, mut rx) = unbounded_channel();
+        execute_command("nonexistent_command_12345", tx);
+
+        let error = timeout(Duration::from_secs(1), rx.recv())
+            .await
+            .unwrap()
+            .unwrap();
+
+        assert_eq!(error.source, "shell command");
+        assert!(error.message.contains("nonexistent_command_12345"));
     }
 
     #[tokio::test]
-    async fn test_execute_command_with_stderr() {
-        // This should fail and print the error message from ls.
-        execute_command("ls /nonexistent_directory");
+    async fn test_execute_command_with_stderr_reports_error() {
+        let (tx, mut rx) = unbounded_channel();
+        execute_command("ls /nonexistent_directory", tx);
+
+        let error = timeout(Duration::from_secs(1), rx.recv())
+            .await
+            .unwrap()
+            .unwrap();
+
+        assert!(error.message.contains("/nonexistent_directory"));
     }
 
     #[tokio::test]
-    async fn test_execute_command_non_utf8_stderr() {
-        // Try to cat a binary file to produce non-UTF-8 output in stderr.
-        // This test may not always trigger non-UTF-8, but it's a best effort.
-        execute_command("cat /bin/ls 2>&1 1>/dev/null");
+    async fn test_execute_command_failure_without_stderr_reports_error() {
+        let (tx, mut rx) = unbounded_channel();
+        execute_command("exit 1", tx);
+
+        let error = timeout(Duration::from_secs(1), rx.recv())
+            .await
+            .unwrap()
+            .unwrap();
+
+        assert!(error.message.contains("failed with status"));
+    }
+
+    #[tokio::test]
+    async fn test_execute_command_does_not_wait_for_command_completion() {
+        let start = std::time::Instant::now();
+        let (tx, _rx) = unbounded_channel();
+        execute_command("sleep 1", tx);
+
+        assert!(start.elapsed() < std::time::Duration::from_millis(500));
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn test_execute_command_non_utf8_stderr_reports_error() {
+        let (tx, mut rx) = unbounded_channel();
+        execute_command("printf '\\377' >&2; exit 1", tx);
+
+        let error = timeout(Duration::from_secs(1), rx.recv())
+            .await
+            .unwrap()
+            .unwrap();
+
+        assert!(error.message.contains("Command 'printf"));
     }
     #[tokio::test]
     async fn test_command_echo_output() {
