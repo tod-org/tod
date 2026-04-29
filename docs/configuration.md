@@ -282,9 +282,9 @@ default: null
 possible values: Any valid executable shell command (such as 'echo task commented')
 ```
 
-Defaults to `null` (no command). The Shell command that spanwed for background execution upon a task being commented. Only executes if set. Allows for custom integration with other scripts, code, sounds, or webhooks.
+Defaults to `null` (no command). The shell command spawned in the background after a task is commented. Only executes if set. Allows for custom integration with other scripts, code, sounds, or webhooks.
 
-Note that only errors (stderr) are output to the CLI; successful responses (stdout) are supressed.
+Command output is suppressed while the hook runs so it cannot interfere with terminal rendering. Tod discards `stdin` and `stdout`, captures `stderr`, and reports a shell command error at the end if the hook cannot be started or exits unsuccessfully. If the hook exits successfully, its output is discarded.
 
 ### task_create_command
 
@@ -294,9 +294,9 @@ default: null
 possible values: Any valid executable shell command (such as 'echo task created')
 ```
 
-Defaults to `null` (no command). The Shell command that spanwed for background execution upon a task being added/created. Only executes if set, for both regular and quick-add task creation. Allows for custom integration with other scripts, code, sounds, or webhooks.
+Defaults to `null` (no command). The shell command spawned in the background after a task is added or created. Only executes if set, for both regular and quick-add task creation. Allows for custom integration with other scripts, code, sounds, or webhooks.
 
-Note that only errors (stderr) are output to the CLI; successful responses (stdout) are supressed.
+Command output is suppressed while the hook runs so it cannot interfere with terminal rendering. Tod discards `stdin` and `stdout`, captures `stderr`, and reports a shell command error at the end if the hook cannot be started or exits unsuccessfully. If the hook exits successfully, its output is discarded.
 
 ### task_complete_command
 
@@ -306,9 +306,9 @@ default: null
 possible values: Any valid executable shell command (such as 'echo task completed')
 ```
 
-Defaults to `null` (no command is run). The Shell command that spanwed for background execution upon a task being completed. Only executes if set. Allows for custom integration with other scripts, code, sounds, or webhooks.
+Defaults to `null` (no command is run). The shell command spawned in the background after a task is completed. Only executes if set. Allows for custom integration with other scripts, code, sounds, or webhooks.
 
-Note that only errors (stderr) are output to the CLI; successful responses (stdout) are supressed.
+Command output is suppressed while the hook runs so it cannot interfere with terminal rendering. Tod discards `stdin` and `stdout`, captures `stderr`, and reports a shell command error at the end if the hook cannot be started or exits unsuccessfully. If the hook exits successfully, its output is discarded.
 
 ### task_exclude_regex
 
