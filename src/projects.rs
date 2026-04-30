@@ -18,7 +18,7 @@ const PROJECT_URL: &str = "https://app.todoist.com/app/project";
 pub struct Project {
     pub id: String,
     pub can_assign_tasks: bool,
-    pub child_order: u32,
+    pub child_order: i32,
     pub color: String,
     pub created_at: Option<String>,
     pub is_archived: bool,
@@ -28,7 +28,7 @@ pub struct Project {
     pub name: String,
     pub updated_at: Option<String>,
     pub view_style: String,
-    pub default_order: u32,
+    pub default_order: i32,
     pub description: String,
     pub parent_id: Option<String>,
     pub inbox_project: Option<bool>,
@@ -1027,6 +1027,36 @@ mod tests {
     fn test_json_to_projects_response_invalid() {
         let result = json_to_projects_response("not json".to_string());
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn should_deserialize_project_with_negative_order() {
+        let json = r#"{
+            "id": "123",
+            "can_assign_tasks": true,
+            "child_order": -1,
+            "color": "blue",
+            "created_at": null,
+            "is_archived": false,
+            "is_deleted": false,
+            "is_favorite": false,
+            "is_frozen": false,
+            "name": "Inbox",
+            "updated_at": null,
+            "view_style": "list",
+            "default_order": -1,
+            "description": "",
+            "parent_id": null,
+            "inbox_project": true,
+            "is_collapsed": false,
+            "is_shared": false
+        }"#;
+
+        let project = json_to_project(json.to_string())
+            .expect("should deserialize project with negative order");
+
+        assert_eq!(project.child_order, -1);
+        assert_eq!(project.default_order, -1);
     }
 
     #[test]
