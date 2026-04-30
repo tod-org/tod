@@ -9,7 +9,7 @@ use crate::{
     tasks::{self, FormatType, SortOrder, Task, priority::Priority},
     todoist,
 };
-use futures::future;
+use futures::{StreamExt, TryStreamExt, future, stream};
 use tokio::{fs, io::AsyncReadExt, task::JoinError};
 
 #[derive(Clone)]
@@ -29,12 +29,12 @@ impl Display for Flag {
 
 /// Get a list of all tasks
 pub async fn view(config: &mut Config, flag: Flag, sort: &SortOrder) -> Result<String, Error> {
-    let list_of_tasks = match flag.clone() {
+    let list_of_tasks = match &flag {
         Flag::Project(project) => vec![(
             project.name.clone(),
-            todoist::all_tasks_by_project(config, &project, None).await?,
+            todoist::all_tasks_by_project(config, project, None).await?,
         )],
-        Flag::Filter(filter) => todoist::all_tasks_by_filters(config, &filter).await?,
+        Flag::Filter(filter) => todoist::all_tasks_by_filters(config, filter).await?,
     };
 
     let mut buffer = String::new();
@@ -56,16 +56,16 @@ pub async fn view(config: &mut Config, flag: Flag, sort: &SortOrder) -> Result<S
 
 /// Prioritize all unprioritized tasks
 pub async fn prioritize(config: &Config, flag: Flag, sort: &SortOrder) -> Result<String, Error> {
-    let tasks = match flag.clone() {
-        Flag::Project(project) => todoist::all_tasks_by_project(config, &project, None)
+    let tasks = match &flag {
+        Flag::Project(project) => todoist::all_tasks_by_project(config, project, None)
             .await?
             .into_iter()
             .filter(|task| task.priority == Priority::None)
             .collect::<Vec<Task>>(),
-        Flag::Filter(filter) => todoist::all_tasks_by_filters(config, &filter)
+        Flag::Filter(filter) => todoist::all_tasks_by_filters(config, filter)
             .await?
-            .iter()
-            .flat_map(|(_, tasks)| tasks.to_owned())
+            .into_iter()
+            .flat_map(|(_, tasks)| tasks)
             .collect::<Vec<Task>>(),
     };
 
@@ -78,28 +78,29 @@ pub async fn prioritize(config: &Config, flag: Flag, sort: &SortOrder) -> Result
 
     let tasks = tasks::sort(tasks, config, sort);
 
-    let mut handles = Vec::new();
-    for task in tasks {
-        println!();
-        let handle = tasks::set_priority(config, task, true).await?;
-        handles.push(handle);
-    }
+    let handles = stream::iter(tasks)
+        .then(|task| async {
+            println!();
+            tasks::set_priority(config, task, true).await
+        })
+        .try_collect::<Vec<_>>()
+        .await?;
     future::join_all(handles).await;
     Ok(color::green_string(&success))
 }
 
 /// Gives tasks durations
 pub async fn timebox(config: &Config, flag: Flag, sort: &SortOrder) -> Result<String, Error> {
-    let tasks = match flag.clone() {
-        Flag::Project(project) => todoist::all_tasks_by_project(config, &project, None)
+    let tasks = match &flag {
+        Flag::Project(project) => todoist::all_tasks_by_project(config, project, None)
             .await?
             .into_iter()
             .filter(|task| task.duration.is_none())
             .collect::<Vec<Task>>(),
-        Flag::Filter(filter) => todoist::all_tasks_by_filters(config, &filter)
+        Flag::Filter(filter) => todoist::all_tasks_by_filters(config, filter)
             .await?
             .into_iter()
-            .flat_map(|(_, tasks)| tasks.to_owned())
+            .flat_map(|(_, tasks)| tasks)
             .collect::<Vec<Task>>(),
     };
 
@@ -126,20 +127,20 @@ pub async fn timebox(config: &Config, flag: Flag, sort: &SortOrder) -> Result<St
 
 /// Get next tasks and give an interactive prompt for completing them one by one
 pub async fn process(config: &Config, flag: Flag, sort: &SortOrder) -> Result<String, Error> {
-    let tasks = match flag.clone() {
+    let tasks = match &flag {
         Flag::Project(project) => {
-            let tasks = todoist::all_tasks_by_project(config, &project, None).await?;
+            let tasks = todoist::all_tasks_by_project(config, project, None).await?;
             tasks::filter_not_in_future(tasks, config)?
         }
 
-        Flag::Filter(filter) => todoist::all_tasks_by_filters(config, &filter)
+        Flag::Filter(filter) => todoist::all_tasks_by_filters(config, filter)
             .await?
             .into_iter()
-            .flat_map(|(_, tasks)| tasks.to_owned())
+            .flat_map(|(_, tasks)| tasks)
             .collect::<Vec<Task>>(),
     };
 
-    let with_project = match flag.clone() {
+    let with_project = match &flag {
         Flag::Project(..) => false,
         Flag::Filter(..) => true,
     };
@@ -203,18 +204,16 @@ async fn fetch_comments_for_tasks(
     tasks: Vec<Task>,
     config: &Config,
 ) -> Vec<Result<(Task, Result<Vec<Comment>, Error>), JoinError>> {
-    let mut handles = Vec::new();
-
-    for task in tasks {
-        let config = config.clone();
-        let handle = tokio::spawn(async move {
-            (
-                task.clone(),
-                todoist::all_comments(&config, &task, None).await,
-            )
-        });
-        handles.push(handle);
-    }
+    let handles = tasks
+        .into_iter()
+        .map(|task| {
+            let config = config.clone();
+            tokio::spawn(async move {
+                let comments = todoist::all_comments(&config, &task.id, None).await;
+                (task, comments)
+            })
+        })
+        .collect::<Vec<_>>();
     future::join_all(handles).await
 }
 
@@ -222,15 +221,15 @@ async fn fetch_comments_for_tasks(
 pub async fn label(
     config: &Config,
     flag: Flag,
-    labels: &Vec<String>,
+    labels: &[String],
     sort: &SortOrder,
 ) -> Result<String, Error> {
-    let tasks = match flag.clone() {
-        Flag::Project(project) => todoist::all_tasks_by_project(config, &project, None).await?,
-        Flag::Filter(filter) => todoist::all_tasks_by_filters(config, &filter)
+    let tasks = match &flag {
+        Flag::Project(project) => todoist::all_tasks_by_project(config, project, None).await?,
+        Flag::Filter(filter) => todoist::all_tasks_by_filters(config, filter)
             .await?
             .into_iter()
-            .flat_map(|(_, tasks)| tasks.to_owned())
+            .flat_map(|(_, tasks)| tasks)
             .collect::<Vec<Task>>(),
     };
 
@@ -242,12 +241,13 @@ pub async fn label(
     }
 
     let tasks = tasks::sort(tasks, config, sort);
-    let mut handles = Vec::new();
-    for task in tasks {
-        println!();
-        let future = tasks::label_task(config, task, labels).await?;
-        handles.push(future);
-    }
+    let handles = stream::iter(tasks)
+        .then(|task| async {
+            println!();
+            tasks::label_task(config, task, labels).await
+        })
+        .try_collect::<Vec<_>>()
+        .await?;
     future::join_all(handles).await;
     Ok(color::green_string(&success))
 }

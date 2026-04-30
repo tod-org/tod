@@ -57,8 +57,8 @@ pub async fn test_all_endpoints(config: &Config) -> Result<String, Error> {
         config,
         &name,
         &project,
-        Some(section.clone()),
-        priority.clone(),
+        Some(&section),
+        priority,
         &name,
         None,
         &[],
@@ -75,15 +75,15 @@ pub async fn test_all_endpoints(config: &Config) -> Result<String, Error> {
     let task = get_task(config, &task.id).await?;
 
     println!("Commenting on task twice");
-    let _comment = create_comment(config, &task, &name, false).await?;
+    let _comment = create_comment(config, &task.id, &name, false).await?;
 
-    let _comment = create_comment(config, &task, &name, false).await?;
+    let _comment = create_comment(config, &task.id, &name, false).await?;
 
     println!("Getting comments for task");
-    let _comments = all_comments(config, &task, Some(1)).await?;
+    let _comments = all_comments(config, &task.id, Some(1)).await?;
 
     println!("Deleting task");
-    delete_task(config, &task, false).await?;
+    delete_task(config, &task.id, false).await?;
 
     println!("Creating two tasks with quick_add_task");
     let _task = quick_create_task(config, &name, None).await?;
@@ -96,22 +96,22 @@ pub async fn test_all_endpoints(config: &Config) -> Result<String, Error> {
     let _tasks = all_tasks_by_filter(config, "tod", Some(1)).await?;
 
     println!("Updating task priority");
-    let _task = update_task_priority(config, &task, &priority, false).await?;
+    let _task = update_task_priority(config, &task.id, &priority, false).await?;
 
     println!("Updating task content");
-    let _task = update_task_content(config, &task, &name, false).await?;
+    let _task = update_task_content(config, &task.id, &name, false).await?;
 
     println!("Updating task description");
-    let _task = update_task_description(config, &task, &name, false).await?;
+    let _task = update_task_description(config, &task.id, &name, false).await?;
 
     println!("Updating task deadline");
-    let _task = update_task_deadline(config, &task, Some(date), false).await?;
+    let _task = update_task_deadline(config, &task.id, Some(date), false).await?;
 
     println!("Updating task labels");
-    let _task = update_task_labels(config, &task, labels, false).await?;
+    let _task = update_task_labels(config, &task.id, labels, false).await?;
 
     println!("Adding task label");
-    let _task = add_task_label(config, task.clone(), "three".into(), false).await?;
+    let _task = add_task_label(config, &task, "three".into(), false).await?;
 
     println!("Updating task due with natural language");
     let _task =
@@ -121,10 +121,10 @@ pub async fn test_all_endpoints(config: &Config) -> Result<String, Error> {
     let task = move_task_to_project(config, &task, &project, false).await?;
 
     println!("Completing task");
-    let _task = complete_task(config, &task, false).await?;
+    let _task = complete_task(config, &task.id, false).await?;
 
     println!("Deleting task");
-    delete_task(config, &task, false).await?;
+    delete_task(config, &task.id, false).await?;
 
     println!("Deleting project");
     delete_project(config, &project, false).await?;
@@ -189,7 +189,7 @@ pub async fn create_task(
     config: &Config,
     content: &str,
     project: &Project,
-    section: Option<Section>,
+    section: Option<&Section>,
     priority: Priority,
     description: &str,
     due: Option<&str>,
@@ -274,12 +274,7 @@ pub async fn all_tasks_by_filters(
         .map(|f| all_tasks_by_filter(config, f, None))
         .collect();
 
-    let mut acc = Vec::new();
-    for result in future::join_all(filters).await {
-        acc.push(result?);
-    }
-
-    Ok(acc)
+    future::try_join_all(filters).await
 }
 
 /// Fetches a list of tasks by a single filter query.
@@ -424,12 +419,12 @@ pub async fn move_task_to_section(
 /// Update the priority of an task by ID
 pub async fn update_task_priority(
     config: &Config,
-    task: &Task,
+    task_id: &str,
     priority: &Priority,
     spinner: bool,
 ) -> Result<String, Error> {
     let body = json!({ "priority": priority });
-    let url = format!("{}{}", TASKS_URL, task.id);
+    let url = format!("{TASKS_URL}{task_id}");
 
     request::post_todoist(config, &url, body, spinner).await?;
     // Does not pass back an task
@@ -439,11 +434,11 @@ pub async fn update_task_priority(
 /// Add a label to task by ID
 pub async fn add_task_label(
     config: &Config,
-    task: Task,
+    task: &Task,
     label: String,
     spinner: bool,
 ) -> Result<String, Error> {
-    let mut labels = task.labels;
+    let mut labels = task.labels.clone();
     labels.push(label);
     let body = json!({ "labels": labels});
     let url = format!("{}{}", TASKS_URL, task.id);
@@ -486,12 +481,12 @@ pub async fn update_task_due_natural_language(
 /// Update the content of a task by ID
 pub async fn update_task_content(
     config: &Config,
-    task: &Task,
+    task_id: &str,
     content: &str,
     spinner: bool,
 ) -> Result<String, Error> {
     let body = json!({ "content": content});
-    let url = format!("{}{}", TASKS_URL, task.id);
+    let url = format!("{TASKS_URL}{task_id}");
 
     request::post_todoist(config, &url, body, spinner).await?;
     // Does not pass back a task
@@ -501,7 +496,7 @@ pub async fn update_task_content(
 /// Update the content of a task by ID
 pub async fn update_task_deadline(
     config: &Config,
-    task: &Task,
+    task_id: &str,
     date: Option<String>,
     spinner: bool,
 ) -> Result<String, Error> {
@@ -517,7 +512,7 @@ pub async fn update_task_deadline(
         }
         None => json!({"deadline_date": null, "deadline_lang": null}),
     };
-    let url = format!("{}{}", TASKS_URL, task.id);
+    let url = format!("{TASKS_URL}{task_id}");
 
     request::post_todoist(config, &url, body, spinner).await?;
     // Does not pass back a task
@@ -527,12 +522,12 @@ pub async fn update_task_deadline(
 /// Update the description of a task by ID
 pub async fn update_task_description(
     config: &Config,
-    task: &Task,
+    task_id: &str,
     description: &str,
     spinner: bool,
 ) -> Result<String, Error> {
     let body = json!({ "description": description});
-    let url = format!("{}{}", TASKS_URL, task.id);
+    let url = format!("{TASKS_URL}{task_id}");
 
     request::post_todoist(config, &url, body, spinner).await?;
     // Does not pass back a task
@@ -543,12 +538,12 @@ pub async fn update_task_description(
 /// Replaces the old labels
 pub async fn update_task_labels(
     config: &Config,
-    task: &Task,
+    task_id: &str,
     labels: Vec<String>,
     spinner: bool,
 ) -> Result<String, Error> {
     let body = json!({ "labels": labels});
-    let url = format!("{}{}", TASKS_URL, task.id);
+    let url = format!("{TASKS_URL}{task_id}");
 
     request::post_todoist(config, &url, body, spinner).await?;
     // Does not pass back a task
@@ -557,8 +552,7 @@ pub async fn update_task_labels(
 
 /// Complete the last task returned by "next task"
 /// The API does not return any data, so we can't return a new task
-pub async fn complete_task(config: &Config, task: &Task, spinner: bool) -> Result<String, Error> {
-    let task_id = task.id.clone();
+pub async fn complete_task(config: &Config, task_id: &str, spinner: bool) -> Result<String, Error> {
     let url = format!("{TASKS_URL}{task_id}/close");
 
     request::post_todoist(config, &url, Value::Null, spinner).await?;
@@ -573,9 +567,9 @@ pub async fn complete_task(config: &Config, task: &Task, spinner: bool) -> Resul
     Ok("✓".into())
 }
 
-pub async fn delete_task(config: &Config, task: &Task, spinner: bool) -> Result<String, Error> {
+pub async fn delete_task(config: &Config, task_id: &str, spinner: bool) -> Result<String, Error> {
     let body = json!({});
-    let url = format!("{}{}", TASKS_URL, task.id);
+    let url = format!("{TASKS_URL}{task_id}");
 
     request::delete_todoist(config, &url, body, spinner).await?;
     Ok("✓".into())
@@ -621,11 +615,10 @@ pub async fn create_section(
 
 pub async fn create_comment(
     config: &Config,
-    task: &Task,
+    task_id: &str,
     content: &str,
     spinner: bool,
 ) -> Result<Comment, Error> {
-    let task_id = task.id.clone();
     let body = json!({"task_id": task_id, "content": content});
     let url = COMMENTS_URL.to_string();
 
@@ -645,10 +638,9 @@ pub async fn get_user_data(config: &Config) -> Result<User, Error> {
 /// Then will filter out deleted and excluded comments based on the Regex Config.
 pub async fn all_comments(
     config: &Config,
-    task: &Task,
+    task_id: &str,
     limit: Option<u8>,
 ) -> Result<Vec<Comment>, Error> {
-    let task_id = &task.id;
     let limit = limit.unwrap_or(QUERY_LIMIT);
     let mut url = format!("{COMMENTS_URL}?task_id={task_id}&limit={limit}");
     let mut comments: Vec<Comment> = Vec::new();
@@ -816,7 +808,7 @@ mod tests {
                 &config,
                 "New task",
                 &project,
-                Some(section),
+                Some(&section),
                 priority,
                 "",
                 None,
@@ -864,7 +856,7 @@ mod tests {
         let task = test::fixtures::today_task().await;
         let comment = test::fixtures::comment();
         assert_eq!(
-            create_comment(&config, &task, "New comment", true).await,
+            create_comment(&config, &task.id, "New comment", true).await,
             Ok(comment)
         );
         mock.assert();
@@ -914,7 +906,7 @@ mod tests {
         let config = test::fixtures::config().await.with_mock_url(server.url());
 
         let task = test::fixtures::today_task().await;
-        let response = complete_task(&config, &task, false)
+        let response = complete_task(&config, &task.id, false)
             .await
             .expect("Did not complete task");
         mock.assert();
@@ -995,7 +987,7 @@ mod tests {
         let task = test::fixtures::today_task().await;
         let config = test::fixtures::config().await.with_mock_url(server.url());
 
-        let response = delete_task(&config, &task, false).await;
+        let response = delete_task(&config, &task.id, false).await;
         mock.assert();
 
         assert_eq!(response, Ok(String::from("✓")));
@@ -1065,7 +1057,7 @@ mod tests {
 
         let config = test::fixtures::config().await.with_mock_url(server.url());
 
-        let response = update_task_priority(&config, &task, &Priority::High, true).await;
+        let response = update_task_priority(&config, &task.id, &Priority::High, true).await;
         mock.assert();
         assert_eq!(response, Ok(String::from("✓")));
     }
@@ -1111,7 +1103,7 @@ mod tests {
 
         let task = test::fixtures::today_task().await;
 
-        let comments = all_comments(&config, &task, None)
+        let comments = all_comments(&config, &task.id, None)
             .await
             .expect("Could not get all comments");
         mock.assert();

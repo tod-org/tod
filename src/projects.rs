@@ -1,5 +1,6 @@
-use futures::future;
+use futures::{StreamExt, TryStreamExt, future, stream};
 use pad::PadStr;
+use std::collections::HashSet;
 use std::fmt::Display;
 use tokio::task::JoinHandle;
 
@@ -101,14 +102,15 @@ pub async fn create(
 pub async fn list(config: &mut Config) -> Result<String, Error> {
     config.reload_projects().await?;
 
-    let mut project_handles = Vec::new();
-
-    for project in config.projects().await? {
-        let config = config.clone();
-        let handle = tokio::spawn(async move { project_name_with_count(&config, &project).await });
-
-        project_handles.push(handle);
-    }
+    let project_handles = config
+        .projects()
+        .await?
+        .into_iter()
+        .map(|project| {
+            let config = config.clone();
+            tokio::spawn(async move { project_name_with_count(&config, &project).await })
+        })
+        .collect::<Vec<_>>();
 
     let mut projects: Vec<String> = future::join_all(project_handles)
         .await
@@ -183,11 +185,11 @@ pub async fn rename(config: &mut Config, project: &Project) -> Result<String, Er
 pub async fn next_task(config: Config, project: &Project) -> Result<String, Error> {
     match fetch_next_task(&config, project).await {
         Ok(Some((task, remaining))) => {
-            let comments = todoist::all_comments(&config, &task, None).await?;
-            config.set_next_task(task.clone()).save().await?;
+            let comments = todoist::all_comments(&config, &task.id, None).await?;
             let task_string = task
                 .fmt(comments, &config, FormatType::Single, false)
                 .await?;
+            config.set_next_task(task).save().await?;
             Ok(format!("{task_string}\n{remaining} task(s) remaining"))
         }
         Ok(None) => Ok(color::green_string("No tasks on list")),
@@ -259,12 +261,14 @@ async fn filter_missing_projects(
     config: &mut Config,
     projects: Vec<Project>,
 ) -> Result<Vec<Project>, Error> {
-    let project_ids: Vec<String> = projects.into_iter().map(|v| v.id).collect();
-    let config = config
-        .projects()
-        .await?
+    let configured_projects = config.projects().await?;
+    let project_ids = projects
+        .iter()
+        .map(|v| v.id.as_str())
+        .collect::<HashSet<_>>();
+    let config = configured_projects
         .into_iter()
-        .filter(|p| !project_ids.contains(&p.id))
+        .filter(|p| !project_ids.contains(p.id.as_str()))
         .collect();
 
     Ok(config)
@@ -285,15 +289,14 @@ async fn filter_new_projects(
     config: &mut Config,
     projects: Vec<Project>,
 ) -> Result<Vec<Project>, Error> {
-    let project_ids: Vec<String> = config
-        .projects()
-        .await?
+    let configured_projects = config.projects().await?;
+    let project_ids = configured_projects
         .iter()
-        .map(|v| v.id.clone())
-        .collect();
+        .map(|v| v.id.as_str())
+        .collect::<HashSet<_>>();
     let new_projects: Vec<Project> = projects
         .into_iter()
-        .filter(|p| !project_ids.contains(&p.id))
+        .filter(|p| !project_ids.contains(p.id.as_str()))
         .collect();
 
     Ok(new_projects)
@@ -312,7 +315,7 @@ async fn maybe_add_project(
 
     let options = vec!["add", "skip"];
     println!("{project}");
-    match input::select("Select an option", options.clone(), config.mock_select) {
+    match input::select("Select an option", options, config.mock_select) {
         Ok(string) => {
             if string == "add" {
                 add(config, &project).await
@@ -377,11 +380,8 @@ pub async fn empty(config: &mut Config, project: &Project) -> Result<String, Err
             .collect::<Vec<Task>>();
 
         let mut handles = Vec::new();
-        for task in tasks.iter() {
-            match move_task_to_project(config, task.to_owned(), &sections).await {
-                Ok(handle) => handles.push(handle),
-                Err(e) => return Err(e),
-            };
+        for task in tasks {
+            handles.push(move_task_to_project(config, task, &sections).await?);
         }
         future::join_all(handles).await;
         Ok(color::green_string(&format!(
@@ -422,12 +422,13 @@ pub async fn schedule(
             project.name
         )))
     } else {
-        let mut handles = Vec::new();
-        for task in filtered_tasks.iter() {
-            if let Some(handle) = tasks::spawn_schedule_task(config.clone(), task.clone()).await? {
-                handles.push(handle);
-            }
-        }
+        let handles = stream::iter(filtered_tasks)
+            .then(|task| tasks::spawn_schedule_task(config.clone(), task))
+            .try_collect::<Vec<_>>()
+            .await?
+            .into_iter()
+            .flatten()
+            .collect::<Vec<_>>();
 
         future::join_all(handles).await;
         Ok(color::green_string(&format!(
@@ -455,12 +456,13 @@ pub async fn deadline(
             project.name
         )))
     } else {
-        let mut handles = Vec::new();
-        for task in filtered_tasks.iter() {
-            if let Some(handle) = tasks::spawn_deadline_task(config.clone(), task.clone()).await? {
-                handles.push(handle);
-            }
-        }
+        let handles = stream::iter(filtered_tasks)
+            .then(|task| tasks::spawn_deadline_task(config.clone(), task))
+            .try_collect::<Vec<_>>()
+            .await?
+            .into_iter()
+            .flatten()
+            .collect::<Vec<_>>();
 
         future::join_all(handles).await;
         Ok(color::green_string(&format!(
@@ -488,9 +490,9 @@ pub async fn move_task_to_project(
     let selection = input::select("Choose", options, config.mock_select)?;
 
     match selection.as_str() {
-        "Complete" => Ok(tasks::spawn_complete_task(config.clone(), task)),
+        "Complete" => Ok(tasks::spawn_complete_task(config.clone(), task.id)),
 
-        "Delete" => Ok(tasks::spawn_delete_task(config.clone(), task)),
+        "Delete" => Ok(tasks::spawn_delete_task(config.clone(), task.id)),
         "Skip" => Ok(tokio::spawn(async move {})),
         _ => {
             let projects = config.projects().await?;
@@ -502,7 +504,7 @@ pub async fn move_task_to_project(
                 .cloned()
                 .collect();
 
-            let section_names: Vec<String> = sections.clone().into_iter().map(|x| x.name).collect();
+            let section_names: Vec<String> = sections.iter().map(|x| x.name.clone()).collect();
             if section_names.is_empty() || config.no_sections.unwrap_or_default() {
                 let config = config.clone();
                 Ok(tokio::spawn(async move {
