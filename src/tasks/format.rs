@@ -1,5 +1,6 @@
 use std::borrow::Cow;
 use supports_hyperlinks::Stream;
+use terminal_size::{Width, terminal_size};
 
 use super::{DateTimeInfo, Duration, Task, Unit, priority};
 use crate::{
@@ -161,11 +162,87 @@ pub async fn render_comments(config: &Config, comments: Vec<Comment>) -> Result<
     let max_comment_length: usize = config.max_comment_length().try_into()?;
 
     if formatted_string.len() > max_comment_length {
-        formatted_string.truncate(max_comment_length);
-        formatted_string.push_str("...");
+        formatted_string = truncate_comment_text(
+            &formatted_string,
+            max_comment_length,
+            current_terminal_width(),
+        );
     };
 
     Ok(formatted_string)
+}
+
+fn current_terminal_width() -> Option<usize> {
+    terminal_size().map(|(Width(width), _)| usize::from(width))
+}
+
+fn truncate_comment_text(text: &str, max_length: usize, terminal_width: Option<usize>) -> String {
+    let boundary = comment_truncation_boundary(text, max_length, terminal_width);
+    let mut truncated = text[..boundary].trim_end_matches('\n').to_string();
+    if boundary < text.len() {
+        truncated.push_str("...");
+    }
+    truncated
+}
+
+fn comment_truncation_boundary(
+    text: &str,
+    max_length: usize,
+    terminal_width: Option<usize>,
+) -> usize {
+    if text.len() <= max_length {
+        return text.len();
+    }
+
+    let start = char_boundary_at_or_after(text, max_length);
+    let newline_boundary = text[start..].find('\n').map(|offset| start + offset);
+    let window_boundary = terminal_width
+        .filter(|width| *width > 0)
+        .and_then(|width| next_window_boundary(text, start, width));
+
+    newline_boundary
+        .into_iter()
+        .chain(window_boundary)
+        .min()
+        .unwrap_or(start)
+}
+
+fn char_boundary_at_or_after(text: &str, index: usize) -> usize {
+    if index >= text.len() {
+        return text.len();
+    }
+
+    if text.is_char_boundary(index) {
+        return index;
+    }
+
+    text.char_indices()
+        .map(|(index, _)| index)
+        .find(|boundary| *boundary > index)
+        .unwrap_or(text.len())
+}
+
+fn next_window_boundary(text: &str, start: usize, terminal_width: usize) -> Option<usize> {
+    let char_count = text[..start].chars().count();
+    let remainder = char_count % terminal_width;
+    let boundary_chars = if remainder == 0 {
+        char_count
+    } else {
+        char_count + terminal_width - remainder
+    };
+
+    byte_index_for_char_count(text, boundary_chars)
+}
+
+fn byte_index_for_char_count(text: &str, char_count: usize) -> Option<usize> {
+    if char_count == 0 {
+        return Some(0);
+    }
+
+    text.char_indices()
+        .nth(char_count)
+        .map(|(index, _)| index)
+        .or_else(|| (text.chars().count() <= char_count).then_some(text.len()))
 }
 
 #[cfg(test)]
@@ -249,6 +326,34 @@ mod tests {
             "\n\n★ Comments ★\n\nPosted 2016-09-22 00:00:00 PDT\nNeed one bottle of milk"
         );
         mock.expect(1);
+    }
+
+    #[test]
+    fn test_truncate_comment_text_prefers_next_newline() {
+        let text = "0123456789\nnext line";
+
+        assert_eq!(truncate_comment_text(text, 5, Some(80)), "0123456789...");
+    }
+
+    #[test]
+    fn test_truncate_comment_text_uses_next_window_boundary() {
+        let text = "0123456789abcdefghij";
+
+        assert_eq!(truncate_comment_text(text, 6, Some(10)), "0123456789...");
+    }
+
+    #[test]
+    fn test_truncate_comment_text_is_unicode_safe() {
+        let text = "abc✓defgh";
+
+        assert_eq!(truncate_comment_text(text, 4, None), "abc✓...");
+    }
+
+    #[test]
+    fn test_truncate_comment_text_does_not_mark_untruncated_text() {
+        let text = "short comment";
+
+        assert_eq!(truncate_comment_text(text, 80, Some(10)), text);
     }
 
     #[test]
