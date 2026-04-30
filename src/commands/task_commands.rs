@@ -195,7 +195,7 @@ pub async fn create(config: Config, args: &Create) -> Result<String, Error> {
             &config,
             &content,
             &project,
-            section,
+            section.as_ref(),
             priority,
             &description,
             due.as_deref(),
@@ -229,7 +229,7 @@ pub async fn create(config: Config, args: &Create) -> Result<String, Error> {
             &config,
             &content,
             &project,
-            section,
+            section.as_ref(),
             priority,
             description,
             due.as_deref(),
@@ -277,7 +277,7 @@ pub async fn next(config: Config, args: &Next) -> Result<String, Error> {
 pub async fn complete(config: Config, _args: &Complete) -> Result<String, Error> {
     match config.next_task() {
         Some(task) => {
-            todoist::complete_task(&config, &task, true).await?;
+            todoist::complete_task(&config, &task.id, true).await?;
 
             Ok(color::green_string("Task completed successfully"))
         }
@@ -293,7 +293,7 @@ pub async fn comment(config: Config, args: &Comment) -> Result<String, Error> {
     match config.next_task() {
         Some(task) => {
             let content = super::fetch_string(content.as_deref(), &config, input::CONTENT)?;
-            todoist::create_comment(&config, &task, &content, true).await?;
+            todoist::create_comment(&config, &task.id, &content, true).await?;
             Ok(color::green_string("Comment created successfully"))
         }
         None => Err(Error::new(

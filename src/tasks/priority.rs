@@ -2,7 +2,9 @@ use crate::color;
 use std::fmt::Display;
 
 /// Add to all_priorities function if adding another priority
-#[derive(serde_repr::Serialize_repr, serde_repr::Deserialize_repr, Debug, Clone, Eq, PartialEq)]
+#[derive(
+    serde_repr::Serialize_repr, serde_repr::Deserialize_repr, Debug, Copy, Clone, Eq, PartialEq,
+)]
 #[repr(u8)]
 pub enum Priority {
     None = 1,
@@ -23,7 +25,7 @@ impl Display for Priority {
 }
 
 impl Priority {
-    pub fn to_integer(&self) -> u8 {
+    pub fn to_integer(self) -> u8 {
         match self {
             Priority::None => 1,
             Priority::Low => 2,
