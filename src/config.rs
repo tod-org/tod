@@ -9,7 +9,8 @@ use crate::{VERSION, cargo, color, debug, input, oauth, time, todoist};
 use inquire::Confirm;
 use rand::distr::{Alphanumeric, SampleString};
 use regex::Regex;
-use serde::{Deserialize, Serialize};
+use serde::de::Error as DeError;
+use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::json;
 use std::path::Path;
 use std::path::PathBuf;
@@ -31,8 +32,22 @@ pub const TOKEN_METHOD: &str = "Choose your Todoist login method";
 #[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct Completed {
+    #[serde(deserialize_with = "deserialize_nonnegative_u32")]
     count: u32,
     date: String,
+}
+
+fn deserialize_nonnegative_u32<'de, D>(deserializer: D) -> Result<u32, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let value = i64::deserialize(deserializer)?;
+
+    if value <= 0 {
+        Ok(0)
+    } else {
+        u32::try_from(value).map_err(D::Error::custom)
+    }
 }
 
 /// App configuration, serialized as json in $XDG_CONFIG_HOME/tod.cfg
@@ -1061,6 +1076,30 @@ mod tests {
 
         let result = Config::load(&bad_config_path).await;
         assert!(result.is_err(), "Expected error from invalid u8");
+    }
+
+    #[tokio::test]
+    async fn load_should_clamp_negative_completed_count() {
+        let (_temp_dir, path) = temp_config_path("negative_completed_count.cfg");
+        let contents = serde_json::json!({
+            "completed": {
+                "count": -1,
+                "date": "2026-04-30"
+            },
+            "path": path,
+            "timezone": "UTC"
+        })
+        .to_string();
+
+        tokio::fs::write(&path, contents)
+            .await
+            .expect("Could not write to file");
+
+        let config = Config::load(&path)
+            .await
+            .expect("negative completed count should load");
+
+        assert_eq!(config.completed.expect("completed should be set").count, 0);
     }
 
     #[tokio::test]
