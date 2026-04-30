@@ -29,6 +29,11 @@ pub async fn get_labels(config: &Config, spinner: bool) -> Result<Vec<Label>, Er
     todoist::all_labels(config, spinner, None).await
 }
 
+pub fn json_to_label(json: &str) -> Result<Label, Error> {
+    let label: Label = serde_json::from_str(json)?;
+    Ok(label)
+}
+
 pub fn json_to_labels_response(json: &str) -> Result<LabelResponse, Error> {
     let response: LabelResponse = serde_json::from_str(json)?;
     Ok(response)
@@ -73,6 +78,19 @@ mod tests {
     #[test]
     fn test_json_to_labels_response_invalid() {
         let result = json_to_labels_response("not json");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_json_to_label_valid() {
+        let json = r#"{"id":"1","name":"work","color":"red","order":1,"is_favorite":false}"#;
+        let label = json_to_label(json).expect("should parse label");
+        assert_eq!(label.name, "work");
+    }
+
+    #[test]
+    fn test_json_to_label_invalid() {
+        let result = json_to_label("not json");
         assert!(result.is_err());
     }
 }
