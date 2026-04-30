@@ -1,10 +1,10 @@
 use chrono::DateTime;
 use chrono::NaiveDate;
 use chrono_tz::Tz;
-use futures::future;
 use serde::{Deserialize, Serialize};
 use std::cmp::Reverse;
 use std::cmp::max;
+use std::collections::HashSet;
 use std::fmt::Display;
 use tokio::task::JoinHandle;
 
@@ -260,8 +260,7 @@ impl Task {
 
         let value = date_value as u32 + priority_value as u32 + deadline_value;
 
-        let content = self.content.clone();
-        let debug_text = format!("Value: {value}, Content: {content}");
+        let debug_text = format!("Value: {value}, Content: {}", self.content);
         debug::maybe_print(config, &debug_text);
         value
     }
@@ -376,15 +375,11 @@ impl Task {
     /// Converts the JSON date representation into Date or Datetime
     fn datetimeinfo(&self, config: &Config) -> Result<DateTimeInfo, Error> {
         let tz_string = config.get_timezone()?;
-        let tz = match self.clone().due {
+        let tz = match self.due.as_ref().and_then(|due| due.timezone.as_deref()) {
             None => time::timezone_from_str(&tz_string)?,
-            Some(DateInfo { timezone: None, .. }) => time::timezone_from_str(&tz_string)?,
-            Some(DateInfo {
-                timezone: Some(other_timezone),
-                ..
-            }) => time::timezone_from_str(&other_timezone)?,
+            Some(other_timezone) => time::timezone_from_str(other_timezone)?,
         };
-        match self.clone().due {
+        match &self.due {
             None => Ok(DateTimeInfo::NoDateTime),
             Some(DateInfo {
                 date,
@@ -392,9 +387,9 @@ impl Task {
                 string,
                 ..
             }) if date.len() == 10 => Ok(DateTimeInfo::Date {
-                date: time::date_from_str(&date, tz)?,
-                is_recurring,
-                string,
+                date: time::date_from_str(date, tz)?,
+                is_recurring: *is_recurring,
+                string: string.clone(),
             }),
             Some(DateInfo {
                 date,
@@ -402,9 +397,9 @@ impl Task {
                 string,
                 ..
             }) => Ok(DateTimeInfo::DateTime {
-                datetime: time::datetime_from_str(&date, tz)?,
-                is_recurring,
-                string,
+                datetime: time::datetime_from_str(date, tz)?,
+                is_recurring: *is_recurring,
+                string: string.clone(),
             }),
         }
     }
@@ -438,7 +433,7 @@ impl Task {
     }
 
     fn is_overdue(&self, config: &Config) -> Result<bool, Error> {
-        let boolean = match self.clone().datetimeinfo(config) {
+        let boolean = match self.datetimeinfo(config) {
             Ok(DateTimeInfo::NoDateTime) => false,
             Ok(DateTimeInfo::Date { date, .. }) => time::is_date_in_past(date, config)?,
             Ok(DateTimeInfo::DateTime { datetime, .. }) => {
@@ -452,10 +447,9 @@ impl Task {
 
     /// Returns true if it is a recurring task
     pub fn is_recurring(&self) -> bool {
-        match self.due {
-            None => false,
-            Some(DateInfo { is_recurring, .. }) => is_recurring,
-        }
+        self.due
+            .as_ref()
+            .is_some_and(|DateInfo { is_recurring, .. }| *is_recurring)
     }
 }
 
@@ -481,7 +475,7 @@ pub async fn update_task(
             if *value == new_value {
                 Ok(None)
             } else {
-                let handle = spawn_update_task_content(config.clone(), task.clone(), new_value);
+                let handle = spawn_update_task_content(config.clone(), task.id.clone(), new_value);
                 Ok(Some(handle))
             }
         }
@@ -493,7 +487,8 @@ pub async fn update_task(
             if *value == new_value {
                 Ok(None)
             } else {
-                let handle = spawn_update_task_description(config.clone(), task.clone(), new_value);
+                let handle =
+                    spawn_update_task_description(config.clone(), task.id.clone(), new_value);
                 Ok(Some(handle))
             }
         }
@@ -505,7 +500,7 @@ pub async fn update_task(
             if *value == new_value {
                 Ok(None)
             } else {
-                let handle = spawn_update_task_priority(config.clone(), task.clone(), new_value);
+                let handle = spawn_update_task_priority(config.clone(), task.id.clone(), new_value);
                 Ok(Some(handle))
             }
         }
@@ -522,7 +517,7 @@ pub async fn update_task(
                 .map(|s| s.to_owned())
                 .collect();
 
-            let handle = spawn_update_task_labels(config.clone(), task.clone(), labels);
+            let handle = spawn_update_task_labels(config.clone(), task.id.clone(), labels);
             Ok(Some(handle))
         }
     }
@@ -531,19 +526,19 @@ pub async fn update_task(
 pub async fn label_task(
     config: &Config,
     task: Task,
-    labels: &Vec<String>,
+    labels: &[String],
 ) -> Result<JoinHandle<()>, Error> {
     let comments = Vec::new();
     let text = task.fmt(comments, config, FormatType::Single, true).await?;
     println!("{text}");
-    let mut options = labels.to_owned();
+    let mut options = labels.to_vec();
     options.push(input::SKIP.to_string());
     let label = input::select("Select label", options, config.mock_select)?;
 
     let config = config.clone();
     Ok(tokio::spawn(async move {
         if label.as_str() == input::SKIP {
-        } else if let Err(e) = todoist::add_task_label(&config, task, label, false).await {
+        } else if let Err(e) = todoist::add_task_label(&config, &task, label, false).await {
             config
                 .tx()
                 .send(e)
@@ -581,13 +576,13 @@ pub async fn process_task(
     match selection.as_str() {
         input::COMPLETE => {
             reloaded_config.save().await.expect("Could not save config");
-            Ok(Some(spawn_complete_task(reloaded_config, task)))
+            Ok(Some(spawn_complete_task(reloaded_config, task.id)))
         }
-        input::DELETE => Ok(Some(spawn_delete_task(config.clone(), task))),
+        input::DELETE => Ok(Some(spawn_delete_task(config.clone(), task.id))),
         input::COMMENT => {
             let content = input::string(CONTENT, config.mock_string.clone())?;
 
-            Ok(Some(spawn_comment_task(config.clone(), task, content)))
+            Ok(Some(spawn_comment_task(config.clone(), task.id, content)))
         }
 
         input::SCHEDULE => {
@@ -645,8 +640,8 @@ pub async fn timebox_task(
             )))
         }
 
-        input::DELETE => Ok(Some(spawn_delete_task(config.clone(), task))),
-        input::COMPLETE => Ok(Some(spawn_complete_task(config.clone(), task))),
+        input::DELETE => Ok(Some(spawn_delete_task(config.clone(), task.id))),
+        input::COMPLETE => Ok(Some(spawn_complete_task(config.clone(), task.id))),
         input::SKIP => {
             // Do nothing
             Ok(Some(tokio::spawn(async move {})))
@@ -710,23 +705,17 @@ pub async fn spawn_schedule_task(
     )?;
     match datetime_input {
         input::DateTimeInput::Complete => {
-            let handle = tasks::spawn_complete_task(config.clone(), task.clone());
+            let handle = tasks::spawn_complete_task(config, task.id);
             Ok(Some(handle))
         }
         DateTimeInput::Skip => Ok(None),
 
         input::DateTimeInput::Text(due_string) => {
-            let handle =
-                tasks::spawn_update_task_due(config.clone(), task.clone(), due_string, None);
+            let handle = tasks::spawn_update_task_due(config, task, due_string, None);
             Ok(Some(handle))
         }
         input::DateTimeInput::None => {
-            let handle = tasks::spawn_update_task_due(
-                config.clone(),
-                task.clone(),
-                "No date".to_string(),
-                None,
-            );
+            let handle = tasks::spawn_update_task_due(config, task, "No date".to_string(), None);
             Ok(Some(handle))
         }
     }
@@ -749,27 +738,26 @@ pub async fn spawn_deadline_task(
     )?;
     match datetime_input {
         input::DateTimeInput::Complete => {
-            let handle = tasks::spawn_complete_task(config.clone(), task.clone());
+            let handle = tasks::spawn_complete_task(config, task.id);
             Ok(Some(handle))
         }
         DateTimeInput::Skip => Ok(None),
 
         input::DateTimeInput::Text(date) => {
-            let handle =
-                tasks::spawn_update_task_deadline(config.clone(), task.clone(), Some(date));
+            let handle = tasks::spawn_update_task_deadline(config, task.id, Some(date));
             Ok(Some(handle))
         }
         input::DateTimeInput::None => {
-            let handle = tasks::spawn_update_task_deadline(config.clone(), task.clone(), None);
+            let handle = tasks::spawn_update_task_deadline(config, task.id, None);
             Ok(Some(handle))
         }
     }
 }
 
 /// Completes task inside another thread
-pub fn spawn_complete_task(config: Config, task: Task) -> JoinHandle<()> {
+pub fn spawn_complete_task(config: Config, task_id: String) -> JoinHandle<()> {
     tokio::spawn(async move {
-        if let Err(e) = todoist::complete_task(&config, &task, false).await {
+        if let Err(e) = todoist::complete_task(&config, &task_id, false).await {
             config
                 .tx()
                 .send(e)
@@ -779,9 +767,9 @@ pub fn spawn_complete_task(config: Config, task: Task) -> JoinHandle<()> {
 }
 
 /// Deletes task inside another thread
-pub fn spawn_delete_task(config: Config, task: Task) -> JoinHandle<()> {
+pub fn spawn_delete_task(config: Config, task_id: String) -> JoinHandle<()> {
     tokio::spawn(async move {
-        if let Err(e) = todoist::delete_task(&config, &task, false).await {
+        if let Err(e) = todoist::delete_task(&config, &task_id, false).await {
             config
                 .tx()
                 .send(e)
@@ -813,11 +801,11 @@ pub fn spawn_update_task_due(
 /// Updates task inside another thread
 pub fn spawn_update_task_deadline(
     config: Config,
-    task: Task,
+    task_id: String,
     date: Option<String>,
 ) -> JoinHandle<()> {
     tokio::spawn(async move {
-        if let Err(e) = todoist::update_task_deadline(&config, &task, date, false).await {
+        if let Err(e) = todoist::update_task_deadline(&config, &task_id, date, false).await {
             config
                 .tx()
                 .send(e)
@@ -827,9 +815,9 @@ pub fn spawn_update_task_deadline(
 }
 
 /// Updates task inside another thread
-pub fn spawn_comment_task(config: Config, task: Task, task_comment: String) -> JoinHandle<()> {
+pub fn spawn_comment_task(config: Config, task_id: String, task_comment: String) -> JoinHandle<()> {
     tokio::spawn(async move {
-        if let Err(e) = todoist::create_comment(&config, &task, &task_comment, false).await {
+        if let Err(e) = todoist::create_comment(&config, &task_id, &task_comment, false).await {
             config
                 .tx()
                 .send(e)
@@ -839,9 +827,13 @@ pub fn spawn_comment_task(config: Config, task: Task, task_comment: String) -> J
 }
 
 /// Updates task inside another thread
-pub fn spawn_update_task_content(config: Config, task: Task, content: String) -> JoinHandle<()> {
+pub fn spawn_update_task_content(
+    config: Config,
+    task_id: String,
+    content: String,
+) -> JoinHandle<()> {
     tokio::spawn(async move {
-        if let Err(e) = todoist::update_task_content(&config, &task, &content, false).await {
+        if let Err(e) = todoist::update_task_content(&config, &task_id, &content, false).await {
             config
                 .tx()
                 .send(e)
@@ -853,11 +845,12 @@ pub fn spawn_update_task_content(config: Config, task: Task, content: String) ->
 /// Updates task inside another thread
 pub fn spawn_update_task_description(
     config: Config,
-    task: Task,
+    task_id: String,
     description: String,
 ) -> JoinHandle<()> {
     tokio::spawn(async move {
-        if let Err(e) = todoist::update_task_description(&config, &task, &description, false).await
+        if let Err(e) =
+            todoist::update_task_description(&config, &task_id, &description, false).await
         {
             config
                 .tx()
@@ -868,9 +861,13 @@ pub fn spawn_update_task_description(
 }
 
 /// Updates task inside another thread
-pub fn spawn_update_task_labels(config: Config, task: Task, labels: Vec<String>) -> JoinHandle<()> {
+pub fn spawn_update_task_labels(
+    config: Config,
+    task_id: String,
+    labels: Vec<String>,
+) -> JoinHandle<()> {
     tokio::spawn(async move {
-        if let Err(e) = todoist::update_task_labels(&config, &task, labels, false).await {
+        if let Err(e) = todoist::update_task_labels(&config, &task_id, labels, false).await {
             config
                 .tx()
                 .send(e)
@@ -882,11 +879,11 @@ pub fn spawn_update_task_labels(config: Config, task: Task, labels: Vec<String>)
 /// Updates task inside another thread
 pub fn spawn_update_task_priority(
     config: Config,
-    task: Task,
+    task_id: String,
     priority: Priority,
 ) -> JoinHandle<()> {
     tokio::spawn(async move {
-        if let Err(e) = todoist::update_task_priority(&config, &task, &priority, false).await {
+        if let Err(e) = todoist::update_task_priority(&config, &task_id, &priority, false).await {
             config
                 .tx()
                 .send(e)
@@ -933,60 +930,39 @@ pub fn filter_not_in_future(tasks: Vec<Task>, config: &Config) -> Result<Vec<Tas
 // We additionally need to make sure that parent tasks are not in the future
 
 pub async fn reject_parent_tasks(tasks: Vec<Task>, config: &Config) -> Vec<Task> {
-    let parent_ids: Vec<String> = tasks
-        .clone()
-        .into_iter()
+    let parent_ids = tasks
+        .iter()
         .filter(|task| task.parent_id.is_some() && !task.checked)
-        .map(|task| task.parent_id.unwrap_or_default())
-        .collect();
+        .filter_map(|task| task.parent_id.clone())
+        .collect::<HashSet<String>>();
+    let task_ids = tasks
+        .iter()
+        .map(|task| task.id.clone())
+        .collect::<HashSet<String>>();
 
-    let mut handles = Vec::new();
-
-    for task in tasks.clone() {
-        let config = config.clone();
-        let parent_ids = parent_ids.clone();
-        let tasks = tasks.clone();
-
-        let config = config.clone();
-        let handle = tokio::spawn(async move {
-            if !parent_ids.contains(&task.id)
-                && !task.checked
-                && !parent_in_future(task.clone(), tasks, &config).await
-            {
-                Some(task)
-            } else {
-                None
-            }
-        });
-
-        handles.push(handle);
+    let mut filtered_tasks = Vec::new();
+    for task in tasks {
+        if !parent_ids.contains(&task.id)
+            && !task.checked
+            && !parent_in_future(&task, &task_ids, config).await
+        {
+            filtered_tasks.push(task);
+        }
     }
 
-    future::join_all(handles)
-        .await
-        .into_iter()
-        .filter_map(|t| t.ok())
-        .flatten()
-        .collect::<Vec<Task>>()
+    filtered_tasks
 }
 
 // Need to make sure that we are not completing a subtask for a parent task that is in the future
-async fn parent_in_future(task: Task, tasks: Vec<Task>, config: &Config) -> bool {
-    let task_ids: Vec<String> = tasks.clone().into_iter().map(|task| task.id).collect();
-
-    match task {
-        Task {
-            parent_id: None, ..
-        } => false,
-        Task {
-            parent_id: Some(parent_id),
-            ..
-        } => {
-            if task_ids.contains(&parent_id) {
+async fn parent_in_future(task: &Task, task_ids: &HashSet<String>, config: &Config) -> bool {
+    match &task.parent_id {
+        None => false,
+        Some(parent_id) => {
+            if task_ids.contains(parent_id) {
                 false
             } else {
                 // look up id and see if it is in the future
-                match todoist::get_task(config, &parent_id).await {
+                match todoist::get_task(config, parent_id).await {
                     Err(e) => {
                         config
                             .clone()
@@ -1027,7 +1003,7 @@ pub async fn set_priority(
 
     let config = config.clone();
     Ok(tokio::spawn(async move {
-        if let Err(e) = todoist::update_task_priority(&config, &task, &priority, false).await {
+        if let Err(e) = todoist::update_task_priority(&config, &task.id, &priority, false).await {
             config
                 .tx()
                 .send(e)

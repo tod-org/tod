@@ -28,14 +28,12 @@ pub struct SectionResponse {
 pub async fn all_sections(config: &mut Config) -> Result<Vec<Section>, Error> {
     let projects = config.projects().await?;
 
-    let mut handles = Vec::new();
-    for project in projects.iter() {
-        let handle = todoist::all_sections_by_project(config, project, None);
-
-        handles.push(handle);
-    }
-
-    let var = future::join_all(handles).await;
+    let var = future::join_all(
+        projects
+            .iter()
+            .map(|project| todoist::all_sections_by_project(config, project, None)),
+    )
+    .await;
 
     let sections = var.into_iter().filter_map(Result::ok).flatten().collect();
     Ok(sections)
@@ -52,7 +50,7 @@ pub fn json_to_sections_response(json: &str) -> Result<SectionResponse, Error> {
 
 pub async fn select_section(config: &Config, project: &Project) -> Result<Option<Section>, Error> {
     let sections = todoist::all_sections_by_project(config, project, None).await?;
-    let mut section_names: Vec<String> = sections.clone().into_iter().map(|x| x.name).collect();
+    let mut section_names: Vec<String> = sections.iter().map(|x| x.name.clone()).collect();
     if section_names.is_empty() {
         Ok(None)
     } else {

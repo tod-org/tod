@@ -1,4 +1,4 @@
-use futures::future;
+use futures::{StreamExt, TryStreamExt, future, stream};
 
 use crate::{
     SortOrder, color,
@@ -14,7 +14,7 @@ pub async fn edit_task(config: &Config, filter: String) -> Result<String, Error>
     let tasks = todoist::all_tasks_by_filters(config, &filter)
         .await?
         .into_iter()
-        .flat_map(|(_, tasks)| tasks.to_owned())
+        .flat_map(|(_, tasks)| tasks)
         .collect::<Vec<Task>>();
 
     let task = input::select(input::TASK, tasks, config.mock_select)?;
@@ -47,9 +47,9 @@ pub async fn edit_task(config: &Config, filter: String) -> Result<String, Error>
 pub async fn next_task(config: &Config, filter: &str) -> Result<String, Error> {
     match fetch_next_task(config, filter).await {
         Ok(Some((task, remaining))) => {
-            let comments = todoist::all_comments(config, &task, None).await?;
-            config.set_next_task(task.clone()).save().await?;
+            let comments = todoist::all_comments(config, &task.id, None).await?;
             let task_string = task.fmt(comments, config, FormatType::Single, true).await?;
+            config.set_next_task(task).save().await?;
             Ok(format!("{task_string}\n{remaining} task(s) remaining"))
         }
         Ok(None) => Ok(color::green_string("No tasks on list")),
@@ -61,7 +61,7 @@ async fn fetch_next_task(config: &Config, filter: &str) -> Result<Option<(Task, 
     let tasks = todoist::all_tasks_by_filters(config, filter)
         .await?
         .into_iter()
-        .flat_map(|(_, tasks)| tasks.to_owned())
+        .flat_map(|(_, tasks)| tasks)
         .collect::<Vec<Task>>();
 
     let tasks = tasks::sort_by_value(tasks, config);
@@ -74,7 +74,7 @@ pub async fn schedule(config: &Config, filter: &str, sort: &SortOrder) -> Result
     let tasks = todoist::all_tasks_by_filters(config, filter)
         .await?
         .into_iter()
-        .flat_map(|(_, tasks)| tasks.to_owned())
+        .flat_map(|(_, tasks)| tasks)
         .collect::<Vec<Task>>();
 
     let tasks = tasks::sort(tasks, config, sort);
@@ -84,12 +84,13 @@ pub async fn schedule(config: &Config, filter: &str, sort: &SortOrder) -> Result
             "No tasks to schedule in '{filter}'"
         )))
     } else {
-        let mut handles = Vec::new();
-        for task in tasks.iter() {
-            if let Some(handle) = tasks::spawn_schedule_task(config.clone(), task.clone()).await? {
-                handles.push(handle);
-            }
-        }
+        let handles = stream::iter(tasks)
+            .then(|task| tasks::spawn_schedule_task(config.clone(), task))
+            .try_collect::<Vec<_>>()
+            .await?
+            .into_iter()
+            .flatten()
+            .collect::<Vec<_>>();
 
         future::join_all(handles).await;
         Ok(color::green_string(&format!(
@@ -102,7 +103,7 @@ pub async fn deadline(config: &Config, filter: &str, sort: &SortOrder) -> Result
     let tasks = todoist::all_tasks_by_filters(config, filter)
         .await?
         .into_iter()
-        .flat_map(|(_, tasks)| tasks.to_owned())
+        .flat_map(|(_, tasks)| tasks)
         .collect::<Vec<Task>>();
 
     let tasks = tasks::sort(tasks, config, sort);
@@ -116,12 +117,13 @@ pub async fn deadline(config: &Config, filter: &str, sort: &SortOrder) -> Result
             "No tasks to deadline in '{filter}'"
         )))
     } else {
-        let mut handles = Vec::new();
-        for task in filtered_tasks.iter() {
-            if let Some(handle) = tasks::spawn_deadline_task(config.clone(), task.clone()).await? {
-                handles.push(handle);
-            }
-        }
+        let handles = stream::iter(filtered_tasks)
+            .then(|task| tasks::spawn_deadline_task(config.clone(), task))
+            .try_collect::<Vec<_>>()
+            .await?
+            .into_iter()
+            .flatten()
+            .collect::<Vec<_>>();
 
         future::join_all(handles).await;
         Ok(color::green_string(&format!(
