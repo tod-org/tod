@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.12.0](https://github.com/tod-org/tod/compare/v0.11.3...v0.12.0) (2026-04-30)
+
+
+### Features
+
+* config open ([a562348](https://github.com/tod-org/tod/commit/a5623486b119feae43706f81b3285d0876ece684))
+* **debug:** print build info once at top of verbose output ([60d5c6a](https://github.com/tod-org/tod/commit/60d5c6a31cc42fa8b64666b84e0df1263965a0e9))
+* **format:** render markdown link text (not brackets) as OSC8 hyperlink ([08b825a](https://github.com/tod-org/tod/commit/08b825abcf00d8fa6712a280077e29ab5426f058))
+
+
+### Bug Fixes
+
+* **comments:** thread config into render_link to respect disable_links ([0af0972](https://github.com/tod-org/tod/commit/0af09729fd22e440555f6d1a526359c4abbbdd5f))
+* **config:** Handle negtive project ([f2fb940](https://github.com/tod-org/tod/commit/f2fb940e85acde239a0cae1788f461a2aacc4ced))
+* **config:** use &Path instead of &PathBuf, propagate error in generate_path, update doc comment ([bdef7e3](https://github.com/tod-org/tod/commit/bdef7e3be7015e0943db53a304d9624b230b0b42))
+* fix shell stderr output ([fbd5e12](https://github.com/tod-org/tod/commit/fbd5e12a7949eeb7615cade89fa30e5ef26d871e))
+
 ## [0.11.3](https://github.com/tod-org/tod/compare/v0.11.2...v0.11.3) (2026-04-27)
 
 
