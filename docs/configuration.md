@@ -121,7 +121,10 @@ Holds a string date, i.e. `"2023-08-30"` representing the last time crates.io wa
   possible_values: Any positive integer or null
 ```
 
-The maximum number of characters that will be printed in total when showing comments.
+The maximum number of characters used as the starting point for shortening comments.
+When comments exceed this value, output is shortened at the next clean boundary:
+the next newline first, then the next terminal-width boundary, then the next
+valid character boundary.
 
 If not set, this is dynamically calculated at runtime based on terminal window size (using the `term_size` crate).
 
