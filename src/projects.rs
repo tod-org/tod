@@ -36,7 +36,7 @@ pub struct LegacyProject {
 pub struct Project {
     pub id: String,
     pub can_assign_tasks: bool,
-    pub child_order: u32,
+    pub child_order: i32,
     pub color: String,
     pub created_at: Option<String>,
     pub is_archived: bool,
@@ -1056,6 +1056,37 @@ mod tests {
         let json = ResponseFromFile::Project.read().await;
         let project = json_to_project(json).expect("should parse project JSON");
         assert_eq!(project.name, "Doomsday");
+    }
+
+    #[test]
+    fn should_deserialize_project_with_negative_child_order() {
+        let json = r#"{
+            "can_assign_tasks": false,
+            "child_order": -1,
+            "color": "blue",
+            "created_at": null,
+            "default_order": 1,
+            "description": "Bad guy",
+            "id": "123",
+            "inbox_project": false,
+            "is_archived": false,
+            "is_collapsed": false,
+            "is_deleted": false,
+            "is_favorite": false,
+            "is_frozen": false,
+            "is_shared": false,
+            "is_team_inbox": false,
+            "name": "Doomsday",
+            "parent_id": "5678",
+            "updated_at": null,
+            "view_style": "list"
+        }"#;
+
+        let result = json_to_project(json.to_string())
+            .expect("should deserialize project with negative child order");
+
+        assert_eq!(result.child_order, -1);
+        assert_eq!(result.name, "Doomsday");
     }
 
     #[test]
