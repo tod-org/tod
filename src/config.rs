@@ -7,7 +7,6 @@ use crate::tasks::format::maybe_format_url;
 use crate::time::{SystemTimeProvider, TimeProviderEnum};
 use crate::{VERSION, cargo, color, debug, input, oauth, time, todoist};
 use inquire::Confirm;
-use rand::distr::{Alphanumeric, SampleString};
 use regex::Regex;
 use serde::de::Error as DeError;
 use serde::{Deserialize, Deserializer, Serialize};
@@ -218,14 +217,15 @@ impl Config {
 
         let json = json!(config);
         let string = serde_json::to_string_pretty(&json)?;
-        fs::OpenOptions::new()
+        let mut file = fs::OpenOptions::new()
             .write(true)
             .read(true)
             .truncate(true)
             .open(&self.path)
-            .await?
-            .write_all(string.as_bytes())
             .await?;
+        file.write_all(string.as_bytes()).await?;
+        file.flush().await?;
+        file.sync_all().await?;
 
         Ok(color::green_string("✓"))
     }
@@ -669,15 +669,22 @@ pub async fn create_config(
 
     Ok(config)
 }
+#[cfg(test)]
 pub async fn generate_path() -> Result<PathBuf, Error> {
-    if cfg!(test) {
-        let random_string = Alphanumeric.sample_string(&mut rand::rng(), 100);
-        Ok(PathBuf::from(format!("tests/{random_string}.testcfg")))
-    } else {
-        let config_directory = dirs::config_dir()
-            .ok_or_else(|| Error::new("dirs", "Could not find config directory"))?;
-        Ok(config_directory.join("tod.cfg"))
-    }
+    let file = tempfile::Builder::new()
+        .prefix("tod-")
+        .suffix(".testcfg")
+        .tempfile()?;
+    let path = file.path().to_path_buf();
+    drop(file);
+    Ok(path)
+}
+
+#[cfg(not(test))]
+pub async fn generate_path() -> Result<PathBuf, Error> {
+    let config_directory =
+        dirs::config_dir().ok_or_else(|| Error::new("dirs", "Could not find config directory"))?;
+    Ok(config_directory.join("tod.cfg"))
 }
 
 fn maybe_expand_home_dir(path: PathBuf) -> Result<PathBuf, Error> {
@@ -805,6 +812,7 @@ mod tests {
     use super::*;
     use crate::test;
     use pretty_assertions::assert_eq;
+    use std::io::Write;
     use std::path::PathBuf;
     use tempfile::{TempDir, tempdir};
 
@@ -1333,11 +1341,13 @@ mod tests {
     #[tokio::test]
     async fn test_generate_path_in_test_mode() {
         let path = generate_path().await.expect("Should return a test path");
+        let temp_dir = std::env::temp_dir();
 
-        // Check that the parent is "tests"
+        // Check that the generated path is isolated under the system temp directory.
         assert!(
-            path.parent().map(|p| p.ends_with("tests")).unwrap_or(false),
-            "Expected path to be in the 'tests/' directory, got {}",
+            path.starts_with(&temp_dir),
+            "Expected path to be under '{}', got {}",
+            temp_dir.display(),
             path.display()
         );
 
@@ -1588,7 +1598,10 @@ mod tests {
             Some(temp_path.clone()),
             |_| -> bool { panic!("prompt should not be called") },
             |path| {
-                std::fs::write(path, "{ invalid").expect("Failed to write invalid config");
+                let mut file = std::fs::File::create(path).expect("Failed to open invalid config");
+                file.write_all(b"{ invalid")
+                    .expect("Failed to write invalid config");
+                file.sync_all().expect("Failed to sync invalid config");
                 Ok(())
             },
         )

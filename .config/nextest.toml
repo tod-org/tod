@@ -2,10 +2,3 @@
 path = "junit.xml"
 store-success-output = false
 store-failure-output = true
-
-[test-groups]
-config-file-tests = { max-threads = 1 }
-
-[[profile.ci.overrides]]
-filter = 'test(/^config::tests::(reload_config_should_work|load_should_|test_(check_config_exists|config_open|config_reset|create_config|get_config|load_config))/)'
-test-group = 'config-file-tests'
