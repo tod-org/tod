@@ -535,7 +535,7 @@ fn config_load_error(error: serde_json::Error, path: &Path) -> Error {
         color::red_string(&format!(
             "Error loading configuration file '{}':\n{error}\n\
             \nThe file contains an invalid value.\n\
-            Update the value or run 'tod config reset' to delete (reset) the config.",
+            Run 'tod config check' to remove invalid values, or run 'tod config reset' to delete (reset) the config.",
             path.display()
         ))
     );

@@ -381,6 +381,12 @@ pub async fn select_command(
             (true, true, config_commands::check_version(args, None).await)
         }
 
+        Commands::Config(ConfigCommands::Check(_args)) => (
+            false,
+            false,
+            config_commands::check(cli.config.clone()).await,
+        ),
+
         Commands::Config(ConfigCommands::About(args)) => {
             (true, true, config_commands::about(args).await)
         }
