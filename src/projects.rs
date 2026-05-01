@@ -1060,6 +1060,36 @@ mod tests {
     }
 
     #[test]
+    fn should_deserialize_project_with_negative_child_order() {
+        let json = r#"{
+            "id": "123",
+            "can_assign_tasks": true,
+            "child_order": -1,
+            "color": "blue",
+            "created_at": null,
+            "is_archived": false,
+            "is_deleted": false,
+            "is_favorite": false,
+            "is_frozen": false,
+            "name": "Inbox",
+            "updated_at": null,
+            "view_style": "list",
+            "default_order": 1,
+            "description": "",
+            "parent_id": null,
+            "inbox_project": true,
+            "is_collapsed": false,
+            "is_shared": false
+        }"#;
+
+        let project = json_to_project(json.to_string())
+            .expect("should deserialize project with negative child order");
+
+        assert_eq!(project.child_order, -1);
+        assert_eq!(project.default_order, 1);
+    }
+
+    #[test]
     fn test_project_display() {
         let project = test::fixtures::project();
         let displayed = project.to_string();
