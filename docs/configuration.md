@@ -66,6 +66,8 @@ If the config does not exist, Tod will prompt for your initial Todoist API token
 
 The Config can be deleted with `tod config reset` at any time, and it will be re-created upon next execution.
 
+Run `tod config check` to validate the configuration file and optionally remove invalid values, such as old fields left behind by previous versions.
+
 ## Location
 
  Data is stored in JSON format in `$XDG_CONFIG_HOME/tod.cfg`. This defaults to:
