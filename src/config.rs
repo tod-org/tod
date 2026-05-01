@@ -1,8 +1,7 @@
 use crate::cargo::Version;
 use crate::errors::Error;
-use crate::id::Resource;
 use crate::input::page_size;
-use crate::projects::{LegacyProject, Project};
+use crate::projects::Project;
 use crate::tasks::Task;
 use crate::tasks::format::maybe_format_url;
 use crate::time::{SystemTimeProvider, TimeProviderEnum};
@@ -10,7 +9,8 @@ use crate::{VERSION, cargo, color, debug, input, oauth, time, todoist};
 use inquire::Confirm;
 use rand::distr::{Alphanumeric, SampleString};
 use regex::Regex;
-use serde::{Deserialize, Serialize};
+use serde::de::Error as DeError;
+use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::json;
 use std::path::Path;
 use std::path::PathBuf;
@@ -32,8 +32,22 @@ pub const TOKEN_METHOD: &str = "Choose your Todoist login method";
 #[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct Completed {
+    #[serde(deserialize_with = "deserialize_nonnegative_u32")]
     count: u32,
     date: String,
+}
+
+fn deserialize_nonnegative_u32<'de, D>(deserializer: D) -> Result<u32, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let value = i64::deserialize(deserializer)?;
+
+    if value <= 0 {
+        Ok(0)
+    } else {
+        u32::try_from(value).map_err(D::Error::custom)
+    }
 }
 
 /// App configuration, serialized as json in $XDG_CONFIG_HOME/tod.cfg
@@ -45,9 +59,6 @@ pub struct Config {
     /// List of Todoist projects and their project numbers
     #[serde(rename = "projectsv1")]
     projects: Option<Vec<Project>>,
-    /// These are from the old v9 and SYNC endpoints
-    #[serde(rename = "vecprojects")]
-    legacy_projects: Option<Vec<LegacyProject>>,
     /// Path to config file
     pub path: PathBuf,
     /// The ID of the next task (NO LONGER IN USE)
@@ -219,33 +230,9 @@ impl Config {
         Ok(color::green_string("✓"))
     }
 
-    /// Converts legacy projects to the new projects if necessary
+    /// Returns projects from the config.
     pub async fn projects(self: &Config) -> Result<Vec<Project>, Error> {
-        let projects = self.projects.clone().unwrap_or_default();
-        let legacy_projects = self.legacy_projects.clone().unwrap_or_default();
-
-        if !projects.is_empty() {
-            Ok(projects)
-        } else if legacy_projects.is_empty() {
-            Ok(Vec::new())
-        } else {
-            let new_projects = todoist::all_projects(self, None).await?;
-            let legacy_ids = legacy_projects.into_iter().map(|lp| lp.id).collect();
-            let v1_ids = todoist::get_v1_ids(self, Resource::Project, legacy_ids).await?;
-
-            let new_projects: Vec<Project> = new_projects
-                .iter()
-                .filter(|p| v1_ids.contains(&p.id))
-                .map(|p| p.to_owned())
-                .collect();
-
-            let mut config = self.clone();
-            for project in &new_projects {
-                config.add_project(project.clone());
-                config.save().await?;
-            }
-            Ok(new_projects)
-        }
+        Ok(self.projects.clone().unwrap_or_default())
     }
     // Returns the maximum comment length if configured, otherwise estimates based on terminal window size (if supported)
     pub fn max_comment_length(&self) -> u32 {
@@ -425,7 +412,6 @@ impl Config {
                 verbose: false,
                 timeout: None,
             },
-            legacy_projects: Some(Vec::new()),
             time_provider: TimeProviderEnum::System(SystemTimeProvider),
             task_comment_command: None,
             task_create_command: None,
@@ -590,7 +576,6 @@ impl Default for Config {
                 verbose: false,
                 timeout: None,
             },
-            legacy_projects: Some(Vec::new()),
             time_provider: TimeProviderEnum::System(SystemTimeProvider),
             projects: Some(Vec::new()),
         }
@@ -836,7 +821,6 @@ mod tests {
                 internal: Internal { tx: None },
                 sort_value: Some(SortValue::default()),
                 projects: Some(vec![]),
-                legacy_projects: Some(vec![]),
                 next_id: None,
                 next_task: None,
                 bell_on_success: false,
@@ -1092,6 +1076,30 @@ mod tests {
 
         let result = Config::load(&bad_config_path).await;
         assert!(result.is_err(), "Expected error from invalid u8");
+    }
+
+    #[tokio::test]
+    async fn load_should_clamp_negative_completed_count() {
+        let (_temp_dir, path) = temp_config_path("negative_completed_count.cfg");
+        let contents = serde_json::json!({
+            "completed": {
+                "count": -1,
+                "date": "2026-04-30"
+            },
+            "path": path,
+            "timezone": "UTC"
+        })
+        .to_string();
+
+        tokio::fs::write(&path, contents)
+            .await
+            .expect("Could not write to file");
+
+        let config = Config::load(&path)
+            .await
+            .expect("negative completed count should load");
+
+        assert_eq!(config.completed.expect("completed should be set").count, 0);
     }
 
     #[tokio::test]

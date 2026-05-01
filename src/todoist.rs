@@ -8,7 +8,6 @@ use crate::comments::{Comment, CommentResponse};
 use crate::config::Config;
 use crate::debug::maybe_print;
 use crate::errors::Error;
-use crate::id::{self, Resource};
 use crate::labels::{self, Label, LabelResponse};
 use crate::oauth::{CLIENT_ID, CLIENT_SECRET};
 use crate::projects::{Project, ProjectResponse};
@@ -29,7 +28,6 @@ const SECTIONS_URL: &str = "/api/v1/sections";
 const USER_URL: &str = "/api/v1/user";
 const PROJECTS_URL: &str = "/api/v1/projects";
 const LABELS_URL: &str = "/api/v1/labels";
-const IDS_URL: &str = "/api/v1/id_mappings/";
 const ACCESS_TOKEN_URL: &str = "/oauth/access_token";
 pub const OAUTH_URL: &str = "/oauth/authorize";
 
@@ -138,22 +136,6 @@ pub async fn test_all_endpoints(config: &Config) -> Result<String, Error> {
     Ok(color::green_string("Completed successfully"))
 }
 
-pub async fn get_v1_ids(
-    config: &Config,
-    resource: Resource,
-    ids: Vec<String>,
-) -> Result<Vec<String>, Error> {
-    let ids = ids.join(",");
-    let url = format!("{IDS_URL}{resource}/{ids}");
-    let json = request::get_todoist(config, &url, true).await?;
-    let ids = id::json_to_ids(json)?
-        .into_iter()
-        .map(|i| i.new_id)
-        .collect();
-
-    Ok(ids)
-}
-
 /// Add a new task to the inbox with natural language support
 pub async fn quick_create_task(
     config: &Config,
@@ -164,7 +146,7 @@ pub async fn quick_create_task(
     let body = json!({"text": content, "auto_reminder": true, "reminder": reminder});
 
     let json = request::post_todoist(config, &url, body, true).await?;
-    maybe_run_command(config.task_create_command.as_deref()).await;
+    maybe_run_command(config.task_create_command.as_deref(), config)?;
     tasks::json_to_task(json)
 }
 
@@ -228,7 +210,7 @@ pub async fn create_task(
     let body = json!(body);
 
     let json = request::post_todoist(config, url, body, true).await?;
-    maybe_run_command(config.task_create_command.as_deref()).await;
+    maybe_run_command(config.task_create_command.as_deref(), config)?;
     tasks::json_to_task(json)
 }
 
@@ -558,7 +540,7 @@ pub async fn complete_task(config: &Config, task_id: &str, spinner: bool) -> Res
     request::post_todoist(config, &url, Value::Null, spinner).await?;
 
     if !cfg!(test) {
-        maybe_run_command(config.task_complete_command.as_deref()).await;
+        maybe_run_command(config.task_complete_command.as_deref(), config)?;
         config.reload().await?.clear_next_task().save().await?;
     }
     // Execute the execute_command() complete_task_command if set in config
@@ -623,7 +605,7 @@ pub async fn create_comment(
     let url = COMMENTS_URL.to_string();
 
     let response = request::post_todoist(config, &url, body, spinner).await?;
-    maybe_run_command(config.task_comment_command.as_deref()).await;
+    maybe_run_command(config.task_comment_command.as_deref(), config)?;
     comments::json_to_comment(response)
 }
 
@@ -675,10 +657,18 @@ pub async fn all_comments(
 }
 
 // Executes a CLI command (if set in the configuration).
-async fn maybe_run_command(command: Option<&str>) {
+fn maybe_run_command(command: Option<&str>, config: &Config) -> Result<(), Error> {
     if let Some(command) = command {
-        execute_command(command);
+        let tx = config.internal.tx.clone().ok_or_else(|| {
+            Error::new(
+                "shell command",
+                "Unable to report shell command errors because no async error channel is configured",
+            )
+        })?;
+        execute_command(command, tx);
     }
+
+    Ok(())
 }
 
 /// Filters (Excludes) tasks based on task title and configured task_exclude_regex

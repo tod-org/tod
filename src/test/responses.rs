@@ -16,7 +16,6 @@ pub enum ResponseFromFile {
     UnscheduledTasks,
     /// A task where all dates are set to today
     TodayTask,
-    Ids,
     TodayTasks,
     Comment,
     #[allow(dead_code)]
@@ -65,7 +64,6 @@ impl ResponseFromFile {
             Self::CommentsAllTypes => Vec::new(),
             Self::Comment => Vec::new(),
             Self::Task => Vec::new(),
-            Self::Ids => Vec::new(),
             Self::Section => Vec::new(),
             Self::Sections => Vec::new(),
             Self::Label => Vec::new(),

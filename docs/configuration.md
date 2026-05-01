@@ -11,6 +11,7 @@
     - [path](#path)
     - [natural_language_only](#natural_language_only)
     - [no_sections](#no_sections)
+    - [projectsv1](#projectsv1)
     - [sort_value](#sort_value)
     - [spinners](#spinners)
     - [timeout](#timeout)
@@ -20,7 +21,6 @@
     - [task_create_command](#task_create_command)
     - [task_comment_command](#task_comment_command)
     - [task_complete_command](#task_complete_command)
-    - [vecprojects](#vecprojects)
     - [verbose](#verbose)
 <!--toc:end-->
 
@@ -60,7 +60,6 @@ If the config does not exist, Tod will prompt for your initial Todoist API token
   "timeout": null,
   "timezone": "",
   "token": "Your Todoist API Todken",
-  "vecprojects": [],
   "verbose": null
 }
 ```
@@ -122,7 +121,10 @@ Holds a string date, i.e. `"2023-08-30"` representing the last time crates.io wa
   possible_values: Any positive integer or null
 ```
 
-The maximum number of characters that will be printed in total when showing comments.
+The maximum number of characters used as the starting point for shortening comments.
+When comments exceed this value, output is shortened at the next clean boundary:
+the next newline first, then the next terminal-width boundary, then the next
+valid character boundary.
 
 If not set, this is dynamically calculated at runtime based on terminal window size (using the `term_size` crate).
 
@@ -165,6 +167,16 @@ If true, the datetime selection in `project schedule` will go straight to natura
 ```
 
 If true will not prompt for a section whenever possible
+
+### projectsv1
+
+```json
+  type: Nullable array of objects
+  default: []
+  possible values: List of project objects from the Todoist API
+```
+
+Projects are stored locally in config to help save on API requests and speed up actions taken. Manage this with the `project` subcommands.
 
 ### sort_value
 
@@ -265,16 +277,6 @@ You will be prompted for your [Todoist API token](https://todoist.com/prefs/inte
 
 Used for dev/testing only to return fixed time (fixture) for use in test cases. Otherwise defaults to SystemTimeProvider in all other cases.
 
-### vecprojects
-
-```json
-  type: Nullable array of objects
-  default: null
-  possible values: List of project objects from the Todoist API
-```
-
-Projects are stored locally in config to help save on API requests and speed up actions taken. Manage this with the `project` subcommands. The strange naming is because `projects` was used in previous versions of `tod`.
-
 ### task_comment_command
 
 ``` json
@@ -283,9 +285,9 @@ default: null
 possible values: Any valid executable shell command (such as 'echo task commented')
 ```
 
-Defaults to `null` (no command). The Shell command that spanwed for background execution upon a task being commented. Only executes if set. Allows for custom integration with other scripts, code, sounds, or webhooks.
+Defaults to `null` (no command). The shell command spawned in the background after a task is commented. Only executes if set. Allows for custom integration with other scripts, code, sounds, or webhooks.
 
-Note that only errors (stderr) are output to the CLI; successful responses (stdout) are supressed.
+Command output is suppressed while the hook runs so it cannot interfere with terminal rendering. Tod discards `stdin` and `stdout`, captures `stderr`, and reports a shell command error at the end if the hook cannot be started or exits unsuccessfully. If the hook exits successfully, its output is discarded.
 
 ### task_create_command
 
@@ -295,9 +297,9 @@ default: null
 possible values: Any valid executable shell command (such as 'echo task created')
 ```
 
-Defaults to `null` (no command). The Shell command that spanwed for background execution upon a task being added/created. Only executes if set, for both regular and quick-add task creation. Allows for custom integration with other scripts, code, sounds, or webhooks.
+Defaults to `null` (no command). The shell command spawned in the background after a task is added or created. Only executes if set, for both regular and quick-add task creation. Allows for custom integration with other scripts, code, sounds, or webhooks.
 
-Note that only errors (stderr) are output to the CLI; successful responses (stdout) are supressed.
+Command output is suppressed while the hook runs so it cannot interfere with terminal rendering. Tod discards `stdin` and `stdout`, captures `stderr`, and reports a shell command error at the end if the hook cannot be started or exits unsuccessfully. If the hook exits successfully, its output is discarded.
 
 ### task_complete_command
 
@@ -307,9 +309,9 @@ default: null
 possible values: Any valid executable shell command (such as 'echo task completed')
 ```
 
-Defaults to `null` (no command is run). The Shell command that spanwed for background execution upon a task being completed. Only executes if set. Allows for custom integration with other scripts, code, sounds, or webhooks.
+Defaults to `null` (no command is run). The shell command spawned in the background after a task is completed. Only executes if set. Allows for custom integration with other scripts, code, sounds, or webhooks.
 
-Note that only errors (stderr) are output to the CLI; successful responses (stdout) are supressed.
+Command output is suppressed while the hook runs so it cannot interfere with terminal rendering. Tod discards `stdin` and `stdout`, captures `stderr`, and reports a shell command error at the end if the hook cannot be started or exits unsuccessfully. If the hook exits successfully, its output is discarded.
 
 ### task_exclude_regex
 
