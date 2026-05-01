@@ -1459,10 +1459,14 @@ mod tests {
         // Ensure parent directory exists and file is created
         config = config.create().await.expect("Should create config file");
         config.save().await.expect("Should save config");
+        assert!(temp_path.exists(), "Config file should exist after create");
 
         // Should load successfully
         let loaded = get_config(Some(temp_path.clone())).await;
-        assert!(loaded.is_ok(), "Expected Ok for existing config");
+        assert!(
+            loaded.is_ok(),
+            "Expected Ok for existing config, got {loaded:?}"
+        );
         let loaded = loaded.expect("No config found");
         assert_eq!(loaded.token, Some("abc".to_string()));
     }
