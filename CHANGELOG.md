@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.1](https://github.com/tod-org/tod/compare/v0.12.0...v0.12.1) (2026-05-01)
+
+
+### Bug Fixes
+
+* config check ([adf2a00](https://github.com/tod-org/tod/commit/adf2a007e4e00c8f62568d9c3cb543ca38fba151))
+
 ## [0.12.0](https://github.com/tod-org/tod/compare/v0.11.3...v0.12.0) (2026-05-01)
 
 
