@@ -163,7 +163,7 @@ mod tests {
             message: "there".to_string(),
             source: "hello".to_string(),
         };
-        assert_eq!(error.to_string(), String::from("Error from hello:\nthere"))
+        assert_eq!(error.to_string(), String::from("Error from hello:\nthere"));
     }
 
     #[test]

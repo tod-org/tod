@@ -90,7 +90,7 @@ pub(crate) fn generate_completions(shell: Shell) {
             let shell = clap_complete::shells::Elvish;
             clap_complete::generate(shell, &mut cli, LOWERCASE_NAME, &mut io::stdout());
         }
-    };
+    }
 }
 
 #[cfg(test)]

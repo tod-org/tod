@@ -60,7 +60,7 @@ pub async fn today_task() -> Task {
         note_count: 0,
         project_id: "6VRRxv8CM6GVmmgf".into(),
         labels: vec!["computer".into()],
-        description: "".into(),
+        description: String::new(),
         due: Some(DateInfo {
             date: format!("{date}T12:00:00Z"),
             lang: "en".into(),
@@ -102,7 +102,7 @@ pub async fn task(days_in_future: i64) -> Task {
         note_count: 0,
         project_id: "6VRRxv8CM6GVmmgf".into(),
         labels: vec!["computer".into()],
-        description: "".into(),
+        description: String::new(),
         due: Some(DateInfo {
             date: format!("{date}T12:00:00Z"),
             lang: "en".into(),

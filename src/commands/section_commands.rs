@@ -25,7 +25,7 @@ pub async fn create(config: &Config, args: &Create) -> Result<String, Error> {
 
     let project = match super::fetch_project(project.as_deref(), config).await? {
         Flag::Project(project) => project,
-        _ => unreachable!(),
+        Flag::Filter(_) => unreachable!(),
     };
 
     todoist::create_section(config, &name, &project, true).await?;

@@ -147,7 +147,7 @@ pub async fn create(config: Config, args: &Create) -> Result<String, Error> {
         };
 
         let priority = if selections.contains(&TaskAttribute::Priority) {
-            super::fetch_priority(&None, &config)?
+            super::fetch_priority(None, &config)?
         } else {
             Priority::None
         };
@@ -161,8 +161,7 @@ pub async fn create(config: Config, args: &Create) -> Result<String, Error> {
             )?;
 
             match datetime_input {
-                DateTimeInput::Skip => unreachable!(),
-                DateTimeInput::Complete => unreachable!(),
+                DateTimeInput::Skip | DateTimeInput::Complete => unreachable!(),
                 DateTimeInput::None => None,
                 DateTimeInput::Text(datetime) => Some(datetime),
             }
@@ -177,12 +176,12 @@ pub async fn create(config: Config, args: &Create) -> Result<String, Error> {
             Vec::new()
         }
         .into_iter()
-        .map(|l| l.name.to_owned())
+        .map(|l| l.name.clone())
         .collect::<Vec<String>>();
 
         let project = match super::fetch_project(args.project.as_deref(), &config).await? {
             Flag::Project(project) => project,
-            _ => unreachable!(),
+            Flag::Filter(_) => unreachable!(),
         };
 
         let section = if is_no_sections(args, &config) {
@@ -214,7 +213,7 @@ pub async fn create(config: Config, args: &Create) -> Result<String, Error> {
         } = args;
         let project = match super::fetch_project(project.as_deref(), &config).await? {
             Flag::Project(project) => project,
-            _ => unreachable!(),
+            Flag::Filter(_) => unreachable!(),
         };
 
         let section = if is_no_sections(args, &config) {
@@ -223,7 +222,7 @@ pub async fn create(config: Config, args: &Create) -> Result<String, Error> {
             sections::select_section(&config, &project).await?
         };
         let content = super::fetch_string(content.as_deref(), &config, input::CONTENT)?;
-        let priority = super::fetch_priority(priority, &config)?;
+        let priority = super::fetch_priority(*priority, &config)?;
 
         todoist::create_task(
             &config,

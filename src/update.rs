@@ -12,7 +12,7 @@ pub enum InstallMethod {
 }
 
 // Returns the detected install method (or overridden if manually specified)
-pub fn get_install_method(override_arg: &Option<String>) -> InstallMethod {
+pub fn get_install_method(override_arg: Option<&str>) -> InstallMethod {
     if let Some(value) = override_arg {
         match value.trim().to_lowercase().as_str() {
             "cargo" => InstallMethod::Cargo,
@@ -26,7 +26,7 @@ pub fn get_install_method(override_arg: &Option<String>) -> InstallMethod {
     }
 }
 // Returns the string name of how software is installed
-pub fn get_install_method_string(override_arg: &Option<String>) -> &'static str {
+pub fn get_install_method_string(override_arg: Option<&str>) -> &'static str {
     match get_install_method(override_arg) {
         InstallMethod::Homebrew => "homebrew",
         InstallMethod::Scoop => "scoop",
@@ -37,7 +37,7 @@ pub fn get_install_method_string(override_arg: &Option<String>) -> &'static str 
 }
 // Returns the upgrade instruction (based on installation method)
 pub fn get_update_command_args(
-    override_arg: &Option<String>,
+    override_arg: Option<&str>,
 ) -> Result<(&'static str, Vec<&'static str>), String> {
     match get_install_method(override_arg) {
         InstallMethod::Homebrew => Ok(("brew", vec!["upgrade", "tod"])),
@@ -51,7 +51,7 @@ pub fn get_update_command_args(
         }
     }
 }
-pub fn perform_auto_update(override_arg: &Option<String>) -> Result<String, String> {
+pub fn perform_auto_update(override_arg: Option<&str>) -> Result<String, String> {
     let cmd = get_update_command_args(override_arg)?;
     let command_str = format!("{} {}", cmd.0, cmd.1.join(" "));
     println!("Executing command.... {command_str}");
@@ -72,7 +72,7 @@ pub fn perform_auto_update(override_arg: &Option<String>) -> Result<String, Stri
 }
 
 // Returns the upgrade command as a string for manual use
-pub fn get_upgrade_command(override_arg: &Option<String>) -> String {
+pub fn get_upgrade_command(override_arg: Option<&str>) -> String {
     match get_install_method(override_arg) {
         InstallMethod::Homebrew => "brew upgrade tod".to_string(),
         InstallMethod::Scoop => "scoop update tod".to_string(),
@@ -84,9 +84,8 @@ pub fn get_upgrade_command(override_arg: &Option<String>) -> String {
 }
 
 fn detect_install_method() -> InstallMethod {
-    let path = match env::current_exe() {
-        Ok(p) => p,
-        Err(_) => return InstallMethod::Unknown,
+    let Ok(path) = env::current_exe() else {
+        return InstallMethod::Unknown;
     };
 
     let components: Vec<_> = path
@@ -114,73 +113,49 @@ mod tests {
 
     #[test]
     fn test_get_install_method_override() {
+        assert_eq!(get_install_method(Some("cargo")), InstallMethod::Cargo);
+        assert_eq!(get_install_method(Some("scoop")), InstallMethod::Scoop);
         assert_eq!(
-            get_install_method(&Some("cargo".into())),
-            InstallMethod::Cargo
-        );
-        assert_eq!(
-            get_install_method(&Some("scoop".into())),
-            InstallMethod::Scoop
-        );
-        assert_eq!(
-            get_install_method(&Some("homebrew".into())),
+            get_install_method(Some("homebrew")),
             InstallMethod::Homebrew
         );
         assert_eq!(
-            get_install_method(&Some("source".into())),
+            get_install_method(Some("source")),
             InstallMethod::FromSource
         );
-        assert_eq!(
-            get_install_method(&Some("unknown".into())),
-            InstallMethod::Unknown
-        );
-        assert_eq!(get_install_method(&None), detect_install_method());
+        assert_eq!(get_install_method(Some("unknown")), InstallMethod::Unknown);
+        assert_eq!(get_install_method(None), detect_install_method());
     }
 
     #[test]
     fn test_get_install_method_string() {
-        assert_eq!(get_install_method_string(&Some("cargo".into())), "cargo");
-        assert_eq!(get_install_method_string(&Some("scoop".into())), "scoop");
-        assert_eq!(
-            get_install_method_string(&Some("homebrew".into())),
-            "homebrew"
-        );
-        assert_eq!(
-            get_install_method_string(&Some("source".into())),
-            "from source"
-        );
-        assert_eq!(
-            get_install_method_string(&Some("unknown".into())),
-            "unknown"
-        );
+        assert_eq!(get_install_method_string(Some("cargo")), "cargo");
+        assert_eq!(get_install_method_string(Some("scoop")), "scoop");
+        assert_eq!(get_install_method_string(Some("homebrew")), "homebrew");
+        assert_eq!(get_install_method_string(Some("source")), "from source");
+        assert_eq!(get_install_method_string(Some("unknown")), "unknown");
     }
 
     #[test]
     fn test_get_upgrade_command() {
         assert_eq!(
-            get_upgrade_command(&Some("cargo".into())),
+            get_upgrade_command(Some("cargo")),
             "cargo install tod --force"
         );
+        assert_eq!(get_upgrade_command(Some("scoop")), "scoop update tod");
+        assert_eq!(get_upgrade_command(Some("homebrew")), "brew upgrade tod");
         assert_eq!(
-            get_upgrade_command(&Some("scoop".into())),
-            "scoop update tod"
-        );
-        assert_eq!(
-            get_upgrade_command(&Some("homebrew".into())),
-            "brew upgrade tod"
-        );
-        assert_eq!(
-            get_upgrade_command(&Some("source".into())),
+            get_upgrade_command(Some("source")),
             "https://github.com/tod-org/tod#installation"
         );
         assert_eq!(
-            get_upgrade_command(&Some("unknown".into())),
+            get_upgrade_command(Some("unknown")),
             "https://github.com/tod-org/tod#installation"
         );
     }
     #[test]
     fn test_get_update_command_args_homebrew() {
-        let cmd = get_update_command_args(&Some("homebrew".into()))
+        let cmd = get_update_command_args(Some("homebrew"))
             .expect("Failed to get update command args for homebrew");
         assert_eq!(cmd.0, "brew");
         assert_eq!(cmd.1, vec!["upgrade", "tod"]);
@@ -188,7 +163,7 @@ mod tests {
 
     #[test]
     fn test_get_update_command_args_scoop() {
-        let cmd = get_update_command_args(&Some("scoop".into()))
+        let cmd = get_update_command_args(Some("scoop"))
             .expect("Failed to get update command args for scoop");
         assert_eq!(cmd.0, "scoop");
         assert_eq!(cmd.1, vec!["update", "tod"]);
@@ -196,7 +171,7 @@ mod tests {
 
     #[test]
     fn test_get_update_command_args_cargo() {
-        let cmd = get_update_command_args(&Some("cargo".into()))
+        let cmd = get_update_command_args(Some("cargo"))
             .expect("Failed to get update command args for cargo");
         assert_eq!(cmd.0, "cargo");
         assert_eq!(cmd.1, vec!["install", "tod", "--force"]);
@@ -204,34 +179,28 @@ mod tests {
 
     #[test]
     fn test_get_update_command_args_from_source() {
-        let err = get_update_command_args(&Some("source".into()))
+        let err = get_update_command_args(Some("source"))
             .expect_err("Expected error when getting update command args for source");
         assert!(err.contains("Automatic update is not supported"));
     }
 
     #[test]
     fn test_get_update_command_args_unknown() {
-        let err = get_update_command_args(&Some("unknown".into()))
+        let err = get_update_command_args(Some("unknown"))
             .expect_err("Expected error when getting update command args for unknown");
         assert!(err.contains("Automatic update is not supported"));
     }
     #[test]
     fn test_get_install_method_override_whitespace_case() {
-        assert_eq!(
-            get_install_method(&Some("  CaRgO  ".into())),
-            InstallMethod::Cargo
-        );
+        assert_eq!(get_install_method(Some("  CaRgO  ")), InstallMethod::Cargo);
     }
     #[test]
     fn test_get_install_method_override_random() {
-        assert_eq!(
-            get_install_method(&Some("foobar".into())),
-            InstallMethod::Unknown
-        );
+        assert_eq!(get_install_method(Some("foobar")), InstallMethod::Unknown);
     }
     #[test]
     fn test_get_update_command_args_none() {
-        let result = get_update_command_args(&None);
+        let result = get_update_command_args(None);
         assert!(
             result.is_ok()
                 || result

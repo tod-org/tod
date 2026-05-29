@@ -87,7 +87,7 @@ pub fn datetime_is_today(datetime: DateTime<Tz>, config: &Config) -> Result<bool
     is_date_today(datetime.date_naive(), config)
 }
 
-/// Parse DateTime
+/// Parse `DateTime`
 pub fn datetime_from_str(str: &str, timezone: Tz) -> Result<DateTime<Tz>, Error> {
     match str.len() {
         19 => parse_datetime(str, timezone, FORMAT_DATETIME),
@@ -164,8 +164,8 @@ pub fn naive_date_today(config: &Config) -> Result<NaiveDate, Error> {
 
 /// Returns today's date in given timezone for testing. Only used in tests currently but included for completeness.
 #[allow(dead_code)]
-pub fn naive_date_today_from_tz(tz: Tz) -> Result<NaiveDate, Error> {
-    Ok(chrono::Utc::now().with_timezone(&tz).date_naive())
+pub fn naive_date_today_from_tz(tz: Tz) -> chrono::NaiveDate {
+    chrono::Utc::now().with_timezone(&tz).date_naive()
 }
 
 // Check if date is today
@@ -202,8 +202,8 @@ pub fn date_string_today(config: &Config) -> Result<String, Error> {
 }
 
 // Formats a date to a string
-pub fn date_to_string(date: &NaiveDate, config: &Config) -> Result<String, Error> {
-    if is_date_today(*date, config)? {
+pub fn date_to_string(date: NaiveDate, config: &Config) -> Result<String, Error> {
+    if is_date_today(date, config)? {
         Ok("Today".into())
     } else {
         Ok(date.format(FORMAT_DATE).to_string())
@@ -288,8 +288,7 @@ mod tests {
     #[test]
     fn test_today_date_from_tz_utc() {
         let tz = Tz::UTC;
-        let result =
-            naive_date_today_from_tz(tz).expect("failed to compute today's date for timezone");
+        let result = naive_date_today_from_tz(tz);
         let expected = chrono::Utc::now().with_timezone(&tz).date_naive();
         assert_eq!(result, expected);
     }
@@ -297,8 +296,7 @@ mod tests {
     #[test]
     fn test_today_date_from_tz_pacific() {
         let tz = Tz::America__Los_Angeles;
-        let result =
-            naive_date_today_from_tz(tz).expect("failed to compute today's date for timezone");
+        let result = naive_date_today_from_tz(tz);
         let expected = chrono::Utc::now().with_timezone(&tz).date_naive();
         assert_eq!(result, expected);
     }
@@ -327,8 +325,7 @@ mod tests {
     fn fallback_to_utc_now_when_today_date_from_tz_fails() {
         let tz: Tz = chrono_tz::UTC;
 
-        let result = time::naive_date_today_from_tz(tz)
-            .unwrap_or_else(|_| Utc::now().with_timezone(&tz).date_naive());
+        let result = time::naive_date_today_from_tz(tz);
 
         let expected = Utc::now().with_timezone(&tz).date_naive();
 
@@ -354,7 +351,7 @@ mod tests {
         let today_from_system = system_provider.today(tz);
 
         // Assert that the `time_provider` in the default config behaves like `SystemTimeProvider`
-        assert_eq!(today_from_provider, today_from_system)
+        assert_eq!(today_from_provider, today_from_system);
     }
 
     #[test]
@@ -476,7 +473,7 @@ mod tests {
             .await
             .with_timezone("America/Vancouver");
         let today = naive_date_today(&config).expect("should get today");
-        let result = date_to_string(&today, &config).expect("should format today");
+        let result = date_to_string(today, &config).expect("should format today");
         assert_eq!(result, "Today");
     }
 
@@ -486,7 +483,7 @@ mod tests {
             .await
             .with_timezone("America/Vancouver");
         let past = NaiveDate::from_ymd_opt(2020, 6, 15).expect("valid date");
-        let result = date_to_string(&past, &config).expect("should format past date");
+        let result = date_to_string(past, &config).expect("should format past date");
         assert_eq!(result, "2020-06-15");
     }
 

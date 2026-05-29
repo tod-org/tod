@@ -1,5 +1,5 @@
 //! Holds all regular expressions
-//! uses std::sync::LazyLock to ensure that they are only evaluated once
+//! uses `std::sync::LazyLock` to ensure that they are only evaluated once
 //!
 use regex::Regex;
 use std::sync::LazyLock;

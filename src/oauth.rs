@@ -65,18 +65,13 @@ fn print_oauth_url(config: &Config) -> String {
     if cfg!(test) {
         println!("Please visit the following url to authenticate with Todoist:");
         println!("{formatted_url}");
+    } else if let Ok(()) = open::that(&url) {
+        println!(
+            "Opening {formatted_url} in the default web browser to authenticate with Todoist."
+        );
     } else {
-        match open::that(&url) {
-            Ok(_) => {
-                println!(
-                    "Opening {formatted_url} in the default web browser to authenticate with Todoist."
-                );
-            }
-            Err(_) => {
-                println!("Please visit the following url to authenticate with Todoist:");
-                println!("{formatted_url}");
-            }
-        }
+        println!("Please visit the following url to authenticate with Todoist:");
+        println!("{formatted_url}");
     }
     csrf_token
 }
@@ -114,7 +109,7 @@ async fn receive_callback(
     );
     if let Some(tx) = tx {
         tx.send(()).expect("failed to notify test");
-    };
+    }
     axum::serve(listener, app)
         .with_graceful_shutdown(async {
             shutdown_rx.await.ok();
@@ -135,8 +130,8 @@ async fn receive_callback(
     }
 }
 
-pub fn json_to_access_token(json: String) -> Result<AccessToken, Error> {
-    let token: AccessToken = serde_json::from_str(&json)?;
+pub fn json_to_access_token(json: &str) -> Result<AccessToken, Error> {
+    let token: AccessToken = serde_json::from_str(json)?;
     Ok(token)
 }
 
@@ -207,7 +202,7 @@ mod tests {
             .await
             .expect("Failed to await login handle completion");
         assert_eq!(result, String::from("✓"));
-        mock.assert()
+        mock.assert();
     }
 
     #[tokio::test]

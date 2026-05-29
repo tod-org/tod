@@ -49,7 +49,7 @@ where
     }
 }
 
-/// App configuration, serialized as json in $XDG_CONFIG_HOME/tod.cfg
+/// App configuration, serialized as json in $`XDG_CONFIG_HOME/tod.cfg`
 #[derive(Clone, Serialize, Deserialize, Debug)]
 #[serde(default, deny_unknown_fields)]
 pub struct Config {
@@ -113,7 +113,7 @@ pub struct Config {
     /// For storing arguments from the commandline
     #[serde(skip)]
     pub internal: Internal,
-    /// Optional TimeProvider for testing, defaults to SystemTimeProvider
+    /// Optional `TimeProvider` for testing, defaults to `SystemTimeProvider`
     #[serde(skip)]
     pub time_provider: TimeProviderEnum,
 }
@@ -231,6 +231,7 @@ impl Config {
     }
 
     /// Returns projects from the config.
+    #[allow(clippy::unused_async)]
     pub async fn projects(self: &Config) -> Result<Vec<Project>, Error> {
         Ok(self.projects.clone().unwrap_or_default())
     }
@@ -240,9 +241,9 @@ impl Config {
             Some(length) => length,
             None => {
                 if let Some((Width(width), Height(height))) = terminal_size() {
-                    let menu_height = page_size() as u16;
-                    let comment_rows = height.saturating_sub(menu_height);
-                    let estimated = comment_rows as u32 * width as u32;
+                    let menu_height = u16::try_from(page_size());
+                    let comment_rows = height.saturating_sub(menu_height.expect("REASON"));
+                    let estimated = u32::from(comment_rows) * u32::from(width);
                     estimated.min(MAX_COMMENT_LENGTH)
                 } else {
                     MAX_COMMENT_LENGTH
@@ -255,12 +256,12 @@ impl Config {
         let all_projects = todoist::all_projects(self, None).await?;
         let current_projects = self.projects.clone().unwrap_or_default();
         let current_project_ids: Vec<String> =
-            current_projects.iter().map(|p| p.id.to_owned()).collect();
+            current_projects.iter().map(|p| p.id.clone()).collect();
 
         let updated_projects = all_projects
             .iter()
             .filter(|p| current_project_ids.contains(&p.id))
-            .map(|p| p.to_owned())
+            .map(std::borrow::ToOwned::to_owned)
             .collect::<Vec<Project>>();
 
         self.projects = Some(updated_projects);
@@ -302,8 +303,8 @@ impl Config {
                 }
                 Ok(Version::Latest) => (),
                 Err(err) => self.tx().send(err)?,
-            };
-        };
+            }
+        }
 
         Ok(())
     }
@@ -370,7 +371,8 @@ impl Config {
             .read_to_string(&mut json)
             .await?;
 
-        let config: Config = serde_json::from_str(&json).map_err(|e| config_load_error(e, path))?;
+        let config: Config =
+            serde_json::from_str(&json).map_err(|e| config_load_error(&e, path))?;
         let config = if config.sort_value.is_none() {
             Config {
                 sort_value: Some(SortValue::default()),
@@ -383,6 +385,7 @@ impl Config {
         Ok(config)
     }
 
+    #[allow(clippy::unused_async)]
     pub async fn new(tx: Option<UnboundedSender<Error>>, path: PathBuf) -> Result<Config, Error> {
         Ok(Config {
             path,
@@ -445,7 +448,7 @@ impl Config {
             .unwrap_or_default()
             .iter()
             .filter(|p| p.id != project.id)
-            .map(|p| p.to_owned())
+            .map(std::borrow::ToOwned::to_owned)
             .collect::<Vec<Project>>();
 
         self.projects = Some(projects);
@@ -528,7 +531,7 @@ impl Config {
     }
 }
 
-fn config_load_error(error: serde_json::Error, path: &Path) -> Error {
+fn config_load_error(error: &serde_json::Error, path: &Path) -> Error {
     let source = "serde_json";
     let message = format!(
         "\n{}",
@@ -638,7 +641,7 @@ pub async fn get_or_create(
     }?;
 
     let config = Config {
-        args: Args { timeout, verbose },
+        args: Args { verbose, timeout },
         internal: Internal {
             tx: Some(tx.clone()),
         },
@@ -670,6 +673,7 @@ pub async fn create_config(
     Ok(config)
 }
 #[cfg(test)]
+#[allow(clippy::unused_async)]
 pub async fn generate_path() -> Result<PathBuf, Error> {
     let file = tempfile::Builder::new()
         .prefix("tod-")
@@ -681,6 +685,7 @@ pub async fn generate_path() -> Result<PathBuf, Error> {
 }
 
 #[cfg(not(test))]
+#[allow(clippy::unused_async)]
 pub async fn generate_path() -> Result<PathBuf, Error> {
     let config_directory =
         dirs::config_dir().ok_or_else(|| Error::new("dirs", "Could not find config directory"))?;
@@ -712,8 +717,7 @@ pub async fn config_reset(cli_config_path: Option<PathBuf>, force: bool) -> Resu
     config_reset_with_prompt(cli_config_path.clone(), force, || {
         let path_display = cli_config_path
             .as_ref()
-            .map(|p| p.display().to_string())
-            .unwrap_or_else(|| "<default path>".into());
+            .map_or_else(|| "<default path>".into(), |p| p.display().to_string());
 
         Confirm::new(&format!(
             "Are you sure you want to delete the config at {path_display}?"
@@ -888,7 +892,7 @@ mod tests {
                 ..self.clone()
             }
         }
-        /// Set the TimeProvider for testing
+        /// Set the `TimeProvider` for testing
         pub fn with_time_provider(self: &Config, provider_type: TimeProviderEnum) -> Config {
             let mut config = self.clone();
             config.time_provider = provider_type;
@@ -1353,9 +1357,7 @@ mod tests {
 
         // Check that the file extension is ".testcfg"
         assert!(
-            path.extension()
-                .map(|ext| ext == "testcfg")
-                .unwrap_or(false),
+            path.extension().is_some_and(|ext| ext == "testcfg"),
             "Expected file extension to be .testcfg, got {}",
             path.display()
         );

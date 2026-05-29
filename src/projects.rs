@@ -15,6 +15,7 @@ const PAD_WIDTH: usize = 30;
 const PROJECT_URL: &str = "https://app.todoist.com/app/project";
 
 // Projects are split into sections
+#[allow(clippy::struct_excessive_bools)]
 #[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug)]
 pub struct Project {
     pub id: String,
@@ -32,6 +33,7 @@ pub struct Project {
     pub default_order: i32,
     pub description: String,
     pub parent_id: Option<String>,
+    #[allow(clippy::struct_field_names)]
     pub inbox_project: Option<bool>,
     pub is_collapsed: bool,
     pub is_shared: bool,
@@ -57,12 +59,12 @@ impl Display for Project {
         write!(f, "{}\n{}/{}", self.name, PROJECT_URL, self.id)
     }
 }
-pub fn json_to_project(json: String) -> Result<Project, Error> {
-    let project: Project = serde_json::from_str(&json)?;
+pub fn json_to_project(json: &str) -> Result<Project, Error> {
+    let project: Project = serde_json::from_str(json)?;
     Ok(project)
 }
-pub fn json_to_projects_response(json: String) -> Result<ProjectResponse, Error> {
-    let response: ProjectResponse = serde_json::from_str(&json)?;
+pub fn json_to_projects_response(json: &str) -> Result<ProjectResponse, Error> {
+    let response: ProjectResponse = serde_json::from_str(json)?;
     Ok(response)
 }
 
@@ -93,7 +95,7 @@ pub async fn list(config: &mut Config) -> Result<String, Error> {
     let mut projects: Vec<String> = future::join_all(project_handles)
         .await
         .into_iter()
-        .map(|p| p.unwrap_or_default())
+        .map(std::result::Result::unwrap_or_default)
         .collect();
     if projects.is_empty() {
         return Ok("No projects found".into());
@@ -123,24 +125,24 @@ async fn project_name_with_count(config: &Config, project: &Project) -> String {
 /// Gets the number of tasks for a project that are not in the future
 async fn count_processable_tasks(config: &Config, project: &Project) -> Result<u8, Error> {
     let all_tasks = todoist::all_tasks_by_project(config, project, None).await?;
-    let count = tasks::filter_not_in_future(all_tasks, config)?.len();
+    let count = tasks::filter_not_in_future(all_tasks, config).len();
 
-    Ok(count as u8)
+    Ok(u8::try_from(count)?)
 }
 
-/// Add a project to the projects HashMap in Config
+/// Add a project to the projects `HashMap` in Config
 pub async fn add(config: &mut Config, project: &Project) -> Result<String, Error> {
     config.add_project(project.clone());
     config.save().await
 }
 
-/// Remove a project from the projects HashMap in Config
+/// Remove a project from the projects `HashMap` in Config
 pub async fn remove(config: &mut Config, project: &Project) -> Result<String, Error> {
     config.remove_project(project);
     config.save().await
 }
 
-/// Remove a project from the projects HashMap in Config
+/// Remove a project from the projects `HashMap` in Config
 pub async fn delete(config: &mut Config, project: &Project) -> Result<String, Error> {
     todoist::delete_project(config, project, true).await?;
     config.remove_project(project);
@@ -180,7 +182,7 @@ async fn fetch_next_task(
     project: &Project,
 ) -> Result<Option<(Task, usize)>, Error> {
     let tasks = todoist::all_tasks_by_project(config, project, None).await?;
-    let filtered_tasks = tasks::filter_not_in_future(tasks, config)?;
+    let filtered_tasks = tasks::filter_not_in_future(tasks, config);
     let tasks = tasks::sort_by_value(filtered_tasks, config);
 
     Ok(tasks.first().map(|task| (task.to_owned(), tasks.len())))
@@ -378,7 +380,7 @@ pub async fn schedule(
     sort: &SortOrder,
 ) -> Result<String, Error> {
     let tasks = todoist::all_tasks_by_project(config, project, None).await?;
-    let tasks = tasks::sort(tasks, config, sort);
+    let tasks = tasks::sort(tasks, config, *sort);
 
     let filtered_tasks: Vec<Task> = if skip_recurring {
         tasks
@@ -421,7 +423,7 @@ pub async fn deadline(
     sort: &SortOrder,
 ) -> Result<String, Error> {
     let tasks = todoist::all_tasks_by_project(config, project, None).await?;
-    let tasks = tasks::sort(tasks, config, sort);
+    let tasks = tasks::sort(tasks, config, *sort);
 
     let filtered_tasks: Vec<Task> = tasks
         .into_iter()
@@ -463,7 +465,7 @@ pub async fn move_task_to_project(
 
     let options = ["Pick project", "Complete", "Skip", "Delete"]
         .iter()
-        .map(|o| o.to_string())
+        .map(std::string::ToString::to_string)
         .collect::<Vec<String>>();
     let selection = input::select("Choose", options, config.mock_select)?;
 
@@ -665,9 +667,9 @@ mod tests {
             .await
             .expect("expected value or result, got None or Err")
             .iter()
-            .map(|p| p.name.to_owned())
+            .map(|p| p.name.clone())
             .collect();
-        assert!(config_keys.contains(&"Doomsday".to_string()))
+        assert!(config_keys.contains(&"Doomsday".to_string()));
     }
 
     #[tokio::test]
@@ -1008,26 +1010,26 @@ mod tests {
     #[tokio::test]
     async fn test_json_to_project_valid() {
         let json = ResponseFromFile::Project.read().await;
-        let project = json_to_project(json).expect("should parse project JSON");
+        let project = json_to_project(&json).expect("should parse project JSON");
         assert_eq!(project.name, "Doomsday");
     }
 
     #[test]
     fn test_json_to_project_invalid() {
-        let result = json_to_project("not json".to_string());
+        let result = json_to_project("not json");
         assert!(result.is_err());
     }
 
     #[tokio::test]
     async fn test_json_to_projects_response_valid() {
         let json = ResponseFromFile::Projects.read().await;
-        let response = json_to_projects_response(json).expect("should parse projects response");
+        let response = json_to_projects_response(&json).expect("should parse projects response");
         assert!(!response.results.is_empty());
     }
 
     #[test]
     fn test_json_to_projects_response_invalid() {
-        let result = json_to_projects_response("not json".to_string());
+        let result = json_to_projects_response("not json");
         assert!(result.is_err());
     }
 
@@ -1054,8 +1056,8 @@ mod tests {
             "is_shared": false
         }"#;
 
-        let project = json_to_project(json.to_string())
-            .expect("should deserialize project with negative order");
+        let project =
+            json_to_project(json).expect("should deserialize project with negative order");
 
         assert_eq!(project.child_order, -1);
         assert_eq!(project.default_order, -1);
@@ -1084,8 +1086,8 @@ mod tests {
             "is_shared": false
         }"#;
 
-        let project = json_to_project(json.to_string())
-            .expect("should deserialize project with negative child order");
+        let project =
+            json_to_project(json).expect("should deserialize project with negative child order");
 
         assert_eq!(project.child_order, -1);
         assert_eq!(project.default_order, 1);

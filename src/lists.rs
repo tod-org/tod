@@ -44,7 +44,7 @@ pub async fn view(config: &mut Config, flag: Flag, sort: &SortOrder) -> Result<S
         buffer.push('\n');
         buffer.push_str(&color::green_string(&title));
         buffer.push('\n');
-        for task in tasks::sort(tasks, config, sort) {
+        for task in tasks::sort(tasks, config, *sort) {
             let comments = Vec::new();
             let text = task.fmt(comments, config, FormatType::List, true).await?;
             buffer.push('\n');
@@ -76,7 +76,7 @@ pub async fn prioritize(config: &Config, flag: Flag, sort: &SortOrder) -> Result
         return Ok(color::green_string(&empty_text));
     }
 
-    let tasks = tasks::sort(tasks, config, sort);
+    let tasks = tasks::sort(tasks, config, *sort);
 
     let handles = stream::iter(tasks)
         .then(|task| async {
@@ -111,8 +111,8 @@ pub async fn timebox(config: &Config, flag: Flag, sort: &SortOrder) -> Result<St
         return Ok(color::green_string(&empty_text));
     }
 
-    let tasks = tasks::sort(tasks, config, sort);
-    let mut task_count = tasks.len() as i32;
+    let tasks = tasks::sort(tasks, config, *sort);
+    let mut task_count = i32::try_from(tasks.len())?;
     let mut handles = Vec::new();
     for task in tasks {
         println!();
@@ -130,7 +130,7 @@ pub async fn process(config: &Config, flag: Flag, sort: &SortOrder) -> Result<St
     let tasks = match &flag {
         Flag::Project(project) => {
             let tasks = todoist::all_tasks_by_project(config, project, None).await?;
-            tasks::filter_not_in_future(tasks, config)?
+            tasks::filter_not_in_future(tasks, config)
         }
 
         Flag::Filter(filter) => todoist::all_tasks_by_filters(config, filter)
@@ -153,8 +153,8 @@ pub async fn process(config: &Config, flag: Flag, sort: &SortOrder) -> Result<St
         return Ok(color::green_string(&empty_text));
     }
 
-    let tasks = tasks::sort(tasks, config, sort);
-    let mut task_count = tasks.len() as i32;
+    let tasks = tasks::sort(tasks, config, *sort);
+    let mut task_count = i32::try_from(tasks.len())?;
     let tasks_with_comments = fetch_comments_for_tasks(tasks, config).await;
     let mut handles = Vec::new();
     for task_with_comments in tasks_with_comments {
@@ -240,7 +240,7 @@ pub async fn label(
         return Ok(color::green_string(&empty_text));
     }
 
-    let tasks = tasks::sort(tasks, config, sort);
+    let tasks = tasks::sort(tasks, config, *sort);
     let handles = stream::iter(tasks)
         .then(|task| async {
             println!();
@@ -261,7 +261,7 @@ pub async fn import(config: &Config, file_path: &str) -> Result<String, Error> {
 
     let lines: Vec<String> = lines
         .split('\n')
-        .map(|s| s.to_owned())
+        .map(std::borrow::ToOwned::to_owned)
         .filter(|s| !s.is_empty())
         .collect();
     for line in lines {

@@ -27,7 +27,7 @@ const HTTP_FORBIDDEN: u16 = 403;
 
 /// Post to Todoist via REST api
 /// We use this when we want more options and don't need natural language processing
-/// Pass in a Value::Null for the body if there is no payload
+/// Pass in a `Value::Null` for the body if there is no payload
 pub async fn post_todoist(
     config: &Config,
     url: &str,
@@ -132,7 +132,7 @@ pub async fn get_todoist(config: &Config, url: &str, spinner: bool) -> Result<St
     let authorization = format!("Bearer {token}");
     let spinner = maybe_start_spinner(config, spinner);
     if config.verbose.unwrap_or_default() {
-        println!("GET {request_url}")
+        println!("GET {request_url}");
     }
     debug::maybe_print(config, &format!("GET {request_url}"));
     let response = Client::new()
@@ -186,25 +186,25 @@ async fn handle_response(
 fn get_timeout(config: &Config) -> Duration {
     match config {
         Config {
-            timeout: Some(timeout),
-            args: Args { timeout: None, .. },
-            ..
-        } => Duration::from_secs(timeout.to_owned()),
-        Config {
-            timeout: Some(_),
-            args: Args {
-                timeout: Some(timeout),
-                ..
-            },
-            ..
-        } => Duration::from_secs(timeout.to_owned()),
-        Config {
             timeout: None,
             args: Args { timeout: None, .. },
             ..
         } => Duration::from_secs(30),
 
         Config {
+            timeout: Some(timeout),
+            args: Args { timeout: None, .. },
+            ..
+        }
+        | Config {
+            timeout: Some(_),
+            args: Args {
+                timeout: Some(timeout),
+                ..
+            },
+            ..
+        }
+        | Config {
             timeout: None,
             args: Args {
                 timeout: Some(timeout),
@@ -229,9 +229,7 @@ fn maybe_start_spinner(config: &Config, spinner: bool) -> Option<Spinner> {
     }
 
     match (env::var("DISABLE_SPINNER"), config.spinners, spinner) {
-        (Ok(_), _, _) => None,
-        (_, Some(false), _) => None,
-        (_, _, false) => None,
+        (Ok(_), _, _) | (_, Some(false), _) | (_, _, false) => None,
         _ => {
             let sp = Spinner::new(SPINNER, MESSAGE.into());
             Some(sp)
@@ -242,7 +240,7 @@ fn maybe_stop_spinner(spinner: Option<Spinner>) {
     if let Some(mut sp) = spinner {
         sp.stop();
         print!("\x1b[2K\r");
-    };
+    }
 }
 
 /// Create a new UUID, required for Todoist API

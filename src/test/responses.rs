@@ -60,22 +60,22 @@ impl ResponseFromFile {
     /// Allows us to replace static values in JSON with dynamic data
     async fn replace_values(&self, json_string: String) -> String {
         let replace_with: Vec<(&str, String)> = match self {
-            Self::AccessToken => Vec::new(),
-            Self::CommentsAllTypes => Vec::new(),
-            Self::Comment => Vec::new(),
-            Self::Task => Vec::new(),
-            Self::Section => Vec::new(),
-            Self::Sections => Vec::new(),
-            Self::Label => Vec::new(),
-            Self::Labels => Vec::new(),
-            Self::Project => Vec::new(),
-            Self::Projects => Vec::new(),
-            Self::NewProjects => Vec::new(),
-            Self::User => Vec::new(),
-            Self::TodayTask => vec![("INSERTDATE", super::today_date().await)],
-            Self::UnscheduledTasks => vec![("INSERTDATE", super::today_date().await)],
-            Self::TodayTasksWithoutDuration => vec![("INSERTDATE", super::today_date().await)],
-            Self::TodayTasks => vec![("INSERTDATE", super::today_date().await)],
+            Self::AccessToken
+            | Self::CommentsAllTypes
+            | Self::Comment
+            | Self::Task
+            | Self::Section
+            | Self::Sections
+            | Self::Label
+            | Self::Labels
+            | Self::Project
+            | Self::Projects
+            | Self::NewProjects
+            | Self::User => Vec::new(),
+            Self::TodayTask
+            | Self::UnscheduledTasks
+            | Self::TodayTasksWithoutDuration
+            | Self::TodayTasks => vec![("INSERTDATE", super::today_date().await)],
             Self::Versions => vec![("INSERTVERSION", VERSION.to_string())],
         };
 

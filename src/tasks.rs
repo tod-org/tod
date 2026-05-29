@@ -231,10 +231,10 @@ impl Task {
             quantity => format::number_comments(quantity),
         };
 
-        let comments = if !comments.is_empty() {
-            format::render_comments(config, comments).await?
-        } else {
+        let comments = if comments.is_empty() {
             String::new()
+        } else {
+            format::render_comments(config, comments).await?
         };
 
         Ok(format!(
@@ -258,7 +258,7 @@ impl Task {
             }
         };
 
-        let value = date_value as u32 + priority_value as u32 + deadline_value;
+        let value = u32::from(date_value) + u32::from(priority_value) + deadline_value;
 
         let debug_text = format!("Value: {value}, Content: {}", self.content);
         debug::maybe_print(config, &debug_text);
@@ -337,8 +337,7 @@ impl Task {
                     *now.offset(),
                 ))
             }
-            Ok(DateTimeInfo::NoDateTime) => None,
-            Err(_) => None,
+            Ok(DateTimeInfo::NoDateTime) | Err(_) => None,
         }
     }
 
@@ -365,9 +364,10 @@ impl Task {
                 let naive_date = time::date_string_to_naive_date(date)?;
                 let days_from_today = time::naive_date_days_in_future(naive_date, config)?;
                 let deadline_days = config.deadline_days();
-                let day_multiplier = max(deadline_days as i64 - days_from_today, 0) as u32;
+                let day_multiplier =
+                    u32::try_from(max(i64::from(deadline_days) - days_from_today, 0))?;
                 let day_value = config.deadline_value();
-                Ok(day_multiplier * day_value as u32)
+                Ok(day_multiplier * u32::from(day_value))
             }
         }
     }
@@ -421,12 +421,11 @@ impl Task {
     // Returns true if the datetime is today and there is a time
     fn is_today(&self, config: &Config) -> Result<bool, Error> {
         let boolean = match self.datetimeinfo(config) {
-            Ok(DateTimeInfo::NoDateTime) => false,
             Ok(DateTimeInfo::Date { date, .. }) => date == time::naive_date_today(config)?,
             Ok(DateTimeInfo::DateTime { datetime, .. }) => {
                 time::datetime_is_today(datetime, config)?
             }
-            Err(_) => false,
+            Ok(DateTimeInfo::NoDateTime) | Err(_) => false,
         };
 
         Ok(boolean)
@@ -434,12 +433,11 @@ impl Task {
 
     fn is_overdue(&self, config: &Config) -> Result<bool, Error> {
         let boolean = match self.datetimeinfo(config) {
-            Ok(DateTimeInfo::NoDateTime) => false,
             Ok(DateTimeInfo::Date { date, .. }) => time::is_date_in_past(date, config)?,
             Ok(DateTimeInfo::DateTime { datetime, .. }) => {
                 time::is_date_in_past(datetime.date_naive(), config)?
             }
-            Err(_) => false,
+            Ok(DateTimeInfo::NoDateTime) | Err(_) => false,
         };
 
         Ok(boolean)
@@ -453,7 +451,7 @@ impl Task {
     }
 }
 
-pub fn sort(tasks: Vec<Task>, config: &Config, sort: &SortOrder) -> Vec<Task> {
+pub fn sort(tasks: Vec<Task>, config: &Config, sort: SortOrder) -> Vec<Task> {
     match sort {
         SortOrder::Value => sort_by_value(tasks, config),
         SortOrder::Datetime => sort_by_datetime(tasks, config),
@@ -514,7 +512,7 @@ pub async fn update_task(
 
             let labels = label_string
                 .split_whitespace()
-                .map(|s| s.to_owned())
+                .map(std::borrow::ToOwned::to_owned)
                 .collect();
 
             let handle = spawn_update_task_labels(config.clone(), task.id.clone(), labels);
@@ -563,7 +561,7 @@ pub async fn process_task(
         input::QUIT,
     ]
     .iter()
-    .map(|s| s.to_string())
+    .map(std::string::ToString::to_string)
     .collect();
     let formatted_task = task
         .fmt(comments, config, FormatType::Single, with_project)
@@ -619,7 +617,7 @@ pub async fn timebox_task(
         input::QUIT,
     ]
     .iter()
-    .map(|s| s.to_string())
+    .map(std::string::ToString::to_string)
     .collect();
     let comments = Vec::new();
     let formatted_task = task
@@ -658,28 +656,26 @@ pub async fn timebox_task(
 
 /// Returns Date, time and duration for a task, uses the date and time on task if available, otherwise prompts. Always prompts for duration.
 fn get_timebox(config: &Config, task: &Task) -> Result<(String, u32), Error> {
-    let datetime = match task {
-        Task {
-            due: Some(DateInfo { date, .. }),
-            ..
-        } => {
-            if time::is_date(date) {
-                let time = input::string(input::TIME, config.mock_string.clone())?;
-
-                format!("{date} {time}")
-            } else {
-                let timezone = config.get_timezone()?;
-                let tz = time::timezone_from_str(&timezone)?;
-                time::datetime_from_str(date, tz)?
-                    .format(time::FORMAT_DATE_AND_TIME)
-                    .to_string()
-            }
-        }
-        _ => {
-            let date = input::date()?;
+    let datetime = if let Task {
+        due: Some(DateInfo { date, .. }),
+        ..
+    } = task
+    {
+        if time::is_date(date) {
             let time = input::string(input::TIME, config.mock_string.clone())?;
+
             format!("{date} {time}")
+        } else {
+            let timezone = config.get_timezone()?;
+            let tz = time::timezone_from_str(&timezone)?;
+            time::datetime_from_str(date, tz)?
+                .format(time::FORMAT_DATE_AND_TIME)
+                .to_string()
         }
+    } else {
+        let date = input::date()?;
+        let time = input::string(input::TIME, config.mock_string.clone())?;
+        format!("{date} {time}")
     };
 
     let duration = input::string(input::DURATION, config.mock_string.clone())?;
@@ -893,13 +889,13 @@ pub fn spawn_update_task_priority(
 }
 
 /// Converts a JSON string to a single task (creates a single task from a JSON string)
-pub fn json_to_task(json: String) -> Result<Task, Error> {
-    let task: Task = serde_json::from_str(&json)?;
+pub fn json_to_task(json: &str) -> Result<Task, Error> {
+    let task: Task = serde_json::from_str(json)?;
     Ok(task)
 }
-/// Converts a JSON String to a list of multiple tasks (creates a TaskResponse from a JSON string)
-pub fn json_to_tasks_response(json: String) -> Result<TaskResponse, Error> {
-    let response: TaskResponse = serde_json::from_str(&json)?;
+/// Converts a JSON String to a list of multiple tasks (creates a `TaskResponse` from a JSON string)
+pub fn json_to_tasks_response(json: &str) -> Result<TaskResponse, Error> {
+    let response: TaskResponse = serde_json::from_str(json)?;
     Ok(response)
 }
 
@@ -913,17 +909,15 @@ pub fn sort_by_datetime(mut tasks: Vec<Task>, config: &Config) -> Vec<Task> {
     tasks
 }
 
-pub fn filter_not_in_future(tasks: Vec<Task>, config: &Config) -> Result<Vec<Task>, Error> {
-    let tasks = tasks
+pub fn filter_not_in_future(tasks: Vec<Task>, config: &Config) -> Vec<Task> {
+    tasks
         .into_iter()
         .filter(|task| {
             task.is_today(config).unwrap_or_default()
                 || task.has_no_date()
                 || task.is_overdue(config).unwrap_or_default()
         })
-        .collect();
-
-    Ok(tasks)
+        .collect()
 }
 
 // We don't want to process parent tasks when child tasks are unchecked, or child tasks when they are checked
@@ -1021,27 +1015,27 @@ mod tests {
     #[tokio::test]
     async fn test_json_to_task_valid() {
         let json = ResponseFromFile::TodayTask.read().await;
-        let task = json_to_task(json).expect("should parse TodayTask JSON");
+        let task = json_to_task(&json).expect("should parse TodayTask JSON");
         assert_eq!(task.content, "TEST");
         assert_eq!(task.user_id, "910");
     }
 
     #[test]
     fn test_json_to_task_invalid() {
-        let result = json_to_task("not json".to_string());
+        let result = json_to_task("not json");
         assert!(result.is_err());
     }
 
     #[tokio::test]
     async fn test_json_to_tasks_response_valid() {
         let json = ResponseFromFile::TodayTasks.read().await;
-        let response = json_to_tasks_response(json).expect("should parse TodayTasks JSON");
+        let response = json_to_tasks_response(&json).expect("should parse TodayTasks JSON");
         assert!(!response.results.is_empty());
     }
 
     #[test]
     fn test_json_to_tasks_response_invalid() {
-        let result = json_to_tasks_response("not json".to_string());
+        let result = json_to_tasks_response("not json");
         assert!(result.is_err());
     }
 
@@ -1061,7 +1055,7 @@ mod tests {
             ..test::fixtures::today_task().await
         };
         let tasks = vec![t1.clone(), t2.clone()];
-        let sorted = sort(tasks.clone(), &config, &SortOrder::Todoist);
+        let sorted = sort(tasks.clone(), &config, SortOrder::Todoist);
         assert_eq!(sorted, tasks);
     }
 
@@ -1092,8 +1086,7 @@ mod tests {
             ..today.clone()
         };
         let tasks = vec![today.clone(), overdue.clone(), future.clone()];
-        let result =
-            filter_not_in_future(tasks, &config).expect("filter_not_in_future should not error");
+        let result = filter_not_in_future(tasks, &config);
         // today and overdue should remain; future should be filtered
         assert!(result.iter().any(|t| t.id == today.id));
         assert!(result.iter().any(|t| t.id == "overdue-id"));
@@ -1107,8 +1100,7 @@ mod tests {
             due: None,
             ..test::fixtures::today_task().await
         };
-        let result =
-            filter_not_in_future(vec![no_date.clone()], &config).expect("filter should not error");
+        let result = filter_not_in_future(vec![no_date.clone()], &config);
         assert_eq!(result.len(), 1);
         assert_eq!(result[0].id, no_date.id);
     }
@@ -1462,7 +1454,7 @@ mod tests {
             is_collapsed: false,
             parent_id: None,
             project_id: "123".into(),
-            description: "".into(),
+            description: String::new(),
             duration: Some(Duration {
                 amount: 123,
                 unit: Unit::Minute,
@@ -1552,7 +1544,7 @@ mod tests {
             parent_id: None,
             note_count: 1,
             content: "Get gifts for the twins".into(),
-            description: "".into(),
+            description: String::new(),
             project_id: "123".into(),
             labels: vec!["computer".into()],
             due: None,
@@ -1685,7 +1677,7 @@ mod tests {
     async fn test_display_task() {
         let task = test::fixtures::today_task().await;
         let string = String::from("TEST");
-        assert_eq!(string, task.to_string())
+        assert_eq!(string, task.to_string());
     }
     #[tokio::test]
     async fn test_deadline_value_when_today() {

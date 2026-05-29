@@ -31,14 +31,13 @@ pub async fn project(task: &Task, config: &Config, buffer: &str) -> Result<Strin
         .filter(|p| p.id == task.project_id)
         .collect::<Vec<Project>>();
 
-    let text = match maybe_project.first() {
-        Some(Project { name, .. }) => format!("\n{buffer}{project_icon} {name}"),
-        None => {
-            let command = color::cyan_string("tod project import --auto");
-            format!(
-                "\n{buffer}{project_icon} Project not in config\nUse {command} to import missing projects"
-            )
-        }
+    let text = if let Some(Project { name, .. }) = maybe_project.first() {
+        format!("\n{buffer}{project_icon} {name}")
+    } else {
+        let command = color::cyan_string("tod project import --auto");
+        format!(
+            "\n{buffer}{project_icon} Project not in config\nUse {command} to import missing projects"
+        )
     };
     Ok(text)
 }
@@ -66,7 +65,7 @@ pub fn due(task: &Task, config: &Config, buffer: &str) -> String {
             } else {
                 String::new()
             };
-            let date_string = time::date_to_string(date, config).unwrap_or_default();
+            let date_string = time::date_to_string(*date, config).unwrap_or_default();
 
             format!("\n{buffer}{due_icon} {date_string}{recurring_icon}")
         }
@@ -146,6 +145,7 @@ pub fn maybe_format_task_id(task_id: &str, config: &Config) -> String {
     }
 }
 
+#[allow(clippy::unused_async)]
 pub async fn render_comments(config: &Config, comments: Vec<Comment>) -> Result<String, Error> {
     let comment_icon = color::purple_string("★");
     let mut comments = comments
@@ -167,7 +167,7 @@ pub async fn render_comments(config: &Config, comments: Vec<Comment>) -> Result<
             max_comment_length,
             current_terminal_width(),
         );
-    };
+    }
 
     Ok(formatted_string)
 }

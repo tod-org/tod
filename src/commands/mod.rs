@@ -50,7 +50,7 @@ pub struct Cli {
     pub verbose: bool,
 
     #[arg(short, long)]
-    /// Absolute path to configuration file. Defaults to $XDG_CONFIG_HOME/tod.cfg
+    /// Absolute path to configuration file. Defaults to `$XDG_CONFIG_HOME/tod.cfg`
     pub config: Option<PathBuf>,
 
     #[arg(short, long)]
@@ -118,6 +118,7 @@ impl Display for FlagOptions {
     }
 }
 
+#[allow(clippy::too_many_lines)]
 pub async fn select_command(
     cli: Cli,
     tx: UnboundedSender<Error>,
@@ -519,12 +520,11 @@ async fn fetch_project(project_name: Option<&str>, config: &Config) -> Result<Fl
 }
 
 fn fetch_filter(filter: Option<&str>, config: &Config) -> Result<Flag, Error> {
-    match filter {
-        Some(string) => Ok(Flag::Filter(string.to_owned())),
-        None => {
-            let string = input::string(input::FILTER, config.mock_string.clone())?;
-            Ok(Flag::Filter(string))
-        }
+    if let Some(string) = filter {
+        Ok(Flag::Filter(string.to_owned()))
+    } else {
+        let string = input::string(input::FILTER, config.mock_string.clone())?;
+        Ok(Flag::Filter(string))
     }
 }
 
@@ -550,18 +550,17 @@ async fn fetch_project_or_filter(
     }
 }
 
-fn fetch_priority(priority: &Option<u8>, config: &Config) -> Result<Priority, Error> {
-    match priority::from_integer(priority) {
-        Some(priority) => Ok(priority),
-        None => {
-            let options = vec![
-                Priority::None,
-                Priority::Low,
-                Priority::Medium,
-                Priority::High,
-            ];
-            input::select(input::PRIORITY, options, config.mock_select)
-        }
+fn fetch_priority(priority: Option<u8>, config: &Config) -> Result<Priority, Error> {
+    if let Some(priority) = priority::from_integer(priority) {
+        Ok(priority)
+    } else {
+        let options = vec![
+            Priority::None,
+            Priority::Low,
+            Priority::Medium,
+            Priority::High,
+        ];
+        input::select(input::PRIORITY, options, config.mock_select)
     }
 }
 

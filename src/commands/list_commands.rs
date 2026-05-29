@@ -116,9 +116,9 @@ pub struct Label {
     /// The project containing the tasks
     project: Option<String>,
 
-    #[arg(short, long)]
+    #[arg(short = 'l', long = "label")]
     /// Labels to select from, if left blank this will be fetched from API
-    label: Vec<String>,
+    labels: Vec<String>,
 
     #[arg(short = 't', long, default_value_t = SortOrder::Value)]
     /// Choose how results should be sorted
@@ -185,7 +185,7 @@ pub async fn label(config: Config, args: &Label) -> Result<String, Error> {
     let Label {
         filter,
         project,
-        label: labels,
+        labels,
         sort,
     } = args;
     let labels = super::maybe_fetch_labels(&config, labels).await?;
@@ -238,7 +238,7 @@ fn select_file(path_or_file: String, config: &Config) -> Result<String, Error> {
     if Path::is_dir(path) {
         let mut options = WalkDir::new(path_or_file)
             .into_iter()
-            .filter_map(|e| e.ok())
+            .filter_map(std::result::Result::ok)
             .filter(is_md_file)
             .map(|e| {
                 e.path()
@@ -263,11 +263,9 @@ fn select_file(path_or_file: String, config: &Config) -> Result<String, Error> {
 }
 
 fn is_md_file(entry: &walkdir::DirEntry) -> bool {
-    entry
-        .file_name()
-        .to_str()
-        .unwrap_or_default()
-        .ends_with(".md")
+    std::path::Path::new(entry.file_name().to_str().unwrap_or_default())
+        .extension()
+        .is_some_and(|ext| ext.eq_ignore_ascii_case("md"))
 }
 
 pub async fn schedule(config: Config, args: &Schedule) -> Result<String, Error> {

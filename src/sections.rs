@@ -12,6 +12,7 @@ pub struct Section {
     pub added_at: String,
     pub updated_at: Option<String>,
     pub archived_at: Option<String>,
+    #[allow(clippy::struct_field_names)]
     pub section_order: i32,
     pub is_archived: bool,
     pub is_deleted: bool,
@@ -60,7 +61,7 @@ pub async fn select_section(config: &Config, project: &Project) -> Result<Option
         let section = sections
             .iter()
             .find(|x| x.name == section_name.as_str())
-            .map(|s| s.to_owned());
+            .map(std::borrow::ToOwned::to_owned);
         Ok(section)
     }
 }
