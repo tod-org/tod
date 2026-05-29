@@ -49,7 +49,7 @@ where
     }
 }
 
-/// App configuration, serialized as json in $`XDG_CONFIG_HOME/tod.cfg`
+/// App configuration, serialized as json in `$XDG_CONFIG_HOME/tod.cfg`
 #[derive(Clone, Serialize, Deserialize, Debug)]
 #[serde(default, deny_unknown_fields)]
 pub struct Config {
