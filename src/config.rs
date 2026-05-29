@@ -241,8 +241,8 @@ impl Config {
             Some(length) => length,
             None => {
                 if let Some((Width(width), Height(height))) = terminal_size() {
-                    let menu_height = u16::try_from(page_size());
-                    let comment_rows = height.saturating_sub(menu_height.expect("REASON"));
+                    let menu_height = u16::try_from(page_size()).unwrap_or(height);
+                    let comment_rows = height.saturating_sub(menu_height);
                     let estimated = u32::from(comment_rows) * u32::from(width);
                     estimated.min(MAX_COMMENT_LENGTH)
                 } else {
