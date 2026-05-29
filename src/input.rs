@@ -45,7 +45,7 @@ pub enum DateTimeInput {
 }
 
 /// Get datetime input from user
-/// skip_or_delete enables the skip and delete options
+/// `skip_or_delete` enables the skip and delete options
 /// it is generally true when processing tasks
 pub fn datetime(
     mock_select: Option<usize>,
@@ -79,12 +79,9 @@ pub fn datetime(
                 )?;
 
                 match entry.as_str() {
-                    "none" => Ok(DateTimeInput::None),
-                    "n" => Ok(DateTimeInput::None),
-                    "complete" => Ok(DateTimeInput::Complete),
-                    "c" => Ok(DateTimeInput::Complete),
-                    "skip" => Ok(DateTimeInput::Skip),
-                    "s" => Ok(DateTimeInput::Skip),
+                    "none" | "n" => Ok(DateTimeInput::None),
+                    "complete" | "c" => Ok(DateTimeInput::Complete),
+                    "skip" | "s" => Ok(DateTimeInput::Skip),
                     _ => Ok(DateTimeInput::Text(entry)),
                 }
             } else {
@@ -94,8 +91,7 @@ pub fn datetime(
                 )?;
 
                 match entry.as_str() {
-                    "none" => Ok(DateTimeInput::None),
-                    "n" => Ok(DateTimeInput::None),
+                    "none" | "n" => Ok(DateTimeInput::None),
                     _ => Ok(DateTimeInput::Text(entry)),
                 }
             }

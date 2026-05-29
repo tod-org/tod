@@ -77,7 +77,7 @@ pub async fn schedule(config: &Config, filter: &str, sort: &SortOrder) -> Result
         .flat_map(|(_, tasks)| tasks)
         .collect::<Vec<Task>>();
 
-    let tasks = tasks::sort(tasks, config, sort);
+    let tasks = tasks::sort(tasks, config, *sort);
 
     if tasks.is_empty() {
         Ok(color::green_string(&format!(
@@ -106,7 +106,7 @@ pub async fn deadline(config: &Config, filter: &str, sort: &SortOrder) -> Result
         .flat_map(|(_, tasks)| tasks)
         .collect::<Vec<Task>>();
 
-    let tasks = tasks::sort(tasks, config, sort);
+    let tasks = tasks::sort(tasks, config, *sort);
     let filtered_tasks: Vec<Task> = tasks
         .into_iter()
         .filter(|task| !task.filter(config, &TaskFilter::Recurring))

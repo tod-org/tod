@@ -1,4 +1,5 @@
 use clap::{Parser, Subcommand};
+use std::fmt::Write;
 
 use crate::{
     cargo::{self, Version},
@@ -72,7 +73,7 @@ pub struct About {}
 #[derive(Parser, Debug, Clone)]
 pub struct SetTimezone {
     #[arg(short, long)]
-    /// TimeZone to add, i.e. "Canada/Pacific"
+    /// `TimeZone` to add, i.e. "Canada/Pacific"
     timezone: Option<String>,
 }
 pub async fn check_version(args: &CheckVersion, mock_url: Option<String>) -> Result<String, Error> {
@@ -87,21 +88,22 @@ pub async fn check_version(args: &CheckVersion, mock_url: Option<String>) -> Res
             let msg = format!(
                 "Tod is out of date. Installed version: {VERSION}, Latest version: {latest}"
             );
-            let method = update::get_install_method_string(repo);
-            let upgrade_cmd = update::get_upgrade_command(repo);
+            let method = update::get_install_method_string(repo.as_deref());
+            let upgrade_cmd = update::get_upgrade_command(repo.as_deref());
             let method_msg = format!("Detected installation method: {method}");
             if *force {
                 // For testability, return the message instead of printing
                 let mut result = format!("{msg}\n{method_msg}");
-                match update::perform_auto_update(repo) {
+                match update::perform_auto_update(repo.as_deref()) {
                     Ok(_) => {
                         result.push_str("\nUpdate completed successfully.");
                         Ok(result)
                     }
                     Err(e) => {
-                        result.push_str(&format!(
+                        let _ = write!(
+                            result,
                             "\nAuto-update failed: {e}. To update manually: '{upgrade_cmd}'"
-                        ));
+                        );
                         Ok(result)
                     }
                 }
@@ -122,7 +124,7 @@ pub async fn check_version(args: &CheckVersion, mock_url: Option<String>) -> Res
                 };
 
                 if should_update {
-                    match update::perform_auto_update(repo) {
+                    match update::perform_auto_update(repo.as_deref()) {
                         Ok(msg) => Ok(msg),
                         Err(e) => Ok(format!(
                             "Auto-update failed: {e}. To update manually: '{upgrade_cmd}'"
@@ -162,7 +164,7 @@ where
 
     if Config::load(&path).await.is_ok() {
         return Ok(format!("Config file at {} is valid.", path.display()));
-    };
+    }
 
     let json = tokio::fs::read_to_string(&path).await?;
     let value: Value = serde_json::from_str(&json).map_err(|e| {
@@ -311,6 +313,7 @@ pub async fn set_timezone(config: Config, _args: &SetTimezone) -> Result<String,
     }
 }
 
+#[allow(clippy::unused_async)]
 pub async fn about(_args: &About) -> Result<String, Error> {
     Ok(format!(
         "APP:             {NAME}\nVERSION:         {VERSION}\nBUILD_PROFILE:   {BUILD_PROFILE}\nBUILD_TARGET:    {BUILD_TARGET}\nBUILD_TIMESTAMP: {BUILD_TIMESTAMP}"

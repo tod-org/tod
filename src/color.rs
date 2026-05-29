@@ -1,4 +1,4 @@
-use colored::*;
+use colored::{ColoredString, Colorize};
 
 fn apply_color(str: &str, color: fn(String) -> ColoredString) -> String {
     if cfg!(test) {

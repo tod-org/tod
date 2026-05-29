@@ -68,10 +68,10 @@ async fn main() {
 
     if exit_code == 0 {
         if bell_success {
-            terminal_bell()
+            terminal_bell();
         }
     } else if bell_error {
-        terminal_bell()
+        terminal_bell();
     }
 
     std::process::exit(exit_code);

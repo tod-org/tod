@@ -23,8 +23,8 @@ pub enum Version {
     Latest,
     Dated(String),
 }
-pub async fn compare_versions(_mock_url: Option<String>) -> Result<Version, Error> {
-    match get_latest_version(_mock_url).await {
+pub async fn compare_versions(mock_url: Option<String>) -> Result<Version, Error> {
+    match get_latest_version(mock_url).await {
         Ok(version) if version.as_str() != VERSION => Ok(Version::Dated(version)),
         Ok(_) => Ok(Version::Latest),
         Err(err) => Err(err),

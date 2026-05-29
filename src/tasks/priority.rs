@@ -1,7 +1,7 @@
 use crate::color;
 use std::fmt::Display;
 
-/// Add to all_priorities function if adding another priority
+/// Add to `all_priorities` function if adding another priority
 #[derive(
     serde_repr::Serialize_repr, serde_repr::Deserialize_repr, Debug, Copy, Clone, Eq, PartialEq,
 )]
@@ -35,7 +35,7 @@ impl Priority {
     }
 }
 
-pub fn from_integer(priority: &Option<u8>) -> Option<Priority> {
+pub fn from_integer(priority: Option<u8>) -> Option<Priority> {
     match priority {
         None => None,
         Some(1) => Some(Priority::None),
@@ -69,27 +69,27 @@ mod tests {
             Priority::High,
         ];
 
-        assert_eq!(result, expected)
+        assert_eq!(result, expected);
     }
 
     #[test]
     fn test_from_integer() {
-        let result = from_integer(&Some(1));
+        let result = from_integer(Some(1));
         let expected = Some(Priority::None);
 
         assert_eq!(result, expected);
 
-        let result = from_integer(&Some(4));
+        let result = from_integer(Some(4));
         let expected = Some(Priority::High);
 
         assert_eq!(result, expected);
 
         // All variants
-        assert_eq!(from_integer(&Some(2)), Some(Priority::Low));
-        assert_eq!(from_integer(&Some(3)), Some(Priority::Medium));
+        assert_eq!(from_integer(Some(2)), Some(Priority::Low));
+        assert_eq!(from_integer(Some(3)), Some(Priority::Medium));
 
         // None input
-        assert_eq!(from_integer(&None), None);
+        assert_eq!(from_integer(None), None);
     }
 
     #[test]

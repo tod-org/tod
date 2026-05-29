@@ -17,6 +17,7 @@ pub struct Completions {
     shell: Shell,
 }
 
+#[allow(clippy::unused_async)]
 pub async fn completions(args: &Completions) -> Result<String, Error> {
     shell::generate_completions(args.shell);
 

@@ -147,13 +147,13 @@ pub async fn quick_create_task(
 
     let json = request::post_todoist(config, &url, body, true).await?;
     maybe_run_command(config.task_create_command.as_deref(), config)?;
-    tasks::json_to_task(json)
+    tasks::json_to_task(&json)
 }
 
 pub async fn get_task(config: &Config, id: &str) -> Result<Task, Error> {
     let url = format!("{TASKS_URL}{id}");
     let json = request::get_todoist(config, &url, true).await?;
-    tasks::json_to_task(json)
+    tasks::json_to_task(&json)
 }
 
 pub async fn get_access_token(config: &Config, code: &str) -> Result<String, Error> {
@@ -162,7 +162,7 @@ pub async fn get_access_token(config: &Config, code: &str) -> Result<String, Err
 
     let json = request::post_todoist_no_token(config, &url, body, true).await?;
 
-    oauth::json_to_access_token(json).map(|t| t.access_token)
+    oauth::json_to_access_token(&json).map(|t| t.access_token)
 }
 
 /// Add Task without natural language support but supports additional parameters
@@ -211,7 +211,7 @@ pub async fn create_task(
 
     let json = request::post_todoist(config, url, body, true).await?;
     maybe_run_command(config.task_create_command.as_deref(), config)?;
-    tasks::json_to_task(json)
+    tasks::json_to_task(&json)
 }
 
 /// Get a vector of all tasks for a project
@@ -231,7 +231,7 @@ pub async fn all_tasks_by_project(
         let TaskResponse {
             results,
             next_cursor,
-        } = tasks::json_to_tasks_response(json)?;
+        } = tasks::json_to_tasks_response(&json)?;
 
         let results = filter_tasks_by_title(results, title_regex, config);
         tasks.extend(results);
@@ -276,7 +276,7 @@ pub async fn all_tasks_by_filter(
         let TaskResponse {
             results,
             next_cursor,
-        } = tasks::json_to_tasks_response(json)?;
+        } = tasks::json_to_tasks_response(&json)?;
 
         let results = filter_tasks_by_title(results, title_regex, config);
         tasks.extend(results);
@@ -286,7 +286,7 @@ pub async fn all_tasks_by_filter(
             Some(string) => {
                 url = format!("{TASKS_URL}filter?query={encoded}&limit={limit}&cursor={string}");
             }
-        };
+        }
     }
 
     Ok((filter.to_string(), tasks))
@@ -315,7 +315,7 @@ pub async fn all_sections_by_project(
                 url =
                     format!("{SECTIONS_URL}?project_id={project_id}&limit={limit}&cursor={string}");
             }
-        };
+        }
     }
     Ok(sections)
 }
@@ -330,14 +330,14 @@ pub async fn all_projects(config: &Config, limit: Option<u8>) -> Result<Vec<Proj
         let ProjectResponse {
             results,
             next_cursor,
-        } = projects::json_to_projects_response(json)?;
+        } = projects::json_to_projects_response(&json)?;
         projects.extend(results);
         match next_cursor {
             None => break,
             Some(string) => {
                 url = format!("{PROJECTS_URL}?limit={limit}&cursor={string}");
             }
-        };
+        }
     }
     Ok(projects)
 }
@@ -380,7 +380,7 @@ pub async fn move_task_to_project(
     let url = format!("{TASKS_URL}{task_id}/move");
 
     let response = request::post_todoist(config, &url, body, spinner).await?;
-    tasks::json_to_task(response)
+    tasks::json_to_task(&response)
 }
 
 pub async fn move_task_to_section(
@@ -395,7 +395,7 @@ pub async fn move_task_to_section(
     let url = format!("{TASKS_URL}{task_id}/move");
 
     let response = request::post_todoist(config, &url, body, spinner).await?;
-    tasks::json_to_task(response)
+    tasks::json_to_task(&response)
 }
 
 /// Update the priority of an task by ID
@@ -579,7 +579,7 @@ pub async fn create_project(
     let body = json!({"name": name, "description": description, "is_favorite": is_favorite});
 
     let json = request::post_todoist(config, &url, body, spinner).await?;
-    projects::json_to_project(json)
+    projects::json_to_project(&json)
 }
 
 pub async fn create_section(
@@ -606,7 +606,7 @@ pub async fn create_comment(
 
     let response = request::post_todoist(config, &url, body, spinner).await?;
     maybe_run_command(config.task_comment_command.as_deref(), config)?;
-    comments::json_to_comment(response)
+    comments::json_to_comment(&response)
 }
 
 pub async fn get_user_data(config: &Config) -> Result<User, Error> {
@@ -634,7 +634,7 @@ pub async fn all_comments(
         let CommentResponse {
             results,
             next_cursor,
-        } = comments::json_to_comment_response(json)?;
+        } = comments::json_to_comment_response(&json)?;
 
         comments.extend(results.into_iter().filter(|c| {
             !c.is_deleted
@@ -650,7 +650,7 @@ pub async fn all_comments(
                 url =
                     format!("{COMMENTS_URL}?task_id={task_id}&limit={QUERY_LIMIT}&cursor={cursor}");
             }
-        };
+        }
     }
 
     Ok(comments)
@@ -671,7 +671,7 @@ fn maybe_run_command(command: Option<&str>, config: &Config) -> Result<(), Error
     Ok(())
 }
 
-/// Filters (Excludes) tasks based on task title and configured task_exclude_regex
+/// Filters (Excludes) tasks based on task title and configured `task_exclude_regex`
 pub fn filter_tasks_by_title(
     tasks: Vec<Task>,
     regex: Option<&Regex>,

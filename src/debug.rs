@@ -6,7 +6,7 @@ const TOKEN_LENGTH: usize = 40;
 // Print a debug statement if in verbose mode
 pub fn maybe_print(config: &Config, text: &str) {
     if config.verbose.unwrap_or_default() || config.args.verbose {
-        print(text)
+        print(text);
     }
 }
 

@@ -130,7 +130,7 @@ pub async fn remove(config: &mut Config, args: &Remove) -> Result<String, Error>
         (false, false) => loop {
             let project = match super::fetch_project(project.as_deref(), config).await? {
                 Flag::Project(project) => project,
-                _ => unreachable!(),
+                Flag::Filter(_) => unreachable!(),
             };
             let value = projects::remove(config, &project).await;
 
@@ -147,7 +147,7 @@ pub async fn delete(config: &mut Config, args: &Delete) -> Result<String, Error>
     loop {
         let project = match super::fetch_project(project.as_deref(), config).await? {
             Flag::Project(project) => project,
-            _ => unreachable!(),
+            Flag::Filter(_) => unreachable!(),
         };
         let tasks = todoist::all_tasks_by_project(config, &project, None).await?;
 
@@ -174,7 +174,7 @@ pub async fn rename(config: &mut Config, args: &Rename) -> Result<String, Error>
     let Rename { project } = args;
     let project = match super::fetch_project(project.as_deref(), config).await? {
         Flag::Project(project) => project,
-        _ => unreachable!(),
+        Flag::Filter(_) => unreachable!(),
     };
     debug::maybe_print(
         config,
@@ -193,7 +193,7 @@ pub async fn empty(config: &mut Config, args: &Empty) -> Result<String, Error> {
     let Empty { project } = args;
     let project = match super::fetch_project(project.as_deref(), config).await? {
         Flag::Project(project) => project,
-        _ => unreachable!(),
+        Flag::Filter(_) => unreachable!(),
     };
 
     projects::empty(config, &project).await
