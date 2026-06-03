@@ -42,7 +42,7 @@ walkdir = "2.5.0"
 strum = { version = "0.28.0", features = ["strum_macros"] }
 strum_macros = "0.28.0"
 axum = "0.8.9"
-serde_regex = "1.1.0"
+serde_regex = "1.2.0"
 open = "5.3.5"
 edit = "0.1.5"
 
