@@ -45,6 +45,13 @@ pub struct ProjectResponse {
     pub next_cursor: Option<String>,
 }
 
+impl ProjectResponse {
+    pub fn from_json(json: &str) -> Result<ProjectResponse, Error> {
+        let response: ProjectResponse = serde_json::from_str(json)?;
+        Ok(response)
+    }
+}
+
 pub enum TaskFilter {
     /// Does not have a date or datetime on it
     Unscheduled,
@@ -59,15 +66,13 @@ impl Display for Project {
         write!(f, "{}\n{}/{}", self.name, PROJECT_URL, self.id)
     }
 }
-pub fn json_to_project(json: &str) -> Result<Project, Error> {
-    let project: Project = serde_json::from_str(json)?;
-    Ok(project)
-}
-pub fn json_to_projects_response(json: &str) -> Result<ProjectResponse, Error> {
-    let response: ProjectResponse = serde_json::from_str(json)?;
-    Ok(response)
-}
 
+impl Project {
+    pub fn from_json(json: &str) -> Result<Project, Error> {
+        let project: Project = serde_json::from_str(json)?;
+        Ok(project)
+    }
+}
 pub async fn create(
     config: &mut Config,
     name: String,
@@ -1008,28 +1013,28 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_json_to_project_valid() {
+    async fn test_project_from_json_valid() {
         let json = ResponseFromFile::Project.read().await;
-        let project = json_to_project(&json).expect("should parse project JSON");
+        let project = Project::from_json(&json).expect("should parse project JSON");
         assert_eq!(project.name, "Doomsday");
     }
 
     #[test]
-    fn test_json_to_project_invalid() {
-        let result = json_to_project("not json");
+    fn test_project_from_json_invalid() {
+        let result = Project::from_json("not json");
         assert!(result.is_err());
     }
 
     #[tokio::test]
-    async fn test_json_to_projects_response_valid() {
+    async fn test_project_response_from_json_valid() {
         let json = ResponseFromFile::Projects.read().await;
-        let response = json_to_projects_response(&json).expect("should parse projects response");
+        let response = ProjectResponse::from_json(&json).expect("should parse projects response");
         assert!(!response.results.is_empty());
     }
 
     #[test]
-    fn test_json_to_projects_response_invalid() {
-        let result = json_to_projects_response("not json");
+    fn test_project_response_from_json_invalid() {
+        let result = ProjectResponse::from_json("not json");
         assert!(result.is_err());
     }
 
@@ -1057,7 +1062,7 @@ mod tests {
         }"#;
 
         let project =
-            json_to_project(json).expect("should deserialize project with negative order");
+            Project::from_json(json).expect("should deserialize project with negative order");
 
         assert_eq!(project.child_order, -1);
         assert_eq!(project.default_order, -1);
@@ -1087,7 +1092,7 @@ mod tests {
         }"#;
 
         let project =
-            json_to_project(json).expect("should deserialize project with negative child order");
+            Project::from_json(json).expect("should deserialize project with negative child order");
 
         assert_eq!(project.child_order, -1);
         assert_eq!(project.default_order, 1);

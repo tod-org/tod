@@ -51,10 +51,26 @@ pub struct Task {
     pub day_order: i16,
 }
 
+impl Task {
+    /// Converts a JSON string to a single task (creates a single task from a JSON string)
+    pub fn from_json(json: &str) -> Result<Task, Error> {
+        let task: Task = serde_json::from_str(json)?;
+        Ok(task)
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 pub struct TaskResponse {
     pub results: Vec<Task>,
     pub next_cursor: Option<String>,
+}
+
+impl TaskResponse {
+    /// Converts a JSON String to a list of multiple tasks (creates a `TaskResponse` from a JSON string)
+    pub fn from_json(json: &str) -> Result<TaskResponse, Error> {
+        let response: TaskResponse = serde_json::from_str(json)?;
+        Ok(response)
+    }
 }
 
 // Update task_attributes fn when adding here
@@ -888,17 +904,6 @@ pub fn spawn_update_task_priority(
     })
 }
 
-/// Converts a JSON string to a single task (creates a single task from a JSON string)
-pub fn json_to_task(json: &str) -> Result<Task, Error> {
-    let task: Task = serde_json::from_str(json)?;
-    Ok(task)
-}
-/// Converts a JSON String to a list of multiple tasks (creates a `TaskResponse` from a JSON string)
-pub fn json_to_tasks_response(json: &str) -> Result<TaskResponse, Error> {
-    let response: TaskResponse = serde_json::from_str(json)?;
-    Ok(response)
-}
-
 pub fn sort_by_value(mut tasks: Vec<Task>, config: &Config) -> Vec<Task> {
     tasks.sort_by_key(|b| Reverse(b.value(config)));
     tasks
@@ -1013,29 +1018,29 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     #[tokio::test]
-    async fn test_json_to_task_valid() {
+    async fn test_task_from_json_valid() {
         let json = ResponseFromFile::TodayTask.read().await;
-        let task = json_to_task(&json).expect("should parse TodayTask JSON");
+        let task = Task::from_json(&json).expect("should parse TodayTask JSON");
         assert_eq!(task.content, "TEST");
         assert_eq!(task.user_id, "910");
     }
 
     #[test]
-    fn test_json_to_task_invalid() {
-        let result = json_to_task("not json");
+    fn test_task_from_json_invalid() {
+        let result = Task::from_json("not json");
         assert!(result.is_err());
     }
 
     #[tokio::test]
-    async fn test_json_to_tasks_response_valid() {
+    async fn test_task_response_from_json_valid() {
         let json = ResponseFromFile::TodayTasks.read().await;
-        let response = json_to_tasks_response(&json).expect("should parse TodayTasks JSON");
+        let response = TaskResponse::from_json(&json).expect("should parse TodayTasks JSON");
         assert!(!response.results.is_empty());
     }
 
     #[test]
-    fn test_json_to_tasks_response_invalid() {
-        let result = json_to_tasks_response("not json");
+    fn test_task_response_from_json_invalid() {
+        let result = TaskResponse::from_json("not json");
         assert!(result.is_err());
     }
 

@@ -18,11 +18,24 @@ pub struct Comment {
     pub item_id: String,
     pub file_attachment: Option<Attachment>,
 }
+impl Comment {
+    pub fn from_json(json: &str) -> Result<Comment, Error> {
+        let comment: Comment = serde_json::from_str(json)?;
+        Ok(comment)
+    }
+}
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 pub struct CommentResponse {
     pub results: Vec<Comment>,
     pub next_cursor: Option<String>,
+}
+
+impl CommentResponse {
+    pub fn from_json(json: &str) -> Result<CommentResponse, Error> {
+        let response: CommentResponse = serde_json::from_str(json)?;
+        Ok(response)
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
@@ -153,20 +166,9 @@ impl Comment {
     }
 }
 
-pub fn json_to_comment_response(json: &str) -> Result<CommentResponse, Error> {
-    let response: CommentResponse = serde_json::from_str(json)?;
-    Ok(response)
-}
-
-pub fn json_to_comment(json: &str) -> Result<Comment, Error> {
-    let comment: Comment = serde_json::from_str(json)?;
-    Ok(comment)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::comments::json_to_comment_response;
     use crate::test::fixtures;
     use crate::test::responses::ResponseFromFile;
     use pretty_assertions::assert_eq;
@@ -174,7 +176,7 @@ mod tests {
     async fn load_comments() -> Vec<Comment> {
         let json = ResponseFromFile::CommentsAllTypes.read().await;
         let response =
-            json_to_comment_response(&json).expect("Failed to parse JSON to comment response");
+            CommentResponse::from_json(&json).expect("Failed to parse JSON to comment response");
         response
             .results
             .into_iter()
@@ -291,7 +293,7 @@ mod tests {
     }
 
     #[test]
-    fn test_json_to_comment_valid() {
+    fn test_comment_from_json_valid() {
         let json = r#"{
             "id": "c1",
             "posted_uid": null,
@@ -303,20 +305,20 @@ mod tests {
             "item_id": "task1",
             "file_attachment": null
         }"#;
-        let comment = json_to_comment(json).expect("should parse comment JSON");
+        let comment = Comment::from_json(json).expect("should parse comment JSON");
         assert_eq!(comment.id, "c1");
         assert_eq!(comment.content, "Hello world");
         assert!(!comment.is_deleted);
     }
 
     #[test]
-    fn test_json_to_comment_invalid() {
-        let result = json_to_comment("not json");
+    fn test_comment_from_json_invalid() {
+        let result = Comment::from_json("not json");
         assert!(result.is_err());
     }
 
     #[test]
-    fn test_json_to_comment_response_valid() {
+    fn test_comment_response_from_json_valid() {
         let json = r#"{
             "results": [
                 {
@@ -333,15 +335,16 @@ mod tests {
             ],
             "next_cursor": null
         }"#;
-        let response = json_to_comment_response(json).expect("should parse comment response JSON");
+        let response =
+            CommentResponse::from_json(json).expect("should parse comment response JSON");
         assert_eq!(response.results.len(), 1);
         assert_eq!(response.results[0].content, "Test");
         assert!(response.next_cursor.is_none());
     }
 
     #[test]
-    fn test_json_to_comment_response_invalid() {
-        let result = json_to_comment_response("not json");
+    fn test_comment_response_from_json_invalid() {
+        let result = CommentResponse::from_json("not json");
         assert!(result.is_err());
     }
 
@@ -440,7 +443,7 @@ mod tests {
         }
         "#;
 
-        let mut comments = json_to_comment_response(json)
+        let mut comments = CommentResponse::from_json(json)
             .expect("Could not convert JSON into comment response")
             .results;
 

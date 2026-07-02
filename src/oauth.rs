@@ -34,6 +34,12 @@ struct Params {
 pub struct AccessToken {
     pub access_token: String,
 }
+impl AccessToken {
+    pub fn from_json(json: &str) -> Result<AccessToken, Error> {
+        let token: AccessToken = serde_json::from_str(json)?;
+        Ok(token)
+    }
+}
 
 pub async fn login(config: &mut Config, test_tx: Option<Sender<()>>) -> Result<String, Error> {
     // Use the provided config, not a new default every time
@@ -128,11 +134,6 @@ async fn receive_callback(
             "state doesn't match csrf token",
         ))
     }
-}
-
-pub fn json_to_access_token(json: &str) -> Result<AccessToken, Error> {
-    let token: AccessToken = serde_json::from_str(json)?;
-    Ok(token)
 }
 
 /// Create a new UUID, required for Todoist OAuth

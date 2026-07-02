@@ -8,17 +8,15 @@ use crate::comments::{Comment, CommentResponse};
 use crate::config::Config;
 use crate::debug::maybe_print;
 use crate::errors::Error;
-use crate::labels::{self, Label, LabelResponse};
-use crate::oauth::{CLIENT_ID, CLIENT_SECRET};
+use crate::labels::{Label, LabelResponse};
+use crate::oauth::{AccessToken, CLIENT_ID, CLIENT_SECRET};
 use crate::projects::{Project, ProjectResponse};
 use crate::sections::{Section, SectionResponse};
 use crate::shell::execute_command;
 use crate::tasks::priority::Priority;
 use crate::tasks::{Task, TaskResponse};
-use crate::users;
 use crate::users::User;
-use crate::{color, projects, sections, tasks, time};
-use crate::{comments, oauth};
+use crate::{color, time};
 use regex::Regex;
 
 // TODOIST URLS
@@ -147,13 +145,13 @@ pub async fn quick_create_task(
 
     let json = request::post_todoist(config, &url, body, true).await?;
     maybe_run_command(config.task_create_command.as_deref(), config)?;
-    tasks::json_to_task(&json)
+    Task::from_json(&json)
 }
 
 pub async fn get_task(config: &Config, id: &str) -> Result<Task, Error> {
     let url = format!("{TASKS_URL}{id}");
     let json = request::get_todoist(config, &url, true).await?;
-    tasks::json_to_task(&json)
+    Task::from_json(&json)
 }
 
 pub async fn get_access_token(config: &Config, code: &str) -> Result<String, Error> {
@@ -162,7 +160,7 @@ pub async fn get_access_token(config: &Config, code: &str) -> Result<String, Err
 
     let json = request::post_todoist_no_token(config, &url, body, true).await?;
 
-    oauth::json_to_access_token(&json).map(|t| t.access_token)
+    AccessToken::from_json(&json).map(|t| t.access_token)
 }
 
 /// Add Task without natural language support but supports additional parameters
@@ -211,7 +209,7 @@ pub async fn create_task(
 
     let json = request::post_todoist(config, url, body, true).await?;
     maybe_run_command(config.task_create_command.as_deref(), config)?;
-    tasks::json_to_task(&json)
+    Task::from_json(&json)
 }
 
 /// Get a vector of all tasks for a project
@@ -231,7 +229,7 @@ pub async fn all_tasks_by_project(
         let TaskResponse {
             results,
             next_cursor,
-        } = tasks::json_to_tasks_response(&json)?;
+        } = TaskResponse::from_json(&json)?;
 
         let results = filter_tasks_by_title(results, title_regex, config);
         tasks.extend(results);
@@ -276,7 +274,7 @@ pub async fn all_tasks_by_filter(
         let TaskResponse {
             results,
             next_cursor,
-        } = tasks::json_to_tasks_response(&json)?;
+        } = TaskResponse::from_json(&json)?;
 
         let results = filter_tasks_by_title(results, title_regex, config);
         tasks.extend(results);
@@ -307,7 +305,7 @@ pub async fn all_sections_by_project(
         let SectionResponse {
             results,
             next_cursor,
-        } = sections::json_to_sections_response(&json)?;
+        } = SectionResponse::from_json(&json)?;
         sections.extend(results);
         match next_cursor {
             None => break,
@@ -330,7 +328,7 @@ pub async fn all_projects(config: &Config, limit: Option<u8>) -> Result<Vec<Proj
         let ProjectResponse {
             results,
             next_cursor,
-        } = projects::json_to_projects_response(&json)?;
+        } = ProjectResponse::from_json(&json)?;
         projects.extend(results);
         match next_cursor {
             None => break,
@@ -355,7 +353,7 @@ pub async fn all_labels(
         let LabelResponse {
             results,
             next_cursor,
-        } = labels::json_to_labels_response(&json)?;
+        } = LabelResponse::from_json(&json)?;
         labels.extend(results);
         match next_cursor {
             None => break,
@@ -380,7 +378,7 @@ pub async fn move_task_to_project(
     let url = format!("{TASKS_URL}{task_id}/move");
 
     let response = request::post_todoist(config, &url, body, spinner).await?;
-    tasks::json_to_task(&response)
+    Task::from_json(&response)
 }
 
 pub async fn move_task_to_section(
@@ -395,7 +393,7 @@ pub async fn move_task_to_section(
     let url = format!("{TASKS_URL}{task_id}/move");
 
     let response = request::post_todoist(config, &url, body, spinner).await?;
-    tasks::json_to_task(&response)
+    Task::from_json(&response)
 }
 
 /// Update the priority of an task by ID
@@ -579,7 +577,7 @@ pub async fn create_project(
     let body = json!({"name": name, "description": description, "is_favorite": is_favorite});
 
     let json = request::post_todoist(config, &url, body, spinner).await?;
-    projects::json_to_project(&json)
+    Project::from_json(&json)
 }
 
 pub async fn create_section(
@@ -592,7 +590,7 @@ pub async fn create_section(
     let body = json!({"name": name, "project_id": project.id});
 
     let json = request::post_todoist(config, &url, body, spinner).await?;
-    sections::json_to_section(&json)
+    Section::from_json(&json)
 }
 
 pub async fn create_comment(
@@ -606,13 +604,13 @@ pub async fn create_comment(
 
     let response = request::post_todoist(config, &url, body, spinner).await?;
     maybe_run_command(config.task_comment_command.as_deref(), config)?;
-    comments::json_to_comment(&response)
+    Comment::from_json(&response)
 }
 
 pub async fn get_user_data(config: &Config) -> Result<User, Error> {
     let url = USER_URL.to_string();
     let json = request::get_todoist(config, &url, true).await?;
-    users::json_to_user(&json)
+    User::from_json(&json)
 }
 
 /// Returns all of the comments for a task from the Todoist JSON API
@@ -634,7 +632,7 @@ pub async fn all_comments(
         let CommentResponse {
             results,
             next_cursor,
-        } = comments::json_to_comment_response(&json)?;
+        } = CommentResponse::from_json(&json)?;
 
         comments.extend(results.into_iter().filter(|c| {
             !c.is_deleted
