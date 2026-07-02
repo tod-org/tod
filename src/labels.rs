@@ -18,7 +18,12 @@ pub struct LabelResponse {
     pub results: Vec<Label>,
     pub next_cursor: Option<String>,
 }
-
+impl LabelResponse {
+    pub fn from_json(json: &str) -> Result<LabelResponse, Error> {
+        let response: LabelResponse = serde_json::from_str(json)?;
+        Ok(response)
+    }
+}
 impl Display for Label {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let name = self.name.clone();
@@ -27,11 +32,6 @@ impl Display for Label {
 }
 pub async fn get_labels(config: &Config, spinner: bool) -> Result<Vec<Label>, Error> {
     todoist::all_labels(config, spinner, None).await
-}
-
-pub fn json_to_labels_response(json: &str) -> Result<LabelResponse, Error> {
-    let response: LabelResponse = serde_json::from_str(json)?;
-    Ok(response)
 }
 
 #[cfg(test)]
@@ -52,9 +52,9 @@ mod tests {
     }
 
     #[test]
-    fn test_json_to_labels_response_valid() {
+    fn test_from_json_response_valid() {
         let json = r#"{"results":[{"id":"1","name":"work","color":"red","order":1,"is_favorite":false}],"next_cursor":null}"#;
-        let response = json_to_labels_response(json).expect("should parse labels response");
+        let response = LabelResponse::from_json(json).expect("should parse labels response");
         assert_eq!(response.results.len(), 1);
         assert_eq!(response.results[0].name, "work");
         assert_eq!(response.results[0].color, "red");
@@ -62,17 +62,17 @@ mod tests {
     }
 
     #[test]
-    fn test_json_to_labels_response_with_cursor() {
+    fn test_from_json_response_with_cursor() {
         let json = r#"{"results":[],"next_cursor":"abc123"}"#;
         let response =
-            json_to_labels_response(json).expect("should parse labels response with cursor");
+            LabelResponse::from_json(json).expect("should parse labels response with cursor");
         assert!(response.results.is_empty());
         assert_eq!(response.next_cursor, Some("abc123".to_string()));
     }
 
     #[test]
-    fn test_json_to_labels_response_invalid() {
-        let result = json_to_labels_response("not json");
+    fn test_from_json_response_invalid() {
+        let result = LabelResponse::from_json("not json");
         assert!(result.is_err());
     }
 }

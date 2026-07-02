@@ -19,10 +19,24 @@ pub struct Section {
     pub is_collapsed: bool,
 }
 
+impl Section {
+    pub fn from_json(json: &str) -> Result<Section, Error> {
+        let section: Section = serde_json::from_str(json)?;
+        Ok(section)
+    }
+}
+
 #[derive(PartialEq, Deserialize, Clone, Debug)]
 pub struct SectionResponse {
     pub results: Vec<Section>,
     pub next_cursor: Option<String>,
+}
+
+impl SectionResponse {
+    pub fn from_json(json: &str) -> Result<SectionResponse, Error> {
+        let response: SectionResponse = serde_json::from_str(json)?;
+        Ok(response)
+    }
 }
 
 // Fetch all sections for all projects
@@ -38,15 +52,6 @@ pub async fn all_sections(config: &mut Config) -> Result<Vec<Section>, Error> {
 
     let sections = var.into_iter().filter_map(Result::ok).flatten().collect();
     Ok(sections)
-}
-
-pub fn json_to_section(json: &str) -> Result<Section, Error> {
-    let section: Section = serde_json::from_str(json)?;
-    Ok(section)
-}
-pub fn json_to_sections_response(json: &str) -> Result<SectionResponse, Error> {
-    let response: SectionResponse = serde_json::from_str(json)?;
-    Ok(response)
 }
 
 pub async fn select_section(config: &Config, project: &Project) -> Result<Option<Section>, Error> {
@@ -88,21 +93,22 @@ mod tests {
             "is_collapsed": false
         }"#;
 
-        let result = json_to_section(json).expect("should deserialize section with negative order");
+        let result =
+            Section::from_json(json).expect("should deserialize section with negative order");
 
         assert_eq!(result.section_order, -1);
         assert_eq!(result.name, "Top Section");
     }
 
     #[test]
-    fn json_to_section_invalid_json_returns_error() {
-        let result = json_to_section("not json");
+    fn test_section_from_json_invalid_json_returns_error() {
+        let result = Section::from_json("not json");
         assert!(result.is_err());
     }
 
     #[test]
-    fn json_to_sections_response_invalid_json_returns_error() {
-        let result = json_to_sections_response("not json");
+    fn section_response_from_json_invalid_json_returns_error() {
+        let result = SectionResponse::from_json("not json");
         assert!(result.is_err());
     }
 
@@ -121,7 +127,7 @@ mod tests {
             is_deleted: false,
             is_collapsed: false,
         }];
-        let result = json_to_sections_response(&ResponseFromFile::Sections.read().await)
+        let result = SectionResponse::from_json(&ResponseFromFile::Sections.read().await)
             .expect("expected value or result, got None or Err")
             .results;
         assert_eq!(result, sections);
