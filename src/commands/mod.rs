@@ -340,6 +340,17 @@ pub async fn select_command(
                 list_commands::prioritize(config, args).await,
             )
         }
+        Commands::List(ListCommands::Remind(args)) => {
+            let config = match fetch_config(&cli, &tx).await {
+                Ok(config) => config,
+                Err(e) => return (true, true, Err(e)),
+            };
+            (
+                config.bell_on_success,
+                config.bell_on_failure,
+                list_commands::remind(config, args).await,
+            )
+        }
         Commands::List(ListCommands::Label(args)) => {
             let config = match fetch_config(&cli, &tx).await {
                 Ok(config) => config,

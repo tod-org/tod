@@ -214,6 +214,23 @@ pub async fn create_task(
     Task::from_json(&json)
 }
 
+/// Create a reminder for a task
+#[allow(clippy::too_many_arguments)]
+pub async fn create_reminder(
+    config: &Config,
+    task: &Task,
+    due_string: &str,
+    spinner: bool,
+) -> Result<Reminder, Error> {
+    let task_id = task.id.clone();
+    let url = REMINDERS_URL;
+    let body =
+        json!({"task_id": task_id, "reminder_type": "absolute", "due": {"string": due_string}});
+    let json = request::post_todoist(config, url, body, spinner).await?;
+
+    Reminder::from_json(&json)
+}
+
 /// Get a vector of all tasks for a project
 pub async fn all_tasks_by_project(
     config: &Config,

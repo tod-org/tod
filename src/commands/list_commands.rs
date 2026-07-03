@@ -25,8 +25,12 @@ pub enum ListCommands {
     /// (z) Give every task a priority
     Prioritize(Prioritize),
 
+    #[clap(alias = "r")]
+    /// (r) Assign reminders to tasks that do not already have a reminder
+    Remind(Remind),
+
     #[clap(alias = "t")]
-    /// (t) Give every task at date, time, and length
+    /// (t) Give every task a date, time, and duration
     Timebox(Timebox),
 
     #[clap(alias = "l")]
@@ -83,7 +87,7 @@ pub struct Timebox {
     project: Option<String>,
 
     #[arg(short, long)]
-    /// The filter containing the tasks, does not filter out tasks with durations unless specified in filter. Can add multiple filters separated by commas.
+    /// The filter containing the tasks. It does not filter out tasks with durations unless specified in the filter. Can add multiple filters separated by commas.
     filter: Option<String>,
 
     #[arg(short = 't', long, default_value_t = SortOrder::Value)]
@@ -93,6 +97,21 @@ pub struct Timebox {
 
 #[derive(Parser, Debug, Clone)]
 pub struct Prioritize {
+    #[arg(short, long)]
+    /// The project containing the tasks
+    project: Option<String>,
+
+    #[arg(short, long)]
+    /// The filter containing the tasks. Can add multiple filters separated by commas.
+    filter: Option<String>,
+
+    #[arg(short = 't', long, default_value_t = SortOrder::Value)]
+    /// Choose how results should be sorted
+    sort: SortOrder,
+}
+
+#[derive(Parser, Debug, Clone)]
+pub struct Remind {
     #[arg(short, long)]
     /// The project containing the tasks
     project: Option<String>,
@@ -225,6 +244,17 @@ pub async fn prioritize(config: Config, args: &Prioritize) -> Result<String, Err
     let flag =
         super::fetch_project_or_filter(project.as_deref(), filter.as_deref(), &config).await?;
     lists::prioritize(&config, flag, sort).await
+}
+
+pub async fn remind(config: Config, args: &Remind) -> Result<String, Error> {
+    let Remind {
+        project,
+        filter,
+        sort,
+    } = args;
+    let flag =
+        super::fetch_project_or_filter(project.as_deref(), filter.as_deref(), &config).await?;
+    lists::remind(&config, flag, sort).await
 }
 pub async fn import(config: Config, args: &Import) -> Result<String, Error> {
     let Import { path } = args;
