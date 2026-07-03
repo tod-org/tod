@@ -74,48 +74,6 @@ pub async fn today_task() -> Task {
     }
 }
 
-pub async fn task(days_in_future: i64) -> Task {
-    let date = adjusted_date(days_in_future).await;
-    Task {
-        id: "6Xqhv4cwxgjwG9w8".into(),
-        section_id: None,
-        added_by_uid: Some("633166".into()),
-        added_at: Some(format!("{date}T22:29:34.404051Z")),
-        child_order: 1,
-        day_order: -1,
-        responsible_uid: None,
-        assigned_by_uid: None,
-        updated_at: Some(format!("{date}T22:32:46.415849Z")),
-        deadline: Some(Deadline {
-            lang: "en".into(),
-            date: date.clone(),
-        }),
-        completed_at: None,
-        is_collapsed: false,
-        user_id: "910".into(),
-        content: "TEST".into(),
-        checked: false,
-        duration: Some(Duration {
-            amount: 15,
-            unit: Unit::Minute,
-        }),
-        parent_id: None,
-        note_count: 0,
-        project_id: "6VRRxv8CM6GVmmgf".into(),
-        labels: vec!["computer".into()],
-        description: String::new(),
-        due: Some(DateInfo {
-            date: format!("{date}T12:00:00Z"),
-            lang: "en".into(),
-            is_recurring: false,
-            timezone: Some("America/Vancouver".into()),
-            string: format!("{date} 15:00"),
-        }),
-        priority: Priority::Medium,
-        is_deleted: false,
-    }
-}
-
 pub async fn config() -> Config {
     let (tx, _rx) = tokio::sync::mpsc::unbounded_channel::<Error>();
 

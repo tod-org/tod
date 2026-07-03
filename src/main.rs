@@ -27,6 +27,7 @@ mod errors;
 mod filters;
 mod input;
 mod labels;
+mod legacy;
 mod lists;
 mod oauth;
 mod projects;

@@ -1,6 +1,8 @@
 //! For config functions that operate on the filesystem
 
-use crate::config::{Args, Internal, SortValue};
+use crate::config::{Args, Internal};
+#[cfg(test)]
+use crate::config::{SortDirection, SortKey, SortRule};
 use crate::{color, debug, input};
 use crate::{config::Config, errors::Error};
 use inquire::Confirm;
@@ -63,16 +65,7 @@ impl Config {
 
         let config: Config =
             serde_json::from_str(&json).map_err(|e| config_load_error(&e, path))?;
-        let config = if config.sort_value.is_none() {
-            Config {
-                sort_value: Some(SortValue::default()),
-                ..config
-            }
-        } else {
-            config
-        };
-
-        Ok(config)
+        Ok(config.with_default_sort_order())
     }
 
     pub async fn reload(&self) -> Result<Self, Error> {
@@ -442,14 +435,12 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn load_should_fail_on_invalid_u8_value() {
-        let (_temp_dir, bad_config_path) = temp_config_path("bad_config_invalid_u8.cfg");
+    async fn load_should_fail_on_invalid_sort_order_value() {
+        let (_temp_dir, bad_config_path) = temp_config_path("bad_config_invalid_sort_order.cfg");
         let contents = serde_json::json!({
             "token": "abc123",
             "path": bad_config_path,
-            "sort_value": {
-                "priority_none": 500
-            }
+            "sort_order": ["not_a_sort_key"]
         })
         .to_string();
 
@@ -458,7 +449,118 @@ mod tests {
             .expect("Could not write to file");
 
         let result = Config::load(&bad_config_path).await;
-        assert!(result.is_err(), "Expected error from invalid u8");
+        assert!(result.is_err(), "Expected error from invalid sort order");
+    }
+
+    #[tokio::test]
+    async fn load_should_accept_order_sort_key() {
+        let (_temp_dir, path) = temp_config_path("order_sort_key.cfg");
+        let contents = serde_json::json!({
+            "path": path,
+            "sort_order": ["order"]
+        })
+        .to_string();
+
+        tokio::fs::write(&path, contents)
+            .await
+            .expect("Could not write to file");
+
+        let config = Config::load(&path)
+            .await
+            .expect("order should be a valid sort key");
+
+        assert_eq!(
+            config.sort_order,
+            Some(vec![SortRule::new(SortKey::Order, SortDirection::Asc)])
+        );
+    }
+
+    #[tokio::test]
+    async fn load_should_accept_explicit_sort_direction() {
+        let (_temp_dir, path) = temp_config_path("explicit_sort_direction.cfg");
+        let contents = serde_json::json!({
+            "path": path,
+            "sort_order": ["priority:asc", "order:desc"]
+        })
+        .to_string();
+
+        tokio::fs::write(&path, contents)
+            .await
+            .expect("Could not write to file");
+
+        let config = Config::load(&path)
+            .await
+            .expect("explicit sort directions should load");
+
+        assert_eq!(
+            config.sort_order,
+            Some(vec![
+                SortRule::new(SortKey::Priority, SortDirection::Asc),
+                SortRule::new(SortKey::Order, SortDirection::Desc),
+            ])
+        );
+    }
+
+    #[tokio::test]
+    async fn load_should_reject_invalid_sort_direction() {
+        let (_temp_dir, path) = temp_config_path("invalid_sort_direction.cfg");
+        let contents = serde_json::json!({
+            "path": path,
+            "sort_order": ["priority:sideways"]
+        })
+        .to_string();
+
+        tokio::fs::write(&path, contents)
+            .await
+            .expect("Could not write to file");
+
+        assert!(Config::load(&path).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn load_should_migrate_legacy_sort_value_to_sort_order() {
+        let (_temp_dir, path) = temp_config_path("legacy_sort_value.cfg");
+        let contents = serde_json::json!({
+            "token": "abc123",
+            "path": path,
+            "sort_value": {
+                "priority_none": 2,
+                "priority_low": 1,
+                "priority_medium": 3,
+                "priority_high": 4,
+                "no_due_date": 80,
+                "not_recurring": 50,
+                "today": 100,
+                "overdue": 150,
+                "now": 200,
+                "deadline_value": 30,
+                "deadline_days": 5
+            }
+        })
+        .to_string();
+
+        tokio::fs::write(&path, contents)
+            .await
+            .expect("Could not write to file");
+
+        let config = Config::load(&path)
+            .await
+            .expect("legacy sort_value should migrate");
+
+        assert_eq!(
+            config.sort_order.expect("sort_order should be populated"),
+            vec![
+                SortRule::new(SortKey::Now, SortDirection::Desc),
+                SortRule::new(SortKey::Overdue, SortDirection::Desc),
+                SortRule::new(SortKey::Today, SortDirection::Desc),
+                SortRule::new(SortKey::NoDueDate, SortDirection::Desc),
+                SortRule::new(SortKey::NotRecurring, SortDirection::Desc),
+                SortRule::new(SortKey::Deadline, SortDirection::Asc),
+                SortRule::new(SortKey::Priority, SortDirection::Desc),
+                SortRule::new(SortKey::DueDate, SortDirection::Asc),
+                SortRule::new(SortKey::Order, SortDirection::Asc),
+            ]
+        );
     }
 
     #[tokio::test]

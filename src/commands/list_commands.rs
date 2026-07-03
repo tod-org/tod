@@ -60,7 +60,13 @@ pub struct View {
     /// The filter containing the tasks. Can add multiple filters separated by commas.
     filter: Option<String>,
 
-    #[arg(short = 't', long, default_value_t = SortOrder::Datetime)]
+    #[arg(
+        short = 't',
+        long,
+        default_value_t = SortOrder::Datetime,
+        default_missing_value = "value",
+        num_args = 0..=1
+    )]
     /// Choose how results should be sorted
     sort: SortOrder,
 }
@@ -75,7 +81,13 @@ pub struct Process {
     /// The filter containing the tasks. Can add multiple filters separated by commas.
     filter: Option<String>,
 
-    #[arg(short = 't', long, default_value_t = SortOrder::Value)]
+    #[arg(
+        short = 't',
+        long,
+        default_value_t = SortOrder::Value,
+        default_missing_value = "value",
+        num_args = 0..=1
+    )]
     /// Choose how results should be sorted
     sort: SortOrder,
 }
@@ -90,7 +102,13 @@ pub struct Timebox {
     /// The filter containing the tasks. It does not filter out tasks with durations unless specified in the filter. Can add multiple filters separated by commas.
     filter: Option<String>,
 
-    #[arg(short = 't', long, default_value_t = SortOrder::Value)]
+    #[arg(
+        short = 't',
+        long,
+        default_value_t = SortOrder::Value,
+        default_missing_value = "value",
+        num_args = 0..=1
+    )]
     /// Choose how results should be sorted
     sort: SortOrder,
 }
@@ -105,7 +123,13 @@ pub struct Prioritize {
     /// The filter containing the tasks. Can add multiple filters separated by commas.
     filter: Option<String>,
 
-    #[arg(short = 't', long, default_value_t = SortOrder::Value)]
+    #[arg(
+        short = 't',
+        long,
+        default_value_t = SortOrder::Value,
+        default_missing_value = "value",
+        num_args = 0..=1
+    )]
     /// Choose how results should be sorted
     sort: SortOrder,
 }
@@ -120,7 +144,13 @@ pub struct Remind {
     /// The filter containing the tasks. Can add multiple filters separated by commas.
     filter: Option<String>,
 
-    #[arg(short = 't', long, default_value_t = SortOrder::Value)]
+    #[arg(
+        short = 't',
+        long,
+        default_value_t = SortOrder::Value,
+        default_missing_value = "value",
+        num_args = 0..=1
+    )]
     /// Choose how results should be sorted
     sort: SortOrder,
 }
@@ -139,7 +169,13 @@ pub struct Label {
     /// Labels to select from, if left blank this will be fetched from API
     labels: Vec<String>,
 
-    #[arg(short = 't', long, default_value_t = SortOrder::Value)]
+    #[arg(
+        short = 't',
+        long,
+        default_value_t = SortOrder::Value,
+        default_missing_value = "value",
+        num_args = 0..=1
+    )]
     /// Choose how results should be sorted
     sort: SortOrder,
 }
@@ -162,7 +198,13 @@ pub struct Schedule {
     /// Only schedule overdue tasks
     overdue: bool,
 
-    #[arg(short = 't', long, default_value_t = SortOrder::Value)]
+    #[arg(
+        short = 't',
+        long,
+        default_value_t = SortOrder::Value,
+        default_missing_value = "value",
+        num_args = 0..=1
+    )]
     /// Choose how results should be sorted
     sort: SortOrder,
 }
@@ -177,7 +219,13 @@ pub struct Deadline {
     /// The filter containing the tasks. Can add multiple filters separated by commas.
     filter: Option<String>,
 
-    #[arg(short = 't', long, default_value_t = SortOrder::Value)]
+    #[arg(
+        short = 't',
+        long,
+        default_value_t = SortOrder::Value,
+        default_missing_value = "value",
+        num_args = 0..=1
+    )]
     /// Choose how results should be sorted
     sort: SortOrder,
 }
@@ -329,5 +377,22 @@ pub async fn deadline(config: Config, args: &Deadline) -> Result<String, Error> 
     match super::fetch_project_or_filter(project.as_deref(), filter.as_deref(), &config).await? {
         Flag::Filter(filter) => filters::deadline(&config, &filter, sort).await,
         Flag::Project(project) => projects::deadline(&config, &project, sort).await,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn view_sort_without_value_uses_configured_sort() {
+        let args = View::try_parse_from(["tod", "--sort"]).expect("--sort should be valid");
+        assert_eq!(args.sort.to_string(), "value");
+    }
+
+    #[test]
+    fn view_without_sort_keeps_datetime_default() {
+        let args = View::try_parse_from(["tod"]).expect("view arguments should be valid");
+        assert_eq!(args.sort.to_string(), "datetime");
     }
 }
