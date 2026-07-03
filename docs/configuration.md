@@ -12,7 +12,7 @@
     - [natural_language_only](#natural_language_only)
     - [no_sections](#no_sections)
     - [projectsv1](#projectsv1)
-    - [sort_value](#sort_value)
+    - [sort_order](#sort_order)
     - [spinners](#spinners)
     - [timeout](#timeout)
     - [timezone](#timezone)
@@ -43,19 +43,17 @@ If the config does not exist, Tod will prompt for your initial Todoist API token
   "no_sections": null,
   "path": "See Location - Platform Specific",
   "projectsv1": [],
-  "sort_value": {
-    "deadline_days": 5,
-    "deadline_value": 30,
-    "no_due_date": 80,
-    "not_recurring": 50,
-    "now": 200,
-    "overdue": 150,
-    "priority_high": 4,
-    "priority_low": 1,
-    "priority_medium": 3,
-    "priority_none": 2,
-    "today": 100
-  },
+  "sort_order": [
+    "priority:desc",
+    "due_date:asc",
+    "overdue:desc",
+    "today:desc",
+    "now:desc",
+    "no_due_date:desc",
+    "not_recurring:desc",
+    "deadline:asc",
+    "order:asc"
+  ],
   "spinners": true,
   "timeout": null,
   "timezone": "",
@@ -180,50 +178,21 @@ If true will not prompt for a section whenever possible
 
 Projects are stored locally in config to help save on API requests and speed up actions taken. Manage this with the `project` subcommands.
 
-### sort_value
+### sort_order
 
-Tasks are ranked by points and the first is returned, the points are the sum of the following:
+List of sort rules used when sorting with the default `value` sort. Each rule uses `key:asc` or `key:desc`. Tod compares tasks only by the configured rules, in order. If tasks are equal after those comparisons, their order from the Todoist API is preserved.
 
-- Task is overdue: 150
-- The date is today with no time: 100
-- The date is today with time in next or last 15 min: 200
-- No date: 80
-- Not recurring: 50
-- Task has no priority: 2
-- Priority 1: 1
-- Priority 2: 3
-- Priority 3: 4
+New config files include this default order: `priority:desc`, `due_date:asc`, `overdue:desc`, `today:desc`, `now:desc`, `no_due_date:desc`, `not_recurring:desc`, `deadline:asc`, `order:asc`.
 
-The math for how much a deadline contributes in points is a little more involved. It is based on the number of days before the deadline (closer = more) and the value per day.
-
-The formula is `max(deadline_days - number of days until deadline, 0) * deadline_value`
-
-The default for deadline_days is 5, and deadline_value is 30. For example:
-
-- 6 days before the deadline it is 0
-- 4 days before deadline the value is 30
-- on the day of the deadline it is 150
-- 2 days after the deadline it is 210
-
-Defaults:
+The direction may be omitted to use the key's default. For example, `priority` is equivalent to `priority:desc`:
 
 ``` json
-  {
-    "deadline_days": 5,
-    "deadline_value": 30,
-    "no_due_date": 80,
-    "not_recurring": 50,
-    "now": 200,
-    "overdue": 150,
-    "priority_high": 4,
-    "priority_low": 1,
-    "priority_medium": 3,
-    "priority_none": 2,
-    "today": 100
-  },
+  "sort_order": ["priority", "due_date:desc"]
 ```
 
-These values are u8, so they can be 0-255 (must not exceed 255) - if they exceed 255, Tod will report a config parse error.
+Available keys: `priority`, `due_date`, `overdue`, `today`, `now`, `no_due_date`, `not_recurring`, `deadline`, and `order`. Available directions are `asc` and `desc`. `order` uses Todoist's task order (`child_order` in the current API).
+
+Legacy configs that still contain `sort_value` will be accepted temporarily. Tod migrates the old numeric weights into a best-effort `sort_order` at load time and prints a warning that `sort_value` will be removed in a future version. To avoid the warning, replace `sort_value` with an explicit `sort_order` list.
 
 ### spinners
 

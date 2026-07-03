@@ -2,8 +2,7 @@ use chrono::DateTime;
 use chrono::NaiveDate;
 use chrono_tz::Tz;
 use serde::{Deserialize, Serialize};
-use std::cmp::Reverse;
-use std::cmp::max;
+use std::cmp::Ordering;
 use std::collections::HashSet;
 use std::fmt::Display;
 use tokio::task::JoinHandle;
@@ -12,8 +11,9 @@ pub mod format;
 pub mod priority;
 use crate::comments::Comment;
 use crate::config::Config;
-use crate::config::SortValue;
-use crate::debug;
+#[cfg(test)]
+use crate::config::SortRule;
+use crate::config::{SortDirection, SortKey};
 use crate::errors::Error;
 use crate::input::CONTENT;
 use crate::input::DATE_AND_TIME;
@@ -191,7 +191,7 @@ enum DateTimeInfo {
 
 #[derive(clap::ValueEnum, Debug, Copy, Clone)]
 pub enum SortOrder {
-    /// Sort by Tod's configurable sort value
+    /// Sort by Tod's configured sort order
     Value,
     /// Sort by datetime only
     Datetime,
@@ -264,88 +264,7 @@ impl Task {
         ))
     }
 
-    /// Determines the numeric value of an task for sorting
-    fn value(&self, config: &Config) -> u32 {
-        let date_value: u8 = self.date_value(config);
-        let priority_value: u8 = self.priority_value(config);
-        let deadline_value: u32 = match self.deadline_value(config) {
-            Ok(value) => value,
-            Err(error) => {
-                config
-                    .clone()
-                    .tx()
-                    .send(error)
-                    .expect("Failed to send error message in task value calculation");
-                0
-            }
-        };
-
-        let value = u32::from(date_value) + u32::from(priority_value) + deadline_value;
-
-        let debug_text = format!("Value: {value}, Content: {}", self.content);
-        debug::maybe_print(config, &debug_text);
-        value
-    }
-
-    /// Return the value of the due field
-    fn date_value(&self, config: &Config) -> u8 {
-        let SortValue {
-            no_due_date,
-            today,
-            overdue,
-            now,
-            not_recurring,
-            ..
-        } = config.sort_value.clone().unwrap_or_default();
-
-        match &self.datetimeinfo(config) {
-            Ok(DateTimeInfo::NoDateTime) => no_due_date,
-            Ok(DateTimeInfo::Date {
-                date, is_recurring, ..
-            }) => {
-                let today_value = if *date == time::naive_date_today(config).unwrap_or_default() {
-                    today
-                } else {
-                    0
-                };
-                let overdue_value = if self.is_overdue(config).unwrap_or_default() {
-                    overdue
-                } else {
-                    0
-                };
-                let recurring_value = if is_recurring.to_owned() {
-                    0
-                } else {
-                    not_recurring
-                };
-                today_value + overdue_value + recurring_value
-            }
-            Ok(DateTimeInfo::DateTime {
-                datetime,
-                is_recurring,
-                ..
-            }) => {
-                let recurring_value = if is_recurring.to_owned() {
-                    0
-                } else {
-                    not_recurring
-                };
-
-                let duration = match time::datetime_now(config) {
-                    Ok(tz) => (*datetime - tz).num_minutes(),
-                    _ => 0,
-                };
-
-                match duration {
-                    -15..=15 => now + recurring_value,
-                    _ => recurring_value,
-                }
-            }
-            Err(_) => not_recurring,
-        }
-    }
-
-    /// Return the value of the due field
+    /// Return the task due date as a sortable datetime.
     fn datetime(&self, config: &Config) -> Option<DateTime<Tz>> {
         match self.datetimeinfo(config) {
             Ok(DateTimeInfo::DateTime { datetime, .. }) => Some(datetime),
@@ -363,35 +282,15 @@ impl Task {
         }
     }
 
-    fn priority_value(&self, config: &Config) -> u8 {
-        let SortValue {
-            priority_none,
-            priority_low,
-            priority_medium,
-            priority_high,
-            ..
-        } = config.sort_value.clone().unwrap_or_default();
-        match &self.priority {
-            Priority::None => priority_none,
-            Priority::Low => priority_low,
-            Priority::Medium => priority_medium,
-            Priority::High => priority_high,
-        }
-    }
-
-    fn deadline_value(&self, config: &Config) -> Result<u32, Error> {
-        match &self.deadline {
-            None => Ok(0),
-            Some(Deadline { date, .. }) => {
-                let naive_date = time::date_string_to_naive_date(date)?;
-                let days_from_today = time::naive_date_days_in_future(naive_date, config)?;
-                let deadline_days = config.deadline_days();
-                let day_multiplier =
-                    u32::try_from(max(i64::from(deadline_days) - days_from_today, 0))?;
-                let day_value = config.deadline_value();
-                Ok(day_multiplier * u32::from(day_value))
-            }
-        }
+    fn deadline_datetime(&self, config: &Config) -> Option<DateTime<Tz>> {
+        let Deadline { date, .. } = self.deadline.as_ref()?;
+        let date = time::date_string_to_naive_date(date).ok()?;
+        let naive_datetime = date.and_hms_opt(23, 59, 00)?;
+        let now = time::datetime_now(config).ok()?;
+        Some(DateTime::from_naive_utc_and_offset(
+            naive_datetime,
+            *now.offset(),
+        ))
     }
 
     /// Converts the JSON date representation into Date or Datetime
@@ -451,6 +350,17 @@ impl Task {
         };
 
         Ok(boolean)
+    }
+
+    fn is_now(&self, config: &Config) -> bool {
+        let Ok(DateTimeInfo::DateTime { datetime, .. }) = self.datetimeinfo(config) else {
+            return false;
+        };
+        let duration = match time::datetime_now(config) {
+            Ok(now) => (datetime - now).num_minutes(),
+            _ => return false,
+        };
+        matches!(duration, -15..=15)
     }
 
     pub fn is_overdue(&self, config: &Config) -> Result<bool, Error> {
@@ -941,8 +851,53 @@ pub fn spawn_update_task_priority(
 }
 
 pub fn sort_by_value(mut tasks: Vec<Task>, config: &Config) -> Vec<Task> {
-    tasks.sort_by_key(|b| Reverse(b.value(config)));
+    tasks.sort_by(|a, b| compare_by_sort_order(a, b, config));
     tasks
+}
+
+fn compare_by_sort_order(a: &Task, b: &Task, config: &Config) -> Ordering {
+    for rule in config.sort_order.as_deref().unwrap_or_default() {
+        let ordering = compare_by_sort_key(a, b, config, &rule.key);
+        if ordering != Ordering::Equal {
+            return match rule.direction {
+                SortDirection::Asc => ordering,
+                SortDirection::Desc => ordering.reverse(),
+            };
+        }
+    }
+
+    Ordering::Equal
+}
+
+fn compare_by_sort_key(a: &Task, b: &Task, config: &Config, key: &SortKey) -> Ordering {
+    match key {
+        SortKey::Priority => a.priority.to_integer().cmp(&b.priority.to_integer()),
+        SortKey::DueDate => compare_datetime(a.datetime(config), b.datetime(config)),
+        SortKey::Overdue => a
+            .is_overdue(config)
+            .unwrap_or_default()
+            .cmp(&b.is_overdue(config).unwrap_or_default()),
+        SortKey::Today => a
+            .is_today(config)
+            .unwrap_or_default()
+            .cmp(&b.is_today(config).unwrap_or_default()),
+        SortKey::Now => a.is_now(config).cmp(&b.is_now(config)),
+        SortKey::NoDueDate => a.has_no_date().cmp(&b.has_no_date()),
+        SortKey::NotRecurring => (!a.is_recurring()).cmp(&(!b.is_recurring())),
+        SortKey::Deadline => {
+            compare_datetime(a.deadline_datetime(config), b.deadline_datetime(config))
+        }
+        SortKey::Order => a.child_order.cmp(&b.child_order),
+    }
+}
+
+fn compare_datetime(a: Option<DateTime<Tz>>, b: Option<DateTime<Tz>>) -> Ordering {
+    match (a, b) {
+        (Some(a), Some(b)) => a.cmp(&b),
+        (Some(_), None) => Ordering::Less,
+        (None, Some(_)) => Ordering::Greater,
+        (None, None) => Ordering::Equal,
+    }
 }
 
 pub fn sort_by_datetime(mut tasks: Vec<Task>, config: &Config) -> Vec<Task> {
@@ -1255,60 +1210,6 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn date_value_can_handle_date() {
-        let config = test::fixtures::config().await;
-        // On another day
-        assert_eq!(test::fixtures::today_task().await.date_value(&config), 50);
-
-        // Recurring
-        let task = Task {
-            due: Some(DateInfo {
-                is_recurring: true,
-                ..test::fixtures::today_task()
-                    .await
-                    .due
-                    .expect("Failed to unwrap due field in test fixtures for today_task")
-            }),
-            ..test::fixtures::today_task().await
-        };
-        assert_eq!(task.date_value(&config), 0);
-
-        // Overdue
-        let task = Task {
-            due: Some(DateInfo {
-                date: "2001-11-13".into(),
-                is_recurring: true,
-                lang: "en".into(),
-                timezone: Some("America/Los_Angeles".into()),
-                string: "Every 2 weeks".into(),
-            }),
-            ..test::fixtures::today_task().await
-        };
-        assert_eq!(task.date_value(&config), 150);
-
-        // No date
-        let task = Task { due: None, ..task };
-        assert_eq!(task.date_value(&config), 80);
-    }
-
-    #[tokio::test]
-    async fn date_value_can_handle_datetime() {
-        let config = test::fixtures::config().await;
-        let task = Task {
-            due: Some(DateInfo {
-                date: "2021-02-27T19:41:56Z".into(),
-                ..test::fixtures::today_task()
-                    .await
-                    .due
-                    .expect("Failed to unwrap due field in test fixtures for today_task")
-            }),
-            ..test::fixtures::today_task().await
-        };
-
-        assert_eq!(task.date_value(&config), 50);
-    }
-
-    #[tokio::test]
     async fn can_format_task_with_a_date() {
         let config = test::fixtures::config().await;
         let task = Task {
@@ -1359,23 +1260,6 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn value_can_get_the_value_of_an_task() {
-        let config = test::fixtures::config().await;
-        let task = Task {
-            due: Some(DateInfo {
-                date: "2021-09-06T16:00:00".into(),
-                ..test::fixtures::today_task()
-                    .await
-                    .due
-                    .expect("Failed to unwrap due field in test fixtures for today_task")
-            }),
-            ..test::fixtures::today_task().await
-        };
-
-        assert_matches!(task.datetime(&config), Some(DateTime { .. }));
-    }
-
-    #[tokio::test]
     async fn datetime_works_with_date() {
         let config = test::fixtures::config().await;
         let task = Task {
@@ -1391,6 +1275,28 @@ mod tests {
         };
 
         assert!(task.datetime(&config).is_some());
+    }
+
+    #[tokio::test]
+    async fn datetime_date_only_uses_config_timezone() {
+        let config = test::fixtures::config().await.with_timezone("Asia/Tokyo");
+        let task = Task {
+            due: Some(DateInfo {
+                date: "2025-05-10".into(),
+                is_recurring: false,
+                lang: "en".into(),
+                timezone: None,
+                string: "2025-05-10".into(),
+            }),
+            ..test::fixtures::today_task().await
+        };
+
+        assert_eq!(
+            task.datetime(&config)
+                .expect("date-only task should have a sortable datetime")
+                .to_rfc3339(),
+            "2025-05-10T23:59:00+09:00"
+        );
     }
 
     #[tokio::test]
@@ -1507,6 +1413,84 @@ mod tests {
         let result = vec![today, today_recurring, future];
 
         assert_eq!(sort_by_value(input, &config), result);
+    }
+
+    #[tokio::test]
+    async fn sort_by_value_preserves_api_order_after_configured_keys() {
+        let mut config = test::fixtures::config().await;
+        config.sort_order = Some(vec![SortRule::new(SortKey::Priority, SortDirection::Desc)]);
+
+        let low_early = Task {
+            id: "low-early".into(),
+            due: Some(DateInfo {
+                date: "2030-01-01".into(),
+                is_recurring: false,
+                lang: "en".into(),
+                string: "2030-01-01".into(),
+                timezone: None,
+            }),
+            priority: Priority::Low,
+            ..test::fixtures::today_task().await
+        };
+        let high_late = Task {
+            id: "high-late".into(),
+            due: Some(DateInfo {
+                date: "2030-12-31".into(),
+                is_recurring: false,
+                lang: "en".into(),
+                string: "2030-12-31".into(),
+                timezone: None,
+            }),
+            priority: Priority::High,
+            ..test::fixtures::today_task().await
+        };
+        let high_early = Task {
+            id: "high-early".into(),
+            due: Some(DateInfo {
+                date: "2030-01-01".into(),
+                is_recurring: false,
+                lang: "en".into(),
+                string: "2030-01-01".into(),
+                timezone: None,
+            }),
+            priority: Priority::High,
+            ..test::fixtures::today_task().await
+        };
+
+        let sorted = sort_by_value(
+            vec![low_early.clone(), high_late.clone(), high_early.clone()],
+            &config,
+        );
+
+        assert_eq!(sorted, vec![high_late, high_early, low_early]);
+    }
+
+    #[tokio::test]
+    async fn sort_by_value_uses_configured_direction() {
+        let mut config = test::fixtures::config().await;
+        config.sort_order = Some(vec![SortRule::new(SortKey::Order, SortDirection::Asc)]);
+
+        let second = Task {
+            id: "second".into(),
+            child_order: 2,
+            ..test::fixtures::today_task().await
+        };
+        let first = Task {
+            id: "first".into(),
+            child_order: 1,
+            ..test::fixtures::today_task().await
+        };
+
+        assert_eq!(
+            sort_by_value(vec![second.clone(), first.clone()], &config),
+            vec![first.clone(), second.clone()]
+        );
+
+        config.sort_order = Some(vec![SortRule::new(SortKey::Order, SortDirection::Desc)]);
+        assert_eq!(
+            sort_by_value(vec![first.clone(), second.clone()], &config),
+            vec![second, first]
+        );
     }
 
     #[tokio::test]
@@ -1804,46 +1788,5 @@ mod tests {
         let task = test::fixtures::today_task().await;
         let string = String::from("TEST");
         assert_eq!(string, task.to_string());
-    }
-    #[tokio::test]
-    async fn test_deadline_value_when_today() {
-        let config = test::fixtures::config().await;
-        let task = test::fixtures::today_task().await;
-        let value = task
-            .deadline_value(&config)
-            .expect("expected value or result, got None or Err");
-        assert_eq!(value, 150);
-    }
-
-    #[tokio::test]
-    async fn test_deadline_value_when_tomorrow() {
-        let config = test::fixtures::config().await;
-        let task = test::fixtures::task(1).await;
-
-        let value = task
-            .deadline_value(&config)
-            .expect("expected value or result, got None or Err");
-        assert_eq!(value, 120);
-    }
-
-    #[tokio::test]
-    async fn test_deadline_value_when_in_six_days() {
-        let config = test::fixtures::config().await;
-        let task = test::fixtures::task(6).await;
-
-        let value = task
-            .deadline_value(&config)
-            .expect("expected value or result, got None or Err");
-        assert_eq!(value, 0);
-    }
-    #[tokio::test]
-    async fn test_deadline_value_when_yesterday() {
-        let config = test::fixtures::config().await;
-        let task = test::fixtures::task(-1).await;
-
-        let value = task
-            .deadline_value(&config)
-            .expect("expected value or result, got None or Err");
-        assert_eq!(value, 180);
     }
 }

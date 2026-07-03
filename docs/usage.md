@@ -178,7 +178,9 @@ tod list label --filter "no label" --label physical --label digital
 
 ## How task priority is determined
 
-See [Sort_value](https://github.com/tod-org/tod/blob/main/docs/configuration.md#sort_value)
+See [sort_order](https://github.com/tod-org/tod/blob/main/docs/configuration.md#sort_order)
+
+Use `--sort` or `--sort value` to apply the configured sort order. Explicit alternatives remain available with `--sort datetime` and `--sort todoist`.
 
 ## Update Tod
 

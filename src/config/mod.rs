@@ -4,6 +4,7 @@ mod projects;
 mod timezone;
 use crate::errors::Error;
 use crate::input::page_size;
+use crate::legacy;
 use crate::projects::Project;
 use crate::tasks::Task;
 use crate::tasks::format::maybe_format_url;
@@ -11,7 +12,7 @@ use crate::time::{SystemTimeProvider, TimeProviderEnum};
 use crate::{VERSION, cargo, color, input, oauth, time};
 use regex::Regex;
 use serde::de::Error as DeError;
-use serde::{Deserialize, Deserializer, Serialize};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::path::PathBuf;
 #[cfg(test)]
 use tempfile;
@@ -20,19 +21,17 @@ use tokio::sync::mpsc::UnboundedSender;
 
 const MAX_COMMENT_LENGTH: u32 = 500;
 pub const DEFAULT_TIMEOUT_SECONDS: u64 = 30;
-pub const DEFAULT_DEADLINE_VALUE: u8 = 30;
-pub const DEFAULT_DEADLINE_DAYS: u8 = 5;
 pub const OAUTH: &str = "Login with OAuth (recommended)";
 pub const DEVELOPER: &str = "Login with developer API token";
 pub const TOKEN_METHOD: &str = "Choose your Todoist login method";
 const TODOIST_INTEGRATIONS_URL: &str = "https://todoist.com/prefs/integrations";
-
 pub use file::config_open;
 pub use file::config_reset;
 pub use file::generate_path;
 pub use file::get_config;
 pub use file::get_or_create;
 pub use file::resolve_config_path;
+pub use legacy::LegacySortValue;
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(deny_unknown_fields)]
@@ -110,7 +109,11 @@ pub struct Config {
     pub no_sections: Option<bool>,
     /// Goes straight to natural language input in datetime selection
     pub natural_language_only: Option<bool>,
-    pub sort_value: Option<SortValue>,
+    /// Ordered list of fields used when sorting by value.
+    pub sort_order: Option<Vec<SortRule>>,
+    /// Legacy numeric sort configuration. Deserialized for migration only.
+    #[serde(skip_serializing)]
+    pub sort_value: Option<LegacySortValue>,
 
     /// For storing arguments from the commandline
     #[serde(skip)]
@@ -139,44 +142,173 @@ pub struct Internal {
     pub tx: Option<UnboundedSender<Error>>,
 }
 
-// Determining how
-#[derive(Clone, Serialize, Deserialize, Eq, PartialEq, Debug)]
-#[serde(deny_unknown_fields)]
-pub struct SortValue {
-    /// Task has one of these priorities
-    pub priority_none: u8,
-    pub priority_low: u8,
-    pub priority_medium: u8,
-    pub priority_high: u8,
-    pub no_due_date: u8,
-    pub not_recurring: u8,
-    pub today: u8,
-    pub overdue: u8,
-    /// Happens now plus or minus 15min
-    pub now: u8,
-    pub deadline_value: Option<u8>,
-    pub deadline_days: Option<u8>,
+#[derive(Copy, Clone, Serialize, Deserialize, Eq, PartialEq, Debug)]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
+pub enum SortKey {
+    Priority,
+    DueDate,
+    Overdue,
+    Today,
+    Now,
+    NoDueDate,
+    NotRecurring,
+    Deadline,
+    Order,
 }
 
-impl Default for SortValue {
-    fn default() -> Self {
-        SortValue {
-            priority_none: 2,
-            priority_low: 1,
-            priority_medium: 3,
-            priority_high: 4,
-            no_due_date: 80,
-            overdue: 150,
-            not_recurring: 50,
-            today: 100,
-            now: 200,
-            deadline_value: Some(DEFAULT_DEADLINE_VALUE),
-            deadline_days: Some(DEFAULT_DEADLINE_DAYS),
+impl SortKey {
+    pub fn default_order() -> Vec<SortKey> {
+        vec![
+            SortKey::Priority,
+            SortKey::DueDate,
+            SortKey::Overdue,
+            SortKey::Today,
+            SortKey::Now,
+            SortKey::NoDueDate,
+            SortKey::NotRecurring,
+            SortKey::Deadline,
+            SortKey::Order,
+        ]
+    }
+
+    fn config_name(self) -> &'static str {
+        match self {
+            SortKey::Priority => "priority",
+            SortKey::DueDate => "due_date",
+            SortKey::Overdue => "overdue",
+            SortKey::Today => "today",
+            SortKey::Now => "now",
+            SortKey::NoDueDate => "no_due_date",
+            SortKey::NotRecurring => "not_recurring",
+            SortKey::Deadline => "deadline",
+            SortKey::Order => "order",
+        }
+    }
+
+    fn from_config_name(value: &str) -> Option<Self> {
+        match value {
+            "priority" => Some(SortKey::Priority),
+            "due_date" => Some(SortKey::DueDate),
+            "overdue" => Some(SortKey::Overdue),
+            "today" => Some(SortKey::Today),
+            "now" => Some(SortKey::Now),
+            "no_due_date" => Some(SortKey::NoDueDate),
+            "not_recurring" => Some(SortKey::NotRecurring),
+            "deadline" => Some(SortKey::Deadline),
+            "order" => Some(SortKey::Order),
+            _ => None,
+        }
+    }
+
+    fn default_direction(self) -> SortDirection {
+        match self {
+            SortKey::Priority
+            | SortKey::Overdue
+            | SortKey::Today
+            | SortKey::Now
+            | SortKey::NoDueDate
+            | SortKey::NotRecurring => SortDirection::Desc,
+            SortKey::DueDate | SortKey::Deadline | SortKey::Order => SortDirection::Asc,
         }
     }
 }
 
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+pub enum SortDirection {
+    Asc,
+    Desc,
+}
+
+impl SortDirection {
+    fn config_name(self) -> &'static str {
+        match self {
+            SortDirection::Asc => "asc",
+            SortDirection::Desc => "desc",
+        }
+    }
+}
+
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+pub struct SortRule {
+    pub key: SortKey,
+    pub direction: SortDirection,
+}
+
+impl SortRule {
+    pub fn new(key: SortKey, direction: SortDirection) -> Self {
+        Self { key, direction }
+    }
+
+    pub(crate) fn with_default_direction(key: SortKey) -> Self {
+        Self::new(key, key.default_direction())
+    }
+
+    pub fn default_order() -> Vec<Self> {
+        SortKey::default_order()
+            .into_iter()
+            .map(Self::with_default_direction)
+            .collect()
+    }
+}
+
+impl Serialize for SortRule {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_str(&format!(
+            "{}:{}",
+            self.key.config_name(),
+            self.direction.config_name()
+        ))
+    }
+}
+
+impl<'de> Deserialize<'de> for SortRule {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let value = String::deserialize(deserializer)?;
+        let (key, direction) = match value.split_once(':') {
+            Some((key, "asc")) => (key, Some(SortDirection::Asc)),
+            Some((key, "desc")) => (key, Some(SortDirection::Desc)),
+            Some((_, direction)) => {
+                return Err(D::Error::custom(format!(
+                    "invalid sort direction '{direction}'; expected 'asc' or 'desc'"
+                )));
+            }
+            None => (value.as_str(), None),
+        };
+        let key = SortKey::from_config_name(key)
+            .ok_or_else(|| D::Error::custom(format!("invalid sort key '{key}'")))?;
+
+        Ok(match direction {
+            Some(direction) => SortRule::new(key, direction),
+            None => SortRule::with_default_direction(key),
+        })
+    }
+}
+
 impl Config {
+    fn with_default_sort_order(self) -> Config {
+        if self.sort_order.is_some() {
+            self
+        } else if let Some(sort_order) =
+            legacy::detect_and_migrate_sort_value(self.sort_value.as_ref())
+        {
+            Config {
+                sort_order: Some(sort_order),
+                ..self
+            }
+        } else {
+            Config {
+                sort_order: Some(SortRule::default_order()),
+                ..self
+            }
+        }
+    }
+
     /// Pretty printed message for how to get API token
     pub fn token_message(self: &Config) -> String {
         let url = maybe_format_url(TODOIST_INTEGRATIONS_URL, self);
@@ -296,7 +428,8 @@ impl Config {
             timeout: None,
             bell_on_success: false,
             bell_on_failure: true,
-            sort_value: Some(SortValue::default()),
+            sort_order: Some(SortRule::default_order()),
+            sort_value: None,
             timezone: None,
             completed: None,
             disable_links: false,
@@ -350,22 +483,6 @@ impl Config {
         self.next_task.clone()
     }
 
-    pub(crate) fn deadline_days(&self) -> u8 {
-        self.sort_value
-            .clone()
-            .unwrap_or_default()
-            .deadline_days
-            .unwrap_or(DEFAULT_DEADLINE_DAYS)
-    }
-
-    pub(crate) fn deadline_value(&self) -> u8 {
-        self.sort_value
-            .clone()
-            .unwrap_or_default()
-            .deadline_value
-            .unwrap_or(DEFAULT_DEADLINE_VALUE)
-    }
-
     pub async fn set_token(&mut self, access_token: String) -> Result<String, Error> {
         self.token = Some(access_token);
         self.save().await
@@ -415,6 +532,7 @@ impl Config {
 
             // this is not implemented as it will be deprecated
             sort_value: _,
+            sort_order: _,
 
             // We don't want user to set the ones below
             args: _,
@@ -596,7 +714,8 @@ impl Default for Config {
             task_comment_command: None,
             task_exclude_regex: None,
             comment_exclude_regex: None,
-            sort_value: Some(SortValue::default()),
+            sort_order: None,
+            sort_value: None,
             timezone: None,
             completed: None,
             disable_links: false,
@@ -639,7 +758,8 @@ mod tests {
                     timeout: None,
                 },
                 internal: Internal { tx: None },
-                sort_value: Some(SortValue::default()),
+                sort_order: Some(SortRule::default_order()),
+                sort_value: None,
                 projects: Some(vec![]),
                 next_id: None,
                 next_task: None,
@@ -796,11 +916,9 @@ mod tests {
         let internal_debug = format!("{internal:?}");
         assert!(internal_debug.contains("Internal"));
 
-        let sort_value = SortValue::default();
-        let sort_value_debug = format!("{sort_value:?}");
-        assert!(sort_value_debug.contains("SortValue"));
-        assert!(sort_value_debug.contains("priority_none"));
-        assert!(sort_value_debug.contains("deadline_value"));
+        let sort_key = SortKey::Priority;
+        let sort_key_debug = format!("{sort_key:?}");
+        assert!(sort_key_debug.contains("Priority"));
     }
 
     #[test]
@@ -816,9 +934,9 @@ mod tests {
         let internal_clone = internal.clone();
         assert_eq!(internal.tx.is_none(), internal_clone.tx.is_none());
 
-        let sort_value = SortValue::default();
-        let sort_value_clone = sort_value.clone();
-        assert_eq!(sort_value, sort_value_clone);
+        let sort_key = SortKey::Priority;
+        let sort_key_copy = sort_key;
+        assert_eq!(sort_key, sort_key_copy);
 
         assert_eq!(
             args,
@@ -842,9 +960,7 @@ mod tests {
         let default_internal = Internal::default();
         assert!(default_internal.tx.is_none());
 
-        let default_sort = SortValue::default();
-        assert_eq!(default_sort.priority_none, 2);
-        assert_eq!(default_sort.deadline_value, Some(DEFAULT_DEADLINE_VALUE));
+        assert_eq!(SortKey::default_order().first(), Some(&SortKey::Priority));
     }
 
     #[tokio::test]
