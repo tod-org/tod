@@ -6,6 +6,7 @@ For GitHub Copilot-specific rules, see [`.github/copilot-instructions.md`](.gith
 ---
 
 ## General Principles
+
 - Write **clear, maintainable, idiomatic Rust** code.
 - Avoid unnecessary complexity—favor simple, well-factored functions.
 - Use descriptive function and variable names; no cryptic abbreviations.
@@ -16,6 +17,7 @@ For GitHub Copilot-specific rules, see [`.github/copilot-instructions.md`](.gith
 ---
 
 ## Code Style
+
 - Use the `?` operator for error propagation.
 - Prefer `.expect("clear message")` over `.unwrap()` when a panic is acceptable.
 - Derive common traits (`Debug`, `Clone`, `PartialEq`) where appropriate.
@@ -27,6 +29,7 @@ For GitHub Copilot-specific rules, see [`.github/copilot-instructions.md`](.gith
 ---
 
 ## Error Handling
+
 - Always include context in error messages.
 - Use a **standardized error reporting function** for consistency.
 - Only auto-fix scenarios that are deterministic and safe. Otherwise, report a descriptive error.
@@ -34,6 +37,7 @@ For GitHub Copilot-specific rules, see [`.github/copilot-instructions.md`](.gith
 ---
 
 ## Testing
+
 - Every new function should include a unit test.
 - New features and bug fixes must include test coverage.
 - Use `assert_cmd` for CLI testing and `mockito` for HTTP mocking.
@@ -43,6 +47,7 @@ For GitHub Copilot-specific rules, see [`.github/copilot-instructions.md`](.gith
 ---
 
 ## GitHub Actions / CI
+
 - Favor **reusable workflows** over copy-paste jobs.
 - Avoid running duplicate jobs for `push` and `pull_request`.
 - Always set `concurrency` in workflows to prevent overlapping runs.
@@ -52,6 +57,7 @@ For GitHub Copilot-specific rules, see [`.github/copilot-instructions.md`](.gith
 ---
 
 ## Commit Messages
+
 We use the **[Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/)** standard.
 
 - Messages must be **all lowercase**.
@@ -62,14 +68,16 @@ We use the **[Conventional Commits](https://www.conventionalcommits.org/en/v1.0.
 - Breaking changes and issue references belong in the footer.
 
 ### Good Examples
-```
+
+```text
 feat(config): support pathbuf for config path
 fix(parser): handle empty lines in csv import
 ci(workflow): add concurrency to prevent overlapping runs
 ```
 
 ### Bad Examples
-```
+
+```text
 Update files
 Fix stuff
 Refactor
@@ -78,6 +86,7 @@ Refactor
 ---
 
 ## Pull Requests
+
 - Include a summary and rationale for changes.
 - Keep PRs small and focused.
 - Link related issues.
@@ -87,6 +96,7 @@ Refactor
 ---
 
 ## Contributor Checklist
+
 - [ ] Code follows idiomatic Rust practices.
 - [ ] No `unwrap()` calls (use `expect` with clear messages).
 - [ ] Errors are consistent and descriptive.
@@ -96,4 +106,3 @@ Refactor
 - [ ] CI workflows pass cleanly and efficiently.
 
 ---
-

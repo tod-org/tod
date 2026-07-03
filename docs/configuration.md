@@ -43,6 +43,19 @@ If the config does not exist, Tod will prompt for your initial Todoist API token
   "no_sections": null,
   "path": "See Location - Platform Specific",
   "projectsv1": [],
+    "sort_value": {
+    "deadline_days": 5,
+    "deadline_value": 30,
+    "no_due_date": 80,
+    "not_recurring": 50,
+    "now": 200,
+    "overdue": 150,
+    "priority_high": 4,
+    "priority_low": 1,
+    "priority_medium": 3,
+    "priority_none": 2,
+    "today": 100
+  },
   "sort_order": [
     "priority:desc",
     "due_date:asc",
@@ -177,6 +190,24 @@ If true will not prompt for a section whenever possible
 ```
 
 Projects are stored locally in config to help save on API requests and speed up actions taken. Manage this with the `project` subcommands.
+
+### sort_value
+
+Deprecated in latest version, replaced with sort_order. Will be removed in future release.
+
+  {
+    "deadline_days": 5,
+    "deadline_value": 30,
+    "no_due_date": 80,
+    "not_recurring": 50,
+    "now": 200,
+    "overdue": 150,
+    "priority_high": 4,
+    "priority_low": 1,
+    "priority_medium": 3,
+    "priority_none": 2,
+    "today": 100
+  },
 
 ### sort_order
 
