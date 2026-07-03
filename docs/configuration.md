@@ -195,6 +195,7 @@ Projects are stored locally in config to help save on API requests and speed up 
 
 Deprecated in latest version, replaced with sort_order. Will be removed in future release.
 
+```json
   {
     "deadline_days": 5,
     "deadline_value": 30,
@@ -208,6 +209,7 @@ Deprecated in latest version, replaced with sort_order. Will be removed in futur
     "priority_none": 2,
     "today": 100
   },
+```
 
 ### sort_order
 
