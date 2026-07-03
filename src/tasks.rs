@@ -816,6 +816,18 @@ pub fn spawn_update_task_due(
     })
 }
 
+/// creates a reminder inside another thread
+pub fn spawn_create_reminder(config: Config, task: Task, due_string: String) -> JoinHandle<()> {
+    tokio::spawn(async move {
+        if let Err(e) = todoist::create_reminder(&config, &task, &due_string, false).await {
+            config
+                .tx()
+                .send(e)
+                .expect("Failed to send error on task channel");
+        }
+    })
+}
+
 /// Updates task inside another thread
 pub fn spawn_update_task_deadline(
     config: Config,
@@ -1015,6 +1027,34 @@ pub async fn set_priority(
                 .expect("Failed to send error on task channel");
         }
     }))
+}
+
+pub async fn create_reminder(config: &Config, task: Task) -> Result<Option<JoinHandle<()>>, Error> {
+    let comments = Vec::new();
+    let text = task.fmt(comments, config, FormatType::Single, true).await?;
+    println!("{text}");
+    let datetime_input = input::datetime(
+        config.mock_select,
+        config.mock_string.clone(),
+        // We only want to use natural language for this input
+        Some(true),
+        true,
+        true,
+    )?;
+    let config = config.clone();
+    match datetime_input {
+        input::DateTimeInput::Complete => {
+            let handle = tasks::spawn_complete_task(config, task.id);
+            Ok(Some(handle))
+        }
+        DateTimeInput::Skip => Ok(None),
+
+        input::DateTimeInput::Text(date) => {
+            let handle = tasks::spawn_create_reminder(config, task, date);
+            Ok(Some(handle))
+        }
+        input::DateTimeInput::None => Ok(None),
+    }
 }
 
 #[cfg(test)]

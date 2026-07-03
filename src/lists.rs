@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::fmt::Display;
 
 use crate::{
@@ -86,6 +87,50 @@ pub async fn prioritize(config: &Config, flag: Flag, sort: &SortOrder) -> Result
         .try_collect::<Vec<_>>()
         .await?;
     future::join_all(handles).await;
+    Ok(color::green_string(&success))
+}
+
+/// Add reminders to all tasks that do not have them
+pub async fn remind(config: &Config, flag: Flag, sort: &SortOrder) -> Result<String, Error> {
+    let reminder_task_ids = todoist::all_reminders(config, None)
+        .await?
+        .into_iter()
+        .map(|r| r.item_id)
+        .collect::<HashSet<String>>();
+
+    let tasks = match &flag {
+        Flag::Project(project) => todoist::all_tasks_by_project(config, project, None)
+            .await?
+            .into_iter()
+            .filter(|task| !reminder_task_ids.contains(&task.id))
+            .collect::<Vec<Task>>(),
+        Flag::Filter(filter) => todoist::all_tasks_by_filters(config, filter)
+            .await?
+            .into_iter()
+            .flat_map(|(_, tasks)| tasks)
+            .filter(|task| !reminder_task_ids.contains(&task.id))
+            .collect::<Vec<Task>>(),
+    };
+
+    if tasks.is_empty() {
+        let empty_text = format!("No tasks for {flag}");
+        return Ok(color::green_string(&empty_text));
+    }
+
+    let tasks = tasks::sort(tasks, config, *sort);
+
+    let handles = stream::iter(tasks)
+        .then(|task| async {
+            println!();
+            tasks::create_reminder(config, task).await
+        })
+        .try_collect::<Vec<_>>()
+        .await?
+        .into_iter()
+        .flatten()
+        .collect::<Vec<_>>();
+    future::join_all(handles).await;
+    let success = format!("Successfully reminded {flag}");
     Ok(color::green_string(&success))
 }
 
@@ -601,6 +646,189 @@ mod tests {
         );
         mock.assert();
         mock2.assert();
+    }
+
+    #[tokio::test]
+    async fn test_remind() {
+        let mut server = mockito::Server::new_async().await;
+        let mock = server
+            .mock("GET", "/api/v1/reminders?limit=200")
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(r#"{"results":[],"next_cursor":null}"#)
+            .create_async()
+            .await;
+
+        let mock2 = server
+            .mock("GET", "/api/v1/tasks/filter?query=today&limit=200")
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(ResponseFromFile::TodayTasks.read().await)
+            .create_async()
+            .await;
+
+        let mock3 = server
+            .mock("POST", "/api/v1/reminders")
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(
+                r#"{
+                    "id": "abc",
+                    "item_id": "6Xqhv4cwxgjwG9w8",
+                    "notify_uid": "635166",
+                    "type": "relative",
+                    "is_deleted": false,
+                    "minute_offset": 0,
+                    "is_urgent": false,
+                    "due": {
+                        "date": "2026-01-18T17:00:00",
+                        "timezone": null,
+                        "string": "2026-01-18 17:00",
+                        "lang": "en",
+                        "is_recurring": false
+                    }
+                }"#,
+            )
+            .create_async()
+            .await;
+
+        let config = test::fixtures::config()
+            .await
+            .with_mock_url(server.url())
+            .with_mock_string("tomorrow");
+
+        let filter = String::from("today");
+        let sort = &SortOrder::Value;
+
+        let result = remind(&config, Flag::Filter(filter), sort).await;
+        assert_eq!(result, Ok(String::from("Successfully reminded 'today'")));
+        mock.assert();
+        mock2.assert();
+        mock3.assert();
+    }
+
+    #[tokio::test]
+    async fn test_remind_with_project() {
+        let mut server = mockito::Server::new_async().await;
+        let mock = server
+            .mock("GET", "/api/v1/reminders?limit=200")
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(r#"{"results":[],"next_cursor":null}"#)
+            .create_async()
+            .await;
+
+        let mock2 = server
+            .mock("GET", "/api/v1/tasks/?project_id=123&limit=200")
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(ResponseFromFile::TodayTasks.read().await)
+            .create_async()
+            .await;
+
+        let mock3 = server
+            .mock("POST", "/api/v1/reminders")
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(
+                r#"{
+                    "id": "abc",
+                    "item_id": "6Xqhv4cwxgjwG9w8",
+                    "notify_uid": "635166",
+                    "type": "relative",
+                    "is_deleted": false,
+                    "minute_offset": 0,
+                    "is_urgent": false,
+                    "due": {
+                        "date": "2026-01-18T17:00:00",
+                        "timezone": null,
+                        "string": "2026-01-18 17:00",
+                        "lang": "en",
+                        "is_recurring": false
+                    }
+                }"#,
+            )
+            .create_async()
+            .await;
+
+        let config = test::fixtures::config()
+            .await
+            .with_mock_url(server.url())
+            .with_mock_string("tomorrow");
+
+        let binding = config
+            .projects()
+            .await
+            .expect("Failed to fetch projects asynchronously");
+        let project = binding
+            .first()
+            .expect("Expected at least one project in binding")
+            .to_owned();
+        let sort = &SortOrder::Value;
+
+        let result = remind(&config, Flag::Project(project), sort).await;
+        assert_eq!(
+            result,
+            Ok(String::from(
+                "Successfully reminded myproject\nhttps://app.todoist.com/app/project/123"
+            ))
+        );
+        mock.assert();
+        mock2.assert();
+        mock3.assert();
+    }
+    #[tokio::test]
+    async fn test_remind_with_project_completes_task() {
+        let mut server = mockito::Server::new_async().await;
+        let mock = server
+            .mock("GET", "/api/v1/reminders?limit=200")
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(r#"{"results":[],"next_cursor":null}"#)
+            .create_async()
+            .await;
+
+        let mock2 = server
+            .mock("GET", "/api/v1/tasks/?project_id=123&limit=200")
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(ResponseFromFile::TodayTasks.read().await)
+            .create_async()
+            .await;
+
+        let mock3 = server
+            .mock("POST", "/api/v1/tasks/6Xqhv4cwxgjwG9w8/close")
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(ResponseFromFile::TodayTask.read().await)
+            .create_async()
+            .await;
+
+        let config = test::fixtures::config()
+            .await
+            .with_mock_url(server.url())
+            .with_mock_string("complete");
+
+        let binding = config
+            .projects()
+            .await
+            .expect("Failed to fetch projects asynchronously");
+        let project = binding
+            .first()
+            .expect("Expected at least one project in binding")
+            .to_owned();
+        let sort = &SortOrder::Value;
+
+        let result = remind(&config, Flag::Project(project), sort).await;
+        assert_eq!(
+            result,
+            Ok(String::from(
+                "Successfully reminded myproject\nhttps://app.todoist.com/app/project/123"
+            ))
+        );
+        mock.assert();
+        mock2.assert();
+        mock3.assert();
     }
 
     #[tokio::test]

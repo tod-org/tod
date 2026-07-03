@@ -23,6 +23,13 @@ pub struct Reminder {
     pub due: Option<DateInfo>,
 }
 
+impl Reminder {
+    pub fn from_json(json: &str) -> Result<Reminder, Error> {
+        let reminder: Reminder = serde_json::from_str(json)?;
+        Ok(reminder)
+    }
+}
+
 impl Display for Reminder {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if let Some(dateinfo) = &self.due {
