@@ -1372,6 +1372,87 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn is_now_handles_15_minute_boundaries() {
+        let config = test::fixtures::config().await;
+        let base_task = test::fixtures::today_task().await;
+
+        let minus_fifteen = Task {
+            due: Some(DateInfo {
+                date: "2025-05-10T02:45:00".into(),
+                is_recurring: false,
+                lang: "en".into(),
+                timezone: None,
+                string: "2025-05-10 02:45".into(),
+            }),
+            ..base_task.clone()
+        };
+        let plus_fifteen = Task {
+            due: Some(DateInfo {
+                date: "2025-05-10T03:15:00".into(),
+                is_recurring: false,
+                lang: "en".into(),
+                timezone: None,
+                string: "2025-05-10 03:15".into(),
+            }),
+            ..base_task.clone()
+        };
+        let outside_minus = Task {
+            due: Some(DateInfo {
+                date: "2025-05-10T02:44:00".into(),
+                is_recurring: false,
+                lang: "en".into(),
+                timezone: None,
+                string: "2025-05-10 02:44".into(),
+            }),
+            ..base_task.clone()
+        };
+        let outside_plus = Task {
+            due: Some(DateInfo {
+                date: "2025-05-10T03:16:00".into(),
+                is_recurring: false,
+                lang: "en".into(),
+                timezone: None,
+                string: "2025-05-10 03:16".into(),
+            }),
+            ..base_task
+        };
+
+        assert!(minus_fifteen.is_now(&config));
+        assert!(plus_fifteen.is_now(&config));
+        assert!(!outside_minus.is_now(&config));
+        assert!(!outside_plus.is_now(&config));
+    }
+
+    #[tokio::test]
+    async fn deadline_datetime_orders_correctly_in_positive_offset_timezone() {
+        let config = test::fixtures::config().await.with_timezone("Asia/Tokyo");
+        let base_task = test::fixtures::today_task().await;
+
+        let earlier_deadline = Task {
+            deadline: Some(Deadline {
+                date: "2025-05-10".into(),
+                lang: "en".into(),
+            }),
+            ..base_task.clone()
+        };
+        let later_deadline = Task {
+            deadline: Some(Deadline {
+                date: "2025-05-11".into(),
+                lang: "en".into(),
+            }),
+            ..base_task
+        };
+
+        assert_eq!(
+            compare_datetime(
+                earlier_deadline.deadline_datetime(&config),
+                later_deadline.deadline_datetime(&config),
+            ),
+            Ordering::Less
+        );
+    }
+
+    #[tokio::test]
     async fn sort_by_value_works() {
         let config = test::fixtures::config().await;
         let today = Task {
