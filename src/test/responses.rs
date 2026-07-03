@@ -27,6 +27,7 @@ pub enum ResponseFromFile {
     NewProjects,
     Section,
     Sections,
+    Reminders,
     /// Data about the logged in user
     User,
     /// Response from crates.io API
@@ -69,6 +70,7 @@ impl ResponseFromFile {
             | Self::Label
             | Self::Labels
             | Self::Project
+            | Self::Reminders
             | Self::Projects
             | Self::NewProjects
             | Self::User => Vec::new(),

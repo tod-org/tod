@@ -11,6 +11,7 @@ use crate::errors::Error;
 use crate::labels::{Label, LabelResponse};
 use crate::oauth::{AccessToken, CLIENT_ID, CLIENT_SECRET};
 use crate::projects::{Project, ProjectResponse};
+use crate::reminders::{Reminder, ReminderResponse};
 use crate::sections::{Section, SectionResponse};
 use crate::shell::execute_command;
 use crate::tasks::priority::Priority;
@@ -23,6 +24,7 @@ use regex::Regex;
 pub const TASKS_URL: &str = "/api/v1/tasks/";
 pub const COMMENTS_URL: &str = "/api/v1/comments/";
 const SECTIONS_URL: &str = "/api/v1/sections";
+const REMINDERS_URL: &str = "/api/v1/reminders";
 const USER_URL: &str = "/api/v1/user";
 const PROJECTS_URL: &str = "/api/v1/projects";
 const LABELS_URL: &str = "/api/v1/labels";
@@ -290,6 +292,40 @@ pub async fn all_tasks_by_filter(
     Ok((filter.to_string(), tasks))
 }
 
+/// Fetches a list of tasks by their ids.
+pub async fn all_tasks_by_ids(
+    config: &Config,
+    task_ids: Vec<String>,
+    limit: Option<u8>,
+) -> Result<Vec<Task>, Error> {
+    let limit = limit.unwrap_or(QUERY_LIMIT);
+    let mut tasks: Vec<Task> = Vec::new();
+    if task_ids.is_empty() {
+        return Ok(tasks);
+    }
+    let task_ids = task_ids.join(",");
+    let mut url = format!("{TASKS_URL}?ids={task_ids}&limit={limit}");
+
+    loop {
+        let json = request::get_todoist(config, &url, true).await?;
+        let TaskResponse {
+            results,
+            next_cursor,
+        } = TaskResponse::from_json(&json)?;
+
+        tasks.extend(results);
+
+        match next_cursor {
+            None => break,
+            Some(string) => {
+                url = format!("{TASKS_URL}?ids={task_ids}&limit={limit}&cursor={string}");
+            }
+        }
+    }
+
+    Ok(tasks)
+}
+
 pub async fn all_sections_by_project(
     config: &Config,
     project: &Project,
@@ -338,6 +374,28 @@ pub async fn all_projects(config: &Config, limit: Option<u8>) -> Result<Vec<Proj
         }
     }
     Ok(projects)
+}
+
+pub async fn all_reminders(config: &Config, limit: Option<u8>) -> Result<Vec<Reminder>, Error> {
+    let limit = limit.unwrap_or(QUERY_LIMIT);
+    let mut url = format!("{REMINDERS_URL}?limit={limit}");
+    let mut reminders: Vec<Reminder> = Vec::new();
+
+    loop {
+        let json = request::get_todoist(config, &url, true).await?;
+        let ReminderResponse {
+            results,
+            next_cursor,
+        } = ReminderResponse::from_json(&json)?;
+        reminders.extend(results);
+        match next_cursor {
+            None => break,
+            Some(string) => {
+                url = format!("{REMINDERS_URL}?limit={limit}&cursor={string}");
+            }
+        }
+    }
+    Ok(reminders)
 }
 
 pub async fn all_labels(

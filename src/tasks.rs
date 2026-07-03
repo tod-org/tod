@@ -137,6 +137,12 @@ pub struct DateInfo {
     pub timezone: Option<String>,
 }
 
+impl Display for DateInfo {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.string)
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 pub struct Deadline {
     /// In format YYYY-MM-DD
