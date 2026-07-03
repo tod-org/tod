@@ -35,6 +35,8 @@ impl TimeProvider for FixedTimeProvider {
 #[cfg(test)]
 mod tests {
 
+    use crate::time::SystemTimeProvider;
+    use chrono::Timelike;
     use super::*;
     use pretty_assertions::assert_eq;
 
@@ -53,5 +55,37 @@ mod tests {
         assert_eq!(fixed_time, expected);
         assert_eq!(fixed_time.date_naive(), expected.date_naive());
         assert_eq!(fixed_string, expected_string);
+    }
+
+    #[test]
+    fn fixed_time_provider_returns_expected_values_for_multiple_timezones() {
+        let provider = FixedTimeProvider;
+
+        let utc = chrono_tz::UTC;
+        let los_angeles = chrono_tz::America::Los_Angeles;
+
+        let utc_time = provider.now(utc);
+        let la_time = provider.now(los_angeles);
+
+        assert_eq!(utc_time.to_rfc3339(), "2025-05-10T10:00:00+00:00");
+        assert_eq!(la_time.to_rfc3339(), "2025-05-10T03:00:00-07:00");
+        assert_eq!(provider.today(utc).to_string(), "2025-05-10");
+        assert_eq!(provider.today(los_angeles).to_string(), "2025-05-10");
+    }
+
+    #[test]
+    fn system_time_provider_handles_utc_and_non_utc_timezones() {
+        let provider = SystemTimeProvider;
+        let utc = chrono_tz::UTC;
+        let los_angeles = chrono_tz::America::Los_Angeles;
+
+        let utc_now = provider.now(utc);
+        let la_now = provider.now(los_angeles);
+
+        // Both values should represent the same "current instant", with only a small call-time delta.
+        assert!((utc_now.timestamp() - la_now.timestamp()).abs() <= 1);
+        assert_eq!(utc_now.timezone(), utc);
+        assert_eq!(la_now.timezone(), los_angeles);
+        assert_eq!(utc_now.with_timezone(&los_angeles).hour(), la_now.hour());
     }
 }
