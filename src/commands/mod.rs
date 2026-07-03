@@ -8,6 +8,7 @@ use clap::{Parser, Subcommand};
 use config_commands::ConfigCommands;
 use list_commands::ListCommands;
 use project_commands::ProjectCommands;
+use reminder_commands::ReminderCommands;
 use section_commands::SectionCommands;
 use shell_commands::ShellCommands;
 use std::fmt::Display;
@@ -20,6 +21,7 @@ mod auth_commands;
 mod config_commands;
 mod list_commands;
 mod project_commands;
+mod reminder_commands;
 mod section_commands;
 mod shell_commands;
 mod task_commands;
@@ -84,6 +86,11 @@ pub enum Commands {
     List(ListCommands),
 
     #[command(subcommand)]
+    #[clap(alias = "r")]
+    /// (r) Commands for reminders. Only available on Pro Todoist plans
+    Reminder(ReminderCommands),
+
+    #[command(subcommand)]
     #[clap(alias = "c")]
     /// (c) Commands around configuration and the app
     Config(ConfigCommands),
@@ -128,6 +135,18 @@ pub async fn select_command(
     }
 
     match &cli.command {
+        // Reminder
+        Commands::Reminder(ReminderCommands::List(args)) => {
+            let mut config = match fetch_config(&cli, &tx).await {
+                Ok(config) => config,
+                Err(e) => return (true, true, Err(e)),
+            };
+            (
+                config.bell_on_success,
+                config.bell_on_failure,
+                reminder_commands::list(&mut config, args).await,
+            )
+        }
         // Project
         Commands::Project(ProjectCommands::Create(args)) => {
             let mut config = match fetch_config(&cli, &tx).await {
