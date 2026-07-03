@@ -35,9 +35,9 @@ impl TimeProvider for FixedTimeProvider {
 #[cfg(test)]
 mod tests {
 
+    use super::*;
     use crate::time::SystemTimeProvider;
     use chrono::Timelike;
-    use super::*;
     use pretty_assertions::assert_eq;
 
     #[test]
