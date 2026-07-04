@@ -57,7 +57,7 @@ Usage: tod auth <COMMAND>
 
 Commands:
   login  (l) Log into Todoist using OAuth
-  api    (a) Save a Todoist developer API token directly to the config (non-interactive)
+  token  (t) Save a Todoist developer API token directly to the config (non-interactive)
   help   Print this message or the help of the given subcommand(s)
 ```
 
@@ -65,7 +65,7 @@ Commands:
 
 ```bash
 # Set your Todoist API token directly (non-interactive, great for CI/scripting)
-tod auth api --token YOUR_API_TOKEN
+tod auth token YOUR_API_TOKEN
 
 # Log in with OAuth (interactive, opens a browser)
 tod auth login
