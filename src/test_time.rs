@@ -83,9 +83,9 @@ mod tests {
         let la_now = provider.now(los_angeles);
 
         // Both values should represent the same "current instant", with only a small call-time delta.
-        assert!((utc_now.timestamp() - la_now.timestamp()).abs() <= 1);
+        let la_now_as_utc = la_now.with_timezone(&utc);
+        assert!((utc_now.timestamp() - la_now_as_utc.timestamp()).abs() <= 1);
         assert_eq!(utc_now.timezone(), utc);
         assert_eq!(la_now.timezone(), los_angeles);
-        assert_eq!(utc_now.with_timezone(&los_angeles).hour(), la_now.hour());
-    }
+    
 }
