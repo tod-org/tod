@@ -5,7 +5,7 @@ use crate::{
     oauth,
 };
 use clap::{Parser, Subcommand};
-use std::path::PathBuf;
+use std::{io::ErrorKind, path::PathBuf};
 
 #[derive(Subcommand, Debug, Clone)]
 pub enum AuthCommands {
@@ -40,13 +40,14 @@ pub async fn token(config_path: Option<PathBuf>, args: &Token) -> Result<String,
     let Token { key } = args;
     let path = config::resolve_path_or_default(config_path).await?;
 
-    let mut config = match Config::load(&path).await {
-        Ok(existing) => existing,
-        Err(_) => {
+    let mut config = match tokio::fs::metadata(&path).await {
+        Err(e) if e.kind() == ErrorKind::NotFound => {
             // Config doesn't exist yet — create a blank file with default settings.
             // No interactive prompts are triggered here.
             Config::new(None, path.clone()).await?.create().await?
         }
+        Err(e) => return Err(e.into()),
+        Ok(_) => Config::load(&path).await?,
     };
 
     config.set_token(key.clone()).await?;
@@ -62,7 +63,7 @@ mod tests {
     use tempfile::tempdir;
 
     #[tokio::test]
-    async fn test_api_creates_config_and_saves_token() {
+    async fn test_token_creates_config_and_saves_token() {
         let dir = tempdir().expect("temp dir should be created");
         let path = dir.path().join("tod.cfg");
 
@@ -72,13 +73,13 @@ mod tests {
 
         let result = token(Some(path.clone()), &args)
             .await
-            .expect("api command should succeed");
+            .expect("token command should succeed");
 
         assert!(result.contains("✓"), "should return success checkmark");
 
         let config = Config::load(&path)
             .await
-            .expect("config should be readable after api command");
+            .expect("config should be readable after token command");
         assert_eq!(
             config.token,
             Some("test-api-token-123".to_string()),
@@ -87,7 +88,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_api_updates_existing_config_token() {
+    async fn test_token_updates_existing_config_token() {
         let dir = tempdir().expect("temp dir should be created");
         let path = dir.path().join("tod.cfg");
 
