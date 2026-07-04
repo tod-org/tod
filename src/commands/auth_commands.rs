@@ -38,6 +38,13 @@ pub async fn login(config: &mut Config, _args: &Login) -> Result<String, Error> 
 /// on the next command that contacts the Todoist API.
 pub async fn token(config_path: Option<PathBuf>, args: &Token) -> Result<String, Error> {
     let Token { key } = args;
+    let trimmed_key = key.trim();
+    if trimmed_key.is_empty() {
+        return Err(Error::new(
+            "auth token",
+            "Todoist API token cannot be empty or whitespace",
+        ));
+    }
     let path = config::resolve_path_or_default(config_path).await?;
 
     let mut config = match tokio::fs::metadata(&path).await {
@@ -50,7 +57,7 @@ pub async fn token(config_path: Option<PathBuf>, args: &Token) -> Result<String,
         Ok(_) => Config::load(&path).await?,
     };
 
-    config.set_token(key.clone()).await?;
+    config.set_token(trimmed_key.to_string()).await?;
     Ok(color::green_string(&format!(
         "✓ API token saved to {}",
         path.display()
@@ -115,6 +122,25 @@ mod tests {
             config.token,
             Some("new-token".to_string()),
             "token should be updated in config"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_token_rejects_empty_or_whitespace_key() {
+        let dir = tempdir().expect("temp dir should be created");
+        let path = dir.path().join("tod.cfg");
+
+        let empty = Token {
+            key: "   ".to_string(),
+        };
+
+        let error = token(Some(path), &empty)
+            .await
+            .expect_err("empty token should be rejected");
+        assert_eq!(error.source, "auth token");
+        assert!(
+            error.message.contains("cannot be empty or whitespace"),
+            "error message should explain empty/whitespace rejection"
         );
     }
 }
