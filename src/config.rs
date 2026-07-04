@@ -616,8 +616,10 @@ async fn resolve_config_path(config_path: Option<PathBuf>) -> Result<PathBuf, Er
     }
 }
 
-/// Public version of `resolve_config_path` for use outside this module (e.g. auth commands).
-pub async fn resolve_path_or_default(config_path: Option<PathBuf>) -> Result<PathBuf, Error> {
+/// Crate-visible version of `resolve_config_path` for use across internal modules.
+pub(crate) async fn resolve_path_or_default(
+    config_path: Option<PathBuf>,
+) -> Result<PathBuf, Error> {
     resolve_config_path(config_path).await
 }
 /// Fetches config from from disk and creates it if it doesn't exist

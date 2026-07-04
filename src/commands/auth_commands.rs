@@ -49,9 +49,10 @@ pub async fn token(config_path: Option<PathBuf>, args: &Token) -> Result<String,
 
     let mut config = match tokio::fs::metadata(&path).await {
         Err(e) if e.kind() == ErrorKind::NotFound => {
-            // Config doesn't exist yet — create a blank file with default settings.
-            // No interactive prompts are triggered here.
-            Config::new(None, path.clone()).await?.create().await?
+            // Config doesn't exist yet — touch the file and let set_token() perform first save.
+            let config = Config::new(None, path.clone()).await?;
+            config.touch_file().await?;
+            config
         }
         Err(e) => return Err(e.into()),
         Ok(_) => Config::load(&path).await?,
