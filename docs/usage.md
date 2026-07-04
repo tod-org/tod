@@ -49,6 +49,25 @@ Options:
 And also use it to dig into subcommands
 
 ```bash
+> tod task -h
+
+Commands for individual tasks
+
+Usage: tod task <COMMAND>
+
+Commands:
+  quick-add  (q) Create a new task using NLP
+  create     (c) Create a new task (without NLP)
+  edit       (e) Edit an existing task's content
+  next       (n) Get the next task by priority
+  complete   (o) Complete the last task fetched with the next command
+  help       Print this message or the help of the given subcommand(s)
+
+Options:
+  -h, --help  Print help
+```
+
+```bash
 > tod auth -h
 
 Commands for logging in with OAuth or setting an API token
@@ -69,7 +88,6 @@ tod auth token YOUR_API_TOKEN
 
 # Log in with OAuth (interactive, opens a browser)
 tod auth login
-
 
 # Quickly create a task
 tod task quick-add --content Buy more milk today

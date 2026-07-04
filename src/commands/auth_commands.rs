@@ -1,4 +1,9 @@
-use crate::{color, config::{self, Config}, errors::Error, oauth};
+use crate::{
+    color,
+    config::{self, Config},
+    errors::Error,
+    oauth,
+};
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
