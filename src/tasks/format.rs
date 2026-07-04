@@ -247,6 +247,7 @@ fn byte_index_for_char_count(text: &str, char_count: usize) -> Option<usize> {
 
 #[cfg(test)]
 mod tests {
+    use crate::tasks::DateInfo;
     use crate::test;
     use crate::test::responses::ResponseFromFile;
 
@@ -398,5 +399,119 @@ mod tests {
         let mut config = Config::default();
         config.disable_links = true;
         assert_eq!(maybe_format_url(url, &config), url);
+    }
+
+    #[tokio::test]
+    async fn test_content_priority_and_links() {
+        let config = test::fixtures::config().await;
+        let mut task = test::fixtures::today_task().await;
+        task.content = "Test".to_string();
+
+        task.priority = priority::Priority::Low;
+        assert_eq!(content(&task, &config), color::blue_string("Test"));
+
+        task.priority = priority::Priority::Medium;
+        assert_eq!(content(&task, &config), color::yellow_string("Test"));
+
+        task.priority = priority::Priority::High;
+        assert_eq!(content(&task, &config), color::red_string("Test"));
+
+        task.priority = priority::Priority::None;
+        assert_eq!(content(&task, &config), color::normal_string("Test"));
+
+        // Hyperlinks disabled
+        let mut config_no_links = config.clone();
+        config_no_links.disable_links = true;
+        assert_eq!(
+            content(&task, &config_no_links),
+            color::normal_string("Test")
+        );
+    }
+
+    #[tokio::test]
+    async fn test_labels_format() {
+        let mut task = test::fixtures::today_task().await;
+        task.labels = vec!["foo".to_string(), "bar".to_string()];
+        let result = labels(&task);
+        assert!(result.contains("@"));
+        assert!(result.contains("foo"));
+        assert!(result.contains("bar"));
+    }
+
+    #[tokio::test]
+    async fn test_due_no_date() {
+        let config = test::fixtures::config().await;
+        let task = Task {
+            due: None,
+            ..test::fixtures::today_task().await
+        };
+        assert_eq!(due(&task, &config, ""), "");
+    }
+
+    #[test]
+    fn test_number_comments() {
+        assert!(number_comments(1).contains("1 comment"));
+        assert!(number_comments(2).contains("2 comments"));
+    }
+
+    #[tokio::test]
+    async fn test_project_found_and_not_found() {
+        let config = test::fixtures::config().await;
+        let fixture_project = test::fixtures::project();
+
+        // Project found
+        let task_found = Task {
+            project_id: fixture_project.id.clone(),
+            ..test::fixtures::today_task().await
+        };
+        let found = project(&task_found, &config, "  ").await.unwrap();
+        assert!(found.contains("myproject"));
+
+        // Project not found
+        let task_not_found = Task {
+            project_id: "notfound".to_string(),
+            ..test::fixtures::today_task().await
+        };
+        let not_found = project(&task_not_found, &config, "  ").await.unwrap();
+        assert!(not_found.contains("Project not in config"));
+    }
+
+    #[tokio::test]
+    async fn test_due_various_branches() {
+        let config = test::fixtures::config().await;
+        let base_task = test::fixtures::today_task().await;
+
+        // Date-only due (date string of exactly 10 chars → DateTimeInfo::Date)
+        let task_date = Task {
+            due: Some(DateInfo {
+                date: "2024-01-01".to_string(),
+                is_recurring: false,
+                string: "every day".to_string(),
+                lang: "en".to_string(),
+                timezone: None,
+            }),
+            ..base_task.clone()
+        };
+        let out = due(&task_date, &config, "");
+        assert!(out.contains("!"));
+
+        // Datetime due with duration and recurring flag (→ DateTimeInfo::DateTime)
+        let task_datetime = Task {
+            due: Some(DateInfo {
+                date: "2024-01-01T20:00:00Z".to_string(),
+                is_recurring: true,
+                string: "every week".to_string(),
+                lang: "en".to_string(),
+                timezone: None,
+            }),
+            duration: Some(Duration {
+                amount: 2,
+                unit: Unit::Day,
+            }),
+            ..base_task
+        };
+        let out = due(&task_datetime, &config, "");
+        assert!(out.contains("for 2 days"));
+        assert!(out.contains("↻"));
     }
 }
