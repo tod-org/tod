@@ -1,0 +1,211 @@
+# End-to-end integration tests that run Tod against the live Todoist API.
+# Uses the Tod_DEV_CI project in the dev Todoist account.
+# Run manually only — never triggered automatically to avoid unintended API usage.
+
+name: E2E Todoist Integration Tests
+
+on:
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+  # Disable spinners so output is clean for scripted assertions
+  DISABLE_SPINNER: "1"
+  TOD_CONFIG: /tmp/tod-e2e-test.cfg
+  TOD_BIN: ./target/release/tod
+  # Project name in the dev Todoist account
+  TOD_PROJECT: Tod_DEV_CI
+
+concurrency:
+  # Allow only one E2E run at a time to prevent parallel runs corrupting shared Todoist state
+  group: e2e-todoist
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  e2e:
+    name: E2E Todoist API Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        run: rustup toolchain install stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-all-crates: true
+
+      - name: Build tod
+        run: cargo build --release
+
+      # Write the config by calling tod auth api with the secret token.
+      # This creates a fresh config file at TOD_CONFIG without any interactive prompts.
+      # Timezone and other settings are populated automatically on the first API call.
+      - name: Set API token in config
+        env:
+          TODOIST_API_TOKEN: ${{ secrets.TODOIST_DEV_API_TEST }}
+        run: |
+          $TOD_BIN --config "$TOD_CONFIG" auth token "$TODOIST_API_TOKEN"
+          echo "Config initialised at $TOD_CONFIG"
+
+      # Import all projects from Todoist into the local config so tod can address them by name.
+      - name: Import all Todoist projects into config
+        run: $TOD_BIN --config "$TOD_CONFIG" project import --auto
+
+      - name: Verify Tod_DEV_CI project is in config
+        run: |
+          $TOD_BIN --config "$TOD_CONFIG" project list | grep -q "$TOD_PROJECT" \
+            || { echo "FAIL: $TOD_PROJECT not found in config after import"; exit 1; }
+          echo "✓ $TOD_PROJECT is available"
+
+      # Pre-test cleanup: complete any leftover tasks from a previous failed run so we
+      # start with an empty project.
+      - name: Pre-test cleanup — empty Tod_DEV_CI of any leftover tasks
+        run: |
+          echo "Checking for leftover tasks..."
+          for i in $(seq 1 20); do
+            output=$($TOD_BIN --config "$TOD_CONFIG" task next --project "$TOD_PROJECT" 2>&1)
+            echo "$output"
+            if echo "$output" | grep -q "No tasks on list"; then
+              echo "✓ Project is already clean"
+              break
+            fi
+            echo "Completing leftover task $i..."
+            $TOD_BIN --config "$TOD_CONFIG" task complete
+          done
+
+      # ─── Create test tasks ────────────────────────────────────────────────────
+      # Create four tasks covering every priority level.
+      # Using --no-section avoids any interactive section-selection prompt.
+      # Task names are prefixed with [E2E] for easy identification in cleanup.
+      - name: Create test tasks with all four priority levels
+        run: |
+          $TOD_BIN --config "$TOD_CONFIG" task create \
+            --content "[E2E] High Priority Task" \
+            --project "$TOD_PROJECT" \
+            --priority 4 \
+            --no-section
+
+          $TOD_BIN --config "$TOD_CONFIG" task create \
+            --content "[E2E] Medium Priority Task" \
+            --project "$TOD_PROJECT" \
+            --priority 3 \
+            --no-section
+
+          $TOD_BIN --config "$TOD_CONFIG" task create \
+            --content "[E2E] No Priority Task" \
+            --project "$TOD_PROJECT" \
+            --priority 1 \
+            --no-section
+
+          $TOD_BIN --config "$TOD_CONFIG" task create \
+            --content "[E2E] Low Priority Task" \
+            --project "$TOD_PROJECT" \
+            --priority 2 \
+            --no-section
+
+      # ─── Verify tasks exist ───────────────────────────────────────────────────
+      - name: Verify all four tasks appear in list view
+        run: |
+          output=$($TOD_BIN --config "$TOD_CONFIG" list view --project "$TOD_PROJECT")
+          echo "$output"
+          echo "$output" | grep -q "\[E2E\] High Priority Task"    || { echo "FAIL: High not found";   exit 1; }
+          echo "$output" | grep -q "\[E2E\] Medium Priority Task"  || { echo "FAIL: Medium not found"; exit 1; }
+          echo "$output" | grep -q "\[E2E\] No Priority Task"      || { echo "FAIL: None not found";   exit 1; }
+          echo "$output" | grep -q "\[E2E\] Low Priority Task"     || { echo "FAIL: Low not found";    exit 1; }
+          echo "✓ All four tasks present"
+
+      # ─── Verify sort order via task next ─────────────────────────────────────
+      # Expected sort values for undated, non-recurring tasks (defaults from docs):
+      #   no_due_date(80) + not_recurring(50) + priority_X
+      #
+      #   High   (p4, priority_high=4):  80+50+4 = 134  ← 1st
+      #   Medium (p3, priority_medium=3):80+50+3 = 133  ← 2nd
+      #   None   (p1, priority_none=2):  80+50+2 = 132  ← 3rd (none > low!)
+      #   Low    (p2, priority_low=1):   80+50+1 = 131  ← 4th
+
+      - name: "Sort check 1/4 — next task should be High Priority (score 134)"
+        run: |
+          output=$($TOD_BIN --config "$TOD_CONFIG" task next --project "$TOD_PROJECT")
+          echo "$output"
+          echo "$output" | grep -q "\[E2E\] High Priority Task" \
+            || { echo "FAIL: Expected High Priority Task first"; exit 1; }
+          echo "✓ High Priority Task is first"
+
+      - name: Complete High Priority Task
+        run: $TOD_BIN --config "$TOD_CONFIG" task complete
+
+      - name: "Sort check 2/4 — next task should be Medium Priority (score 133)"
+        run: |
+          output=$($TOD_BIN --config "$TOD_CONFIG" task next --project "$TOD_PROJECT")
+          echo "$output"
+          echo "$output" | grep -q "\[E2E\] Medium Priority Task" \
+            || { echo "FAIL: Expected Medium Priority Task second"; exit 1; }
+          echo "✓ Medium Priority Task is second"
+
+      - name: Complete Medium Priority Task
+        run: $TOD_BIN --config "$TOD_CONFIG" task complete
+
+      - name: "Sort check 3/4 — next task should be No Priority (score 132, priority_none=2 > priority_low=1)"
+        run: |
+          output=$($TOD_BIN --config "$TOD_CONFIG" task next --project "$TOD_PROJECT")
+          echo "$output"
+          echo "$output" | grep -q "\[E2E\] No Priority Task" \
+            || { echo "FAIL: Expected No Priority Task third (priority_none beats priority_low)"; exit 1; }
+          echo "✓ No Priority Task is third"
+
+      - name: Complete No Priority Task
+        run: $TOD_BIN --config "$TOD_CONFIG" task complete
+
+      - name: "Sort check 4/4 — next task should be Low Priority (score 131)"
+        run: |
+          output=$($TOD_BIN --config "$TOD_CONFIG" task next --project "$TOD_PROJECT")
+          echo "$output"
+          echo "$output" | grep -q "\[E2E\] Low Priority Task" \
+            || { echo "FAIL: Expected Low Priority Task last"; exit 1; }
+          echo "✓ Low Priority Task is last"
+
+      - name: Complete Low Priority Task
+        run: $TOD_BIN --config "$TOD_CONFIG" task complete
+
+      # ─── Verify project is empty ──────────────────────────────────────────────
+      - name: Verify Tod_DEV_CI project is now empty
+        run: |
+          output=$($TOD_BIN --config "$TOD_CONFIG" task next --project "$TOD_PROJECT")
+          echo "$output"
+          echo "$output" | grep -q "No tasks on list" \
+            || { echo "FAIL: Expected empty project after completing all tasks"; exit 1; }
+          echo "✓ Project is empty — all tasks completed"
+
+      # ─── Cleanup ──────────────────────────────────────────────────────────────
+      # Always runs, even on failure, so the Todoist account is left clean.
+      - name: Cleanup — complete any remaining E2E tasks
+        if: always()
+        run: |
+          if [ ! -f "$TOD_CONFIG" ]; then
+            echo "Config missing — skipping cleanup"
+            exit 0
+          fi
+          echo "Completing any remaining [E2E] tasks..."
+          for i in $(seq 1 20); do
+            output=$($TOD_BIN --config "$TOD_CONFIG" task next --project "$TOD_PROJECT" 2>&1) || break
+            echo "$output"
+            if echo "$output" | grep -q "No tasks on list"; then
+              echo "✓ Project is clean"
+              break
+            fi
+            # Only complete tasks we created; bail if we find a non-E2E task
+            if ! echo "$output" | grep -q "\[E2E\]"; then
+              echo "WARNING: Unexpected non-E2E task found — stopping cleanup to avoid data loss"
+              break
+            fi
+            $TOD_BIN --config "$TOD_CONFIG" task complete
+          done
+
+      - name: Remove temp config
+        if: always()
+        run: rm -f "$TOD_CONFIG"
