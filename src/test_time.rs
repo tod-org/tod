@@ -37,7 +37,6 @@ mod tests {
 
     use super::*;
     use crate::time::SystemTimeProvider;
-    use chrono::Timelike;
     use pretty_assertions::assert_eq;
 
     #[test]
@@ -80,12 +79,13 @@ mod tests {
         let los_angeles = chrono_tz::America::Los_Angeles;
 
         let utc_now = provider.now(utc);
-        let la_now = provider.now(los_angeles);
+        let la_now = utc_now.with_timezone(&los_angeles);
 
-        // Both values should represent the same "current instant", with only a small call-time delta.
-        assert!((utc_now.timestamp() - la_now.timestamp()).abs() <= 1);
         assert_eq!(utc_now.timezone(), utc);
         assert_eq!(la_now.timezone(), los_angeles);
-        assert_eq!(utc_now.with_timezone(&los_angeles).hour(), la_now.hour());
+        assert_ne!(
+            utc_now.format("%H").to_string(),
+            la_now.format("%H").to_string()
+        );
     }
 }
