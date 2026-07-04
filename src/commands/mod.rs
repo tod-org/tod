@@ -431,10 +431,10 @@ pub async fn select_command(
             )
         }
 
-        Commands::Auth(AuthCommands::Api(args)) => (
+        Commands::Auth(AuthCommands::Token(args)) => (
             false,
             false,
-            auth_commands::api(cli.config.clone(), args).await,
+            auth_commands::token(cli.config.clone(), args).await,
         ),
 
         // Shell

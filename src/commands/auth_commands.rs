@@ -8,19 +8,18 @@ pub enum AuthCommands {
     /// (l) Log into Todoist using OAuth
     Login(Login),
 
-    #[clap(alias = "a")]
-    /// (a) Save a Todoist developer API token directly to the config (non-interactive)
-    Api(Api),
+    #[clap(alias = "t")]
+    /// (t) Save a Todoist developer API token directly to the config (non-interactive)
+    Token(Token),
 }
 
 #[derive(Parser, Debug, Clone)]
 pub struct Login {}
 
 #[derive(Parser, Debug, Clone)]
-pub struct Api {
-    #[arg(short, long)]
+pub struct Token {
     /// Todoist developer API token from https://todoist.com/prefs/integrations
-    token: String,
+    key: String,
 }
 
 pub async fn login(config: &mut Config, _args: &Login) -> Result<String, Error> {
@@ -32,8 +31,8 @@ pub async fn login(config: &mut Config, _args: &Login) -> Result<String, Error> 
 /// Creates the config file at `config_path` (or the platform default) if it does not yet exist.
 /// Timezone and other settings are left at their defaults and will be filled in automatically
 /// on the next command that contacts the Todoist API.
-pub async fn api(config_path: Option<PathBuf>, args: &Api) -> Result<String, Error> {
-    let Api { token } = args;
+pub async fn token(config_path: Option<PathBuf>, args: &Token) -> Result<String, Error> {
+    let Token { key } = args;
     let path = config::resolve_path_or_default(config_path).await?;
 
     let mut config = match Config::load(&path).await {
@@ -45,7 +44,7 @@ pub async fn api(config_path: Option<PathBuf>, args: &Api) -> Result<String, Err
         }
     };
 
-    config.set_token(token.clone()).await?;
+    config.set_token(key.clone()).await?;
     Ok(color::green_string(&format!(
         "✓ API token saved to {}",
         path.display()
@@ -62,11 +61,11 @@ mod tests {
         let dir = tempdir().expect("temp dir should be created");
         let path = dir.path().join("tod.cfg");
 
-        let args = Api {
-            token: "test-api-token-123".to_string(),
+        let args = Token {
+            key: "test-api-token-123".to_string(),
         };
 
-        let result = api(Some(path.clone()), &args)
+        let result = token(Some(path.clone()), &args)
             .await
             .expect("api command should succeed");
 
@@ -88,20 +87,20 @@ mod tests {
         let path = dir.path().join("tod.cfg");
 
         // Create a config with an initial token
-        let initial = Api {
-            token: "old-token".to_string(),
+        let initial = Token {
+            key: "old-token".to_string(),
         };
-        api(Some(path.clone()), &initial)
+        token(Some(path.clone()), &initial)
             .await
-            .expect("first api call should succeed");
+            .expect("first token call should succeed");
 
         // Update with a new token
-        let updated = Api {
-            token: "new-token".to_string(),
+        let updated = Token {
+            key: "new-token".to_string(),
         };
-        api(Some(path.clone()), &updated)
+        token(Some(path.clone()), &updated)
             .await
-            .expect("second api call should succeed");
+            .expect("second token call should succeed");
 
         let config = Config::load(&path)
             .await
