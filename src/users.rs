@@ -19,3 +19,37 @@ impl User {
 pub struct TzInfo {
     pub timezone: String,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_test::{Token, assert_de_tokens};
+
+    #[test]
+    fn user_deserializes_with_serde_tokens() {
+        let expected = User {
+            tz_info: TzInfo {
+                timezone: "America/Vancouver".to_string(),
+            },
+        };
+
+        assert_de_tokens(
+            &expected,
+            &[
+                Token::Struct {
+                    name: "User",
+                    len: 1,
+                },
+                Token::Str("tz_info"),
+                Token::Struct {
+                    name: "TzInfo",
+                    len: 1,
+                },
+                Token::Str("timezone"),
+                Token::Str("America/Vancouver"),
+                Token::StructEnd,
+                Token::StructEnd,
+            ],
+        );
+    }
+}

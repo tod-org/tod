@@ -1016,6 +1016,25 @@ mod tests {
     use super::*;
     use crate::test::{self, responses::ResponseFromFile};
     use pretty_assertions::assert_eq;
+    use serde_test::{Token, assert_de_tokens};
+
+    #[test]
+    fn unit_deserializes_with_serde_tokens() {
+        assert_de_tokens(
+            &Unit::Minute,
+            &[Token::UnitVariant {
+                name: "Unit",
+                variant: "minute",
+            }],
+        );
+        assert_de_tokens(
+            &Unit::Day,
+            &[Token::UnitVariant {
+                name: "Unit",
+                variant: "day",
+            }],
+        );
+    }
 
     #[tokio::test]
     async fn test_task_from_json_valid() {

@@ -30,7 +30,7 @@ struct Params {
     state: Option<String>,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, PartialEq, Eq)]
 pub struct AccessToken {
     pub access_token: String,
 }
@@ -150,6 +150,25 @@ mod tests {
     use super::*;
     use crate::test::{self, responses::ResponseFromFile};
     use pretty_assertions::assert_eq;
+    use serde_test::{Token, assert_de_tokens};
+
+    #[test]
+    fn access_token_deserializes_with_serde_tokens() {
+        assert_de_tokens(
+            &AccessToken {
+                access_token: "token-value".to_string(),
+            },
+            &[
+                Token::Struct {
+                    name: "AccessToken",
+                    len: 1,
+                },
+                Token::Str("access_token"),
+                Token::Str("token-value"),
+                Token::StructEnd,
+            ],
+        );
+    }
 
     #[tokio::test]
     async fn login_test() {
