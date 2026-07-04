@@ -29,7 +29,7 @@ pub enum ProjectCommands {
     Import(Import),
 
     #[clap(alias = "e")]
-    /// (e) Empty a project by putting tasks in other projects"
+    /// (e) Empty a project by putting tasks in other projects
     Empty(Empty),
 }
 
@@ -91,7 +91,7 @@ pub struct Delete {
 #[derive(Parser, Debug, Clone)]
 pub struct Rename {
     #[arg(short, long)]
-    /// Project to remove
+    /// Project to rename
     project: Option<String>,
 }
 #[derive(Parser, Debug, Clone)]
