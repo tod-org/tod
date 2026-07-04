@@ -431,6 +431,12 @@ pub async fn select_command(
             )
         }
 
+        Commands::Auth(AuthCommands::Api(args)) => (
+            false,
+            false,
+            auth_commands::api(cli.config.clone(), args).await,
+        ),
+
         // Shell
         Commands::Shell(ShellCommands::Completions(args)) => {
             (true, true, shell_commands::completions(args).await)

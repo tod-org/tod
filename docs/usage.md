@@ -36,6 +36,7 @@ Commands:
   task     (t) Commands for individual tasks
   list     (l) Commands for multiple tasks
   config   (c) Commands around configuration and the app
+  auth     (a) Commands for logging in with OAuth or setting an API token
   help     Print this message or the help of the given subcommand(s)
 
 Options:
@@ -48,27 +49,28 @@ Options:
 And also use it to dig into subcommands
 
 ```bash
-> tod task -h
+> tod auth -h
 
-Commands for individual tasks
+Commands for logging in with OAuth or setting an API token
 
-Usage: tod task <COMMAND>
+Usage: tod auth <COMMAND>
 
 Commands:
-  quick-add  (q) Create a new task using NLP
-  create     (c) Create a new task (without NLP)
-  edit       (e) Edit an existing task's content
-  next       (n) Get the next task by priority
-  complete   (o) Complete the last task fetched with the next command
-  help       Print this message or the help of the given subcommand(s)
-
-Options:
-  -h, --help  Print help
+  login  (l) Log into Todoist using OAuth
+  api    (a) Save a Todoist developer API token directly to the config (non-interactive)
+  help   Print this message or the help of the given subcommand(s)
 ```
 
 ## Usage Examples
 
 ```bash
+# Set your Todoist API token directly (non-interactive, great for CI/scripting)
+tod auth api --token YOUR_API_TOKEN
+
+# Log in with OAuth (interactive, opens a browser)
+tod auth login
+
+
 # Quickly create a task
 tod task quick-add --content Buy more milk today
 
