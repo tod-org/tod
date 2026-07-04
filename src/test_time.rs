@@ -37,7 +37,6 @@ mod tests {
 
     use super::*;
     use crate::time::SystemTimeProvider;
-    use chrono::Timelike;
     use pretty_assertions::assert_eq;
 
     #[test]
@@ -87,5 +86,5 @@ mod tests {
         assert!((utc_now.timestamp() - la_now_as_utc.timestamp()).abs() <= 1);
         assert_eq!(utc_now.timezone(), utc);
         assert_eq!(la_now.timezone(), los_angeles);
-    
+    }
 }
