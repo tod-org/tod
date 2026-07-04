@@ -195,21 +195,19 @@ Projects are stored locally in config to help save on API requests and speed up 
 
 Deprecated in latest version, replaced with sort_order. Will be removed in future release.
 
-```json
-  {
-    "deadline_days": 5,
-    "deadline_value": 30,
-    "no_due_date": 80,
-    "not_recurring": 50,
-    "now": 200,
-    "overdue": 150,
-    "priority_high": 4,
-    "priority_low": 1,
-    "priority_medium": 3,
-    "priority_none": 2,
-    "today": 100
-  },
-```
+    {
+      "deadline_days": 5,
+      "deadline_value": 30,
+      "no_due_date": 80,
+      "not_recurring": 50,
+      "now": 200,
+      "overdue": 150,
+      "priority_high": 4,
+      "priority_low": 1,
+      "priority_medium": 3,
+      "priority_none": 2,
+      "today": 100
+    }
 
 ### sort_order
 
@@ -225,7 +223,7 @@ The direction may be omitted to use the key's default. For example, `priority` i
 
 Available keys: `priority`, `due_date`, `overdue`, `today`, `now`, `no_due_date`, `not_recurring`, `deadline`, and `order`. Available directions are `asc` and `desc`. `order` uses Todoist's task order (`child_order` in the current API).
 
-Legacy configs that still contain `sort_value` will be accepted temporarily. Tod migrates the old numeric weights into a best-effort `sort_order` at load time and prints a warning that `sort_value` will be removed in a future version. To avoid the warning, replace `sort_value` with an explicit `sort_order` list.
+Legacy configs that still contain `sort_value` will be accepted temporarily. Tod migrates the old numeric weights into a best-effort `sort_order` at load time and will print a warning that `sort_value` will be removed in a future version. To avoid the warning, replace `sort_value` with an explicit `sort_order` list.
 
 ### spinners
 
