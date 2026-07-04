@@ -77,8 +77,8 @@ jobs:
             fi
             # Only complete tasks we created; bail if we find a non-E2E task
             if ! echo "$output" | grep -q "\[E2E\]"; then
-              echo "WARNING: Unexpected non-E2E task found — stopping pre-cleanup to avoid data loss"
-              break
+              echo "FAIL: Unexpected non-E2E task found in $TOD_PROJECT; refusing to continue"
+              exit 1
             fi
             echo "Completing leftover task $i..."
             $TOD_BIN --config "$TOD_CONFIG" task complete
