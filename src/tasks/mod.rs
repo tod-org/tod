@@ -271,12 +271,10 @@ impl Task {
             Ok(DateTimeInfo::Date { date, .. }) => {
                 let naive_datetime = date.and_hms_opt(23, 59, 00)?;
 
-                let now = time::datetime_now(config).ok()?;
+                let tz_string = config.get_timezone().ok()?;
+                let tz = time::timezone_from_str(&tz_string).ok()?;
 
-                Some(DateTime::from_naive_utc_and_offset(
-                    naive_datetime,
-                    *now.offset(),
-                ))
+                naive_datetime.and_local_timezone(tz).single()
             }
             Ok(DateTimeInfo::NoDateTime) | Err(_) => None,
         }
@@ -286,11 +284,11 @@ impl Task {
         let Deadline { date, .. } = self.deadline.as_ref()?;
         let date = time::date_string_to_naive_date(date).ok()?;
         let naive_datetime = date.and_hms_opt(23, 59, 00)?;
-        let now = time::datetime_now(config).ok()?;
-        Some(DateTime::from_naive_utc_and_offset(
-            naive_datetime,
-            *now.offset(),
-        ))
+
+        let tz_string = config.get_timezone().ok()?;
+        let tz = time::timezone_from_str(&tz_string).ok()?;
+
+        naive_datetime.and_local_timezone(tz).single()
     }
 
     /// Converts the JSON date representation into Date or Datetime
