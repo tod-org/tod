@@ -27,6 +27,7 @@ pub enum ResponseFromFile {
     NewProjects,
     Section,
     Sections,
+    Reminder,
     Reminders,
     /// Data about the logged in user
     User,
@@ -70,6 +71,7 @@ impl ResponseFromFile {
             | Self::Label
             | Self::Labels
             | Self::Project
+            | Self::Reminder
             | Self::Reminders
             | Self::Projects
             | Self::NewProjects

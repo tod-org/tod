@@ -226,8 +226,8 @@ pub async fn create_reminder(
     let url = REMINDERS_URL;
     let body =
         json!({"task_id": task_id, "reminder_type": "absolute", "due": {"string": due_string}});
-    let json = request::post_todoist(config, url, body, spinner).await?;
 
+    let json = request::post_todoist(config, url, body, spinner).await?;
     Reminder::from_json(&json)
 }
 
@@ -1077,6 +1077,69 @@ mod tests {
 
         assert_eq!(response.id, String::from("6Xqhv4cwxgjwG9w8"));
         assert_eq!(response.project_id, String::from("6VRRxv8CM6GVmmgf"));
+    }
+
+    #[tokio::test]
+    async fn test_create_reminder() {
+        let mut server = mockito::Server::new_async().await;
+        let mock = server
+            .mock("POST", "/api/v1/reminders")
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(ResponseFromFile::Reminder.read().await)
+            .create_async()
+            .await;
+
+        let config = test::fixtures::config().await.with_mock_url(server.url());
+        let task = test::fixtures::today_task().await;
+
+        let response = create_reminder(&config, &task, "2026-01-18 17:00", false).await;
+        mock.assert();
+
+        assert_eq!(response, Ok(test::fixtures::reminder()));
+    }
+
+    #[tokio::test]
+    async fn test_all_reminders() {
+        let mut server = mockito::Server::new_async().await;
+        let mock = server
+            .mock("GET", "/api/v1/reminders?limit=200")
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(ResponseFromFile::Reminders.read().await)
+            .create_async()
+            .await;
+
+        let config = test::fixtures::config().await.with_mock_url(server.url());
+
+        let response = all_reminders(&config, None).await;
+        mock.assert();
+
+        assert_eq!(response, Ok(vec![test::fixtures::reminder()]));
+    }
+
+    #[tokio::test]
+    async fn test_reminders_forbidden_shows_pro_plan_message() {
+        let mut server = mockito::Server::new_async().await;
+        let mock = server
+            .mock("GET", "/api/v1/reminders?limit=200")
+            .with_status(403)
+            .with_header("content-type", "application/json")
+            .with_body(ResponseFromFile::Reminders.read().await)
+            .create_async()
+            .await;
+
+        let config = test::fixtures::config().await.with_mock_url(server.url());
+
+        let error = all_reminders(&config, None).await.unwrap_err();
+        mock.assert();
+        assert_eq!(error.source, String::from("reqwest"));
+        assert_eq!(
+            error.message,
+            String::from(
+                "Reminders are only available on Pro Todoist plans. Upgrade to Todoist Pro to access reminder features."
+            )
+        );
     }
 
     #[tokio::test]

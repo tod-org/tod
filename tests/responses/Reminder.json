@@ -1,0 +1,16 @@
+{
+  "id": "6cWqJ9VVxH3vJxxM",
+  "item_id": "6Xqhv4cwxgjwG9w8",
+  "notify_uid": "635166",
+  "is_deleted": false,
+  "is_urgent": false,
+  "type": "relative",
+  "minute_offset": 0,
+  "due": {
+    "date": "2026-01-18T17:00:00",
+    "timezone": null,
+    "string": "2026-01-18 17:00",
+    "lang": "en",
+    "is_recurring": false
+  }
+}
