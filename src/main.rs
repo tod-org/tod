@@ -47,7 +47,10 @@ async fn main() {
     // Channel for sending errors from async processes
     let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<Error>();
 
-    let (bell_success, bell_error, result) = commands::select_command(cli, tx).await;
+    let (bell_success, bell_error, result) = match commands::select_command(cli, tx).await {
+        Ok((s, e, r)) => (s, e, r),
+        Err(e) => (true, true, Err(e)),
+    };
 
     let mut exit_code = match result {
         Ok(text) => {
