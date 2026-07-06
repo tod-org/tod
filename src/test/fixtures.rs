@@ -5,6 +5,7 @@ use crate::config::{self, Config};
 use crate::errors::Error;
 use crate::labels::Label;
 use crate::projects::Project;
+use crate::reminders::Reminder;
 use crate::sections::Section;
 use crate::tasks::priority::Priority;
 use crate::tasks::{DateInfo, Deadline, Duration, Task, Unit};
@@ -166,6 +167,25 @@ pub fn section() -> Section {
         is_archived: false,
         is_deleted: false,
         is_collapsed: false,
+    }
+}
+
+pub fn reminder() -> Reminder {
+    Reminder {
+        id: "6cWqJ9VVxH3vJxxM".to_string(),
+        item_id: "6Xqhv4cwxgjwG9w8".to_string(),
+        notify_uid: "635166".to_string(),
+        r#type: "relative".to_string(),
+        is_deleted: false,
+        minute_offset: Some(0),
+        is_urgent: false,
+        due: Some(DateInfo {
+            date: "2026-01-18T17:00:00".to_string(),
+            timezone: None,
+            string: "2026-01-18 17:00".to_string(),
+            lang: "en".to_string(),
+            is_recurring: false,
+        }),
     }
 }
 
