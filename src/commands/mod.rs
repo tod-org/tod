@@ -372,6 +372,15 @@ pub async fn select_command(
             ))
         }
 
+        Commands::Config(ConfigCommands::Edit(args)) => {
+            let config = fetch_config(&cli, &tx).await?;
+            Ok((
+                config.bell_on_success,
+                config.bell_on_failure,
+                config_commands::edit(config, args).await,
+            ))
+        }
+
         Commands::Auth(AuthCommands::Login(args)) => {
             let mut config = match get_existing_config_exists(cli.config.clone()).await {
                 Ok(config) => config,

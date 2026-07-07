@@ -14,6 +14,7 @@ use uuid::Uuid;
 use crate::color;
 use crate::config::Args;
 use crate::config::Config;
+use crate::config::DEFAULT_TIMEOUT_SECONDS;
 use crate::debug;
 use crate::errors::Error;
 
@@ -189,7 +190,7 @@ fn get_timeout(config: &Config) -> Duration {
             timeout: None,
             args: Args { timeout: None, .. },
             ..
-        } => Duration::from_secs(30),
+        } => Duration::from_secs(DEFAULT_TIMEOUT_SECONDS),
 
         Config {
             timeout: Some(timeout),

@@ -35,6 +35,15 @@ impl From<std::io::Error> for Error {
     }
 }
 
+impl From<regex::Error> for Error {
+    fn from(value: regex::Error) -> Self {
+        Self {
+            source: "regex".into(),
+            message: format!("{value}"),
+        }
+    }
+}
+
 impl From<RecvError> for Error {
     fn from(_value: RecvError) -> Self {
         Self {

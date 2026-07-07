@@ -22,6 +22,7 @@ use tokio::sync::mpsc::UnboundedSender;
 use crate::test_time::FixedTimeProvider;
 
 const MAX_COMMENT_LENGTH: u32 = 500;
+pub const DEFAULT_TIMEOUT_SECONDS: u64 = 30;
 pub const DEFAULT_DEADLINE_VALUE: u8 = 30;
 pub const DEFAULT_DEADLINE_DAYS: u8 = 5;
 pub const OAUTH: &str = "Login with OAuth (recommended)";
@@ -69,7 +70,7 @@ pub struct Config {
     #[serde(default)]
     pub bell_on_success: bool,
     /// Whether to trigger terminal bell on error
-    #[serde(default = "bell_on_failure")]
+    #[serde(default = "bell_on_failure_default")]
     pub bell_on_failure: bool,
     /// A command to to run on task creation
     pub task_create_command: Option<String>,
@@ -118,14 +119,16 @@ pub struct Config {
     pub time_provider: TimeProviderEnum,
 }
 
-fn bell_on_failure() -> bool {
+fn bell_on_failure_default() -> bool {
     true
 }
+
 #[derive(Default, Clone, Eq, PartialEq, Debug)]
 pub struct Args {
     pub verbose: bool,
     pub timeout: Option<u64>,
 }
+
 #[derive(Default, Clone, Debug)]
 pub struct Internal {
     pub tx: Option<UnboundedSender<Error>>,
@@ -169,6 +172,12 @@ impl Default for SortValue {
 }
 
 impl Config {
+    /// Pretty printed message for how to get API token
+    pub fn token_message(self: &Config) -> String {
+        let url = maybe_format_url("https://todoist.com/prefs/integrations", self);
+        format!("Please enter your Todoist API token from {url} ")
+    }
+
     /// Set timezone on Config struct only
     pub fn with_timezone(self: &Config, timezone: &str) -> Config {
         Config {
@@ -176,6 +185,7 @@ impl Config {
             ..self.clone()
         }
     }
+
     /// Set token on Config struct only
     pub fn with_token(self: &Config, token: &str) -> Config {
         Config {
@@ -196,6 +206,7 @@ impl Config {
         );
         Ok(config)
     }
+
     /// Ensures the parent directory exists and touches the config file.
     pub async fn touch_file(&self) -> Result<(), Error> {
         if let Some(parent) = std::path::Path::new(&self.path).parent() {
@@ -235,6 +246,7 @@ impl Config {
     pub async fn projects(self: &Config) -> Result<Vec<Project>, Error> {
         Ok(self.projects.clone().unwrap_or_default())
     }
+
     // Returns the maximum comment length if configured, otherwise estimates based on terminal window size (if supported)
     pub fn max_comment_length(&self) -> u32 {
         match self.max_comment_length {
@@ -317,7 +329,6 @@ impl Config {
         })
     }
 
-    /// Prompt user for timezone if it does not exist and write to disk
     pub async fn maybe_set_timezone(self) -> Result<Config, Error> {
         if self.timezone.is_none() {
             self.set_timezone().await
@@ -513,8 +524,7 @@ impl Config {
                     config
                 }
                 DEVELOPER => {
-                    let url = maybe_format_url("https://todoist.com/prefs/integrations", &self);
-                    let desc = format!("Please enter your Todoist API token from {url} ");
+                    let desc = self.token_message();
 
                     // We can't use mock_string from config here because it can't be set in test.
                     let fake_token = Some("faketoken".into());
@@ -528,6 +538,187 @@ impl Config {
         } else {
             Ok(self)
         }
+    }
+
+    pub async fn edit_interactive(self) -> Result<String, Error> {
+        let Config {
+            bell_on_failure,
+            bell_on_success,
+            comment_exclude_regex,
+            disable_links,
+            max_comment_length,
+            natural_language_only,
+            no_sections,
+            spinners,
+            task_exclude_regex,
+            timeout,
+            token,
+            verbose,
+
+            // this is not implemented as it will be deprecated
+            sort_value: _,
+
+            // We don't want user to set the ones below
+            args: _,
+            completed: _,
+            internal: _,
+            last_version_check: _,
+            mock_select,
+            mock_string: _,
+            mock_url: _,
+            next_id: _,
+            next_task: _,
+            path: _,
+            projects: _,
+            task_comment_command: _,
+            task_complete_command: _,
+            task_create_command: _,
+            time_provider: _,
+            timezone: _,
+        } = self.clone();
+
+        // --- bell_on_failure
+        let desc = "
+            bell_on_failure
+            Ring terminal bell if a command fails
+        ";
+        let bell_on_failure = input::bool(desc, bell_on_failure, mock_select)?;
+
+        // --- bell_on_success
+        let desc = "
+            bell_on_success
+            Ring terminal bell if a command succeeds
+        ";
+        let bell_on_success = input::bool(desc, bell_on_success, mock_select)?;
+
+        // --- spinners
+        let desc = "
+            spinners
+            Display a spinner in terminal while waiting for an API call to complete
+        ";
+        let default_value = spinners.unwrap_or(true);
+        let spinners = Some(input::bool(desc, default_value, mock_select)?);
+
+        // --- verbose
+        let desc = "
+            verbose
+            Output additional information to assist with debugging issues
+        ";
+        let default_value = verbose.unwrap_or(false);
+        let verbose = Some(input::bool(desc, default_value, mock_select)?);
+
+        // --- natural_language_only
+        let desc = "
+            natural_language_only
+            Output additional information to assist with debugging issues
+        ";
+        let default_value = natural_language_only.unwrap_or(false);
+        let natural_language_only = Some(input::bool(desc, default_value, mock_select)?);
+
+        // --- disable_links
+        let desc = "
+            disable_links
+            Output additional information to assist with debugging issues
+        ";
+        let disable_links = input::bool(desc, disable_links, mock_select)?;
+
+        // --- no_sections
+        let desc = "
+            no_sections
+            Do not prompt a user to select a section when working with projects
+        ";
+        let default_value = no_sections.unwrap_or(false);
+        let no_sections = Some(input::bool(desc, default_value, mock_select)?);
+
+        // --- token
+        let desc = format!(
+            "
+            token
+            {}
+        ",
+            self.token_message()
+        );
+        let token = input::string_with_default(&desc, &token.unwrap_or_default())?;
+
+        let token = if token.is_empty() { None } else { Some(token) };
+
+        // --- comment_exclude_regex
+        let desc = "
+            comment_exclude_regex
+            Rust regex, comments that match will be excluded
+            ";
+        let default = match comment_exclude_regex {
+            Some(regex) => regex.to_string(),
+            None => String::new(),
+        };
+        let comment_exclude_regex = input::string_with_default(desc, &default)?;
+
+        let comment_exclude_regex = if comment_exclude_regex.is_empty() {
+            None
+        } else {
+            Some(Regex::new(&comment_exclude_regex)?)
+        };
+
+        // --- task_exclude_regex
+        let desc = "
+            task_exclude_regex
+            Rust regex, tasks that match will be excluded
+            ";
+        let default = match task_exclude_regex {
+            Some(regex) => regex.to_string(),
+            None => String::new(),
+        };
+        let task_exclude_regex = input::string_with_default(desc, &default)?;
+
+        let task_exclude_regex = if task_exclude_regex.is_empty() {
+            None
+        } else {
+            Some(Regex::new(&task_exclude_regex)?)
+        };
+
+        // --- max_comment_length
+        let desc = "
+            max_comment_length
+            Comments exceeding this length will be truncated            
+            ";
+        let default = match max_comment_length {
+            Some(comment_length) => comment_length,
+            None => MAX_COMMENT_LENGTH,
+        };
+        let max_comment_length: Option<u32> =
+            Some(input::number_with_default(desc, default.try_into()?)?.try_into()?);
+
+        // --- timeout
+        let desc = "
+            timeout
+            Comments exceeding this length will be truncated            
+            ";
+        let default = match timeout {
+            Some(comment_length) => comment_length,
+            None => DEFAULT_TIMEOUT_SECONDS,
+        };
+        let timeout: Option<u64> =
+            Some(input::number_with_default(desc, default.try_into()?)?.try_into()?);
+
+        // ---
+
+        let mut config = Config {
+            bell_on_failure,
+            max_comment_length,
+            bell_on_success,
+            timeout,
+            comment_exclude_regex,
+            task_exclude_regex,
+            spinners,
+            disable_links,
+            no_sections,
+            verbose,
+            token,
+            natural_language_only,
+            ..self.clone()
+        };
+
+        config.save().await
     }
 }
 
@@ -1620,6 +1811,35 @@ mod tests {
         assert!(
             err.message.contains("Error loading configuration file"),
             "Expected config load error, got: {err}"
+        );
+    }
+    #[tokio::test]
+    async fn test_edit_interactive() {
+        // Create a temporary config for testing
+        let (_temp_dir, path) = temp_config_path("test_edit_interactive.cfg");
+
+        // Initialize with some default values
+        let mut config = Config::default_test()
+            .with_path(path.clone())
+            .mock_select(0);
+        config = config.create().await.expect("Should create config file");
+
+        // Mock the input to return specific values for testing
+        // We'll test by mocking the input functions and verifying the result
+
+        // This tests that edit_interactive can be called without panicking
+        let result = config.edit_interactive().await;
+        assert!(
+            result.is_ok(),
+            "edit_interactive should complete successfully"
+        );
+
+        // Verify the config file was saved
+        assert!(
+            tokio::fs::try_exists(&path)
+                .await
+                .expect("Could not check if file exists"),
+            "Config file should exist after edit_interactive"
         );
     }
 }

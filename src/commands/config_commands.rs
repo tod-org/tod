@@ -43,6 +43,10 @@ pub enum ConfigCommands {
     #[clap(alias = "tz")]
     /// (tz) Change the timezone in the configuration file
     SetTimezone(SetTimezone),
+
+    #[clap(alias = "e")]
+    /// (e) Interactively edit the configuration file
+    Edit(Edit),
 }
 #[derive(Parser, Debug, Clone)]
 pub struct CheckVersion {
@@ -69,6 +73,9 @@ pub struct ConfigCheck {}
 
 #[derive(Parser, Debug, Clone)]
 pub struct About {}
+
+#[derive(Parser, Debug, Clone)]
+pub struct Edit {}
 
 #[derive(Parser, Debug, Clone)]
 pub struct SetTimezone {
@@ -311,6 +318,10 @@ pub async fn set_timezone(config: Config, _args: &SetTimezone) -> Result<String,
             &format!("Could not reset timezone in config. {e}"),
         )),
     }
+}
+
+pub async fn edit(config: Config, _args: &Edit) -> Result<String, Error> {
+    config.edit_interactive().await
 }
 
 #[allow(clippy::unused_async)]
