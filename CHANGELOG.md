@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.13.0](https://github.com/tod-org/tod/compare/v0.12.1...v0.13.0) (2026-07-07)
+
+
+### Features
+
+* **auth:** add `tod auth api --token` for non-interactive API token setup ([b4169cd](https://github.com/tod-org/tod/commit/b4169cde467ea4ea7d63b249de2f0b3959e35b12))
+* interactive edit config ([214adb9](https://github.com/tod-org/tod/commit/214adb93964301a5808070679abd00761952b01f))
+* list remind ([0241438](https://github.com/tod-org/tod/commit/0241438824b2e8b5dfbbb983e053dbf20a1dd8df))
+* list reminders ([aa5fa20](https://github.com/tod-org/tod/commit/aa5fa206e25fcbd8154f1b35da58de5b90c233bb))
+
+
+### Bug Fixes
+
+* **auth:** avoid extra stdout on token config create and tighten visibility ([6d2dadc](https://github.com/tod-org/tod/commit/6d2dadc1da722aaeb4c76a50a02ed8ed16586e27))
+* **auth:** handle config load errors explicitly and guard pre-cleanup by E2E prefix ([bb7524a](https://github.com/tod-org/tod/commit/bb7524a3f095f6d015f8eb541617baf6150887d6))
+* **auth:** reject empty token and fail unsafe e2e cleanup ([d41b651](https://github.com/tod-org/tod/commit/d41b651c4fc71670821aba979e5a03e9d4644f57))
+* **ci:** remove trailing space after backslash in auto-merge command ([774a6a7](https://github.com/tod-org/tod/commit/774a6a7148feb1fd8d88915dc8db867d5c095fcc))
+* dont print debug message for config missing ([857ccde](https://github.com/tod-org/tod/commit/857ccdedfb331c6d78c0988d62f081278495696e))
+
 ## [0.12.1](https://github.com/tod-org/tod/compare/v0.12.0...v0.12.1) (2026-05-01)
 
 
