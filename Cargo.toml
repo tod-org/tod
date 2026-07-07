@@ -45,6 +45,7 @@ axum = "0.8.9"
 serde_regex = "1.2.0"
 open = "5.3.5"
 edit = "0.1.5"
+tempfile = "3.27.0"
 
 
 [dev-dependencies]
@@ -53,7 +54,6 @@ mockito = "1.7.2"
 predicates = "3.1.4"
 pretty_assertions = "1.4.1"
 serde_test = "1.0.177"
-tempfile = "3.27.0"
 
 [build-dependencies]
 chrono = "0.4.45"
