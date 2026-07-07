@@ -1,5 +1,5 @@
 use crate::errors::Error;
-use inquire::{DateSelect, MultiSelect, Select, Text};
+use inquire::{CustomType, DateSelect, MultiSelect, Select, Text};
 use std::fmt::Display;
 use terminal_size::{Height, Width, terminal_size};
 
@@ -148,10 +148,38 @@ pub fn string_with_default(desc: &str, default_message: &str) -> Result<String, 
         .map_err(Error::from)
 }
 
+/// Get number input with default value
+pub fn number_with_default(desc: &str, default_message: usize) -> Result<usize, Error> {
+    if cfg!(test) {
+        return Ok(default_message);
+    }
+    CustomType::<usize>::new(desc)
+        .with_error_message("Please type a valid number")
+        .with_starting_input(&default_message.to_string())
+        .prompt()
+        .map_err(Error::from)
+}
+
+pub fn bool(desc: &str, default_value: bool, mock_select: Option<usize>) -> Result<bool, Error> {
+    let options = vec![true, false];
+    let cursor_index = if default_value { 0 } else { 1 };
+    select_with_cursor_index(desc, options, cursor_index, mock_select)
+}
+
 /// Select an input from a list
 pub fn select<T: Display>(
     desc: &str,
     options: Vec<T>,
+    mock_select: Option<usize>,
+) -> Result<T, Error> {
+    select_with_cursor_index(desc, options, 0, mock_select)
+}
+
+/// Select an input from a list, with a cursor index
+pub fn select_with_cursor_index<T: Display>(
+    desc: &str,
+    options: Vec<T>,
+    cursor_index: usize,
     mock_select: Option<usize>,
 ) -> Result<T, Error> {
     if cfg!(test) {
@@ -166,6 +194,7 @@ pub fn select<T: Display>(
     } else {
         Select::new(desc, options)
             .with_page_size(page_size() / 2) //Fixing bug with page size
+            .with_starting_cursor(cursor_index)
             .prompt()
             .map_err(Error::from)
     }
