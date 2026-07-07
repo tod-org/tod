@@ -45,7 +45,7 @@ pub async fn token(config_path: Option<PathBuf>, args: &Token) -> Result<String,
             "Todoist API token cannot be empty or whitespace",
         ));
     }
-    let path = config::resolve_path_or_default(config_path).await?;
+    let path = config::resolve_config_path(config_path).await?;
 
     let mut config = match tokio::fs::metadata(&path).await {
         Err(e) if e.kind() == ErrorKind::NotFound => {
