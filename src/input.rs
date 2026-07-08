@@ -1,5 +1,5 @@
 use crate::errors::Error;
-use inquire::{CustomType, DateSelect, MultiSelect, Select, Text};
+use inquire::{Confirm, CustomType, DateSelect, MultiSelect, Select, Text};
 use std::fmt::Display;
 use terminal_size::{Height, Width, terminal_size};
 
@@ -134,6 +134,14 @@ pub fn string(desc: &str, mock_string: Option<String>) -> Result<String, Error> 
     } else {
         Text::new(desc).prompt().map_err(Error::from)
     }
+}
+
+/// Get confirmation from user
+pub fn confirm(desc: &str) -> Result<bool, Error> {
+    Confirm::new(desc)
+        .with_default(false)
+        .prompt()
+        .map_err(|e| e.into())
 }
 
 /// Get string input with default value
