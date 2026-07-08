@@ -1,12 +1,11 @@
 //! For config functions that operate on the filesystem
 
-use std::path::{Path, PathBuf};
-
 use crate::config::{Args, Internal, SortValue};
-use crate::{color, debug};
+use crate::{color, debug, input};
 use crate::{config::Config, errors::Error};
 use inquire::Confirm;
 use serde_json::json;
+use std::path::{Path, PathBuf};
 use tokio::fs;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::sync::mpsc::UnboundedSender;
@@ -202,18 +201,13 @@ pub async fn config_reset(cli_config_path: Option<PathBuf>, force: bool) -> Resu
         let path_display = cli_config_path
             .as_ref()
             .map_or_else(|| "<default path>".into(), |p| p.display().to_string());
-
-        Confirm::new(&format!(
-            "Are you sure you want to delete the config at {path_display}?"
-        ))
-        .with_default(false)
-        .prompt()
-        .unwrap_or(false)
+        let desc = &format!("Are you sure you want to delete the config at {path_display}?");
+        input::confirm(desc).unwrap_or_default()
     })
     .await
 }
-// Full config reset function, but accepts inputs for CI testing
 
+// Full config reset function, but accepts inputs for CI testing
 pub async fn config_reset_with_prompt<F>(
     cli_config_path: Option<PathBuf>,
     force: bool,
