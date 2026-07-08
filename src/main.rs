@@ -9,8 +9,12 @@ extern crate clap;
 use clap::Parser;
 use commands::Cli;
 use errors::Error;
-use std::io::Write;
+use std::{
+    io::{self, Write},
+    process,
+};
 use tasks::SortOrder;
+use tokio::sync::mpsc::{UnboundedSender, unbounded_channel};
 
 mod cargo;
 mod color;
@@ -40,28 +44,22 @@ mod users;
 const LOWERCASE_NAME: &str = "tod";
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
+struct CommandResult {
+    result: Result<String, Error>,
+    bell_success: bool,
+    bell_failure: bool,
+}
+
 #[tokio::main]
 async fn main() {
     let cli = Cli::parse();
 
     // Channel for sending errors from async processes
-    let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<Error>();
+    let (tx, mut rx) = unbounded_channel::<Error>();
 
-    let (bell_success, bell_error, result) = match commands::select_command(cli, tx).await {
-        Ok((s, e, r)) => (s, e, r),
-        Err(e) => (true, true, Err(e)),
-    };
+    let result = run_command(cli, tx).await;
 
-    let mut exit_code = match result {
-        Ok(text) => {
-            println!("{text}");
-            0
-        }
-        Err(e) => {
-            eprintln!("\n\n{e}");
-            1
-        }
-    };
+    let mut exit_code = output_result(result);
 
     while let Some(error) = rx.recv().await {
         if error.source.as_str() == "shell command" {
@@ -70,20 +68,41 @@ async fn main() {
         eprintln!("Error from async process: {error}");
     }
 
-    if exit_code == 0 {
-        if bell_success {
-            terminal_bell();
-        }
-    } else if bell_error {
-        terminal_bell();
-    }
+    process::exit(exit_code);
+}
 
-    std::process::exit(exit_code);
+fn output_result(result: CommandResult) -> i32 {
+    match result.result {
+        Ok(text) => {
+            println!("{text}");
+            if result.bell_success {
+                terminal_bell()
+            }
+            0
+        }
+        Err(e) => {
+            eprintln!("\n\n{e}");
+            if result.bell_failure {
+                terminal_bell()
+            }
+            1
+        }
+    }
+}
+
+async fn run_command(cli: Cli, tx: UnboundedSender<Error>) -> CommandResult {
+    commands::select_command(cli, tx)
+        .await
+        .unwrap_or_else(|e| CommandResult {
+            result: Err(e),
+            bell_success: true,
+            bell_failure: true,
+        })
 }
 
 fn terminal_bell() {
     print!("\x07");
-    std::io::stdout().flush().expect("failed to flush stdout");
+    io::stdout().flush().expect("failed to flush stdout");
 }
 
 #[test]
