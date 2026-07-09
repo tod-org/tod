@@ -436,12 +436,12 @@ impl Task {
         }
     }
 
-    fn has_no_date(&self) -> bool {
+    pub fn has_no_date(&self) -> bool {
         self.due.is_none()
     }
 
     // Returns true if the datetime is today and there is a time
-    fn is_today(&self, config: &Config) -> Result<bool, Error> {
+    pub fn is_today(&self, config: &Config) -> Result<bool, Error> {
         let boolean = match self.datetimeinfo(config) {
             Ok(DateTimeInfo::Date { date, .. }) => date == time::naive_date_today(config)?,
             Ok(DateTimeInfo::DateTime { datetime, .. }) => {
@@ -453,7 +453,7 @@ impl Task {
         Ok(boolean)
     }
 
-    fn is_overdue(&self, config: &Config) -> Result<bool, Error> {
+    pub fn is_overdue(&self, config: &Config) -> Result<bool, Error> {
         let boolean = match self.datetimeinfo(config) {
             Ok(DateTimeInfo::Date { date, .. }) => time::is_date_in_past(date, config)?,
             Ok(DateTimeInfo::DateTime { datetime, .. }) => {
@@ -471,6 +471,17 @@ impl Task {
             .as_ref()
             .is_some_and(|DateInfo { is_recurring, .. }| *is_recurring)
     }
+}
+
+pub fn filter_not_in_future(tasks: Vec<Task>, config: &Config) -> Vec<Task> {
+    tasks
+        .into_iter()
+        .filter(|task| {
+            task.is_today(config).unwrap_or_default()
+                || task.has_no_date()
+                || task.is_overdue(config).unwrap_or_default()
+        })
+        .collect()
 }
 
 pub fn sort(tasks: Vec<Task>, config: &Config, sort: SortOrder) -> Vec<Task> {
@@ -930,17 +941,6 @@ pub fn sort_by_value(mut tasks: Vec<Task>, config: &Config) -> Vec<Task> {
 pub fn sort_by_datetime(mut tasks: Vec<Task>, config: &Config) -> Vec<Task> {
     tasks.sort_by_key(|i| i.datetime(config));
     tasks
-}
-
-pub fn filter_not_in_future(tasks: Vec<Task>, config: &Config) -> Vec<Task> {
-    tasks
-        .into_iter()
-        .filter(|task| {
-            task.is_today(config).unwrap_or_default()
-                || task.has_no_date()
-                || task.is_overdue(config).unwrap_or_default()
-        })
-        .collect()
 }
 
 // We don't want to process parent tasks when child tasks are unchecked, or child tasks when they are checked
