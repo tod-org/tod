@@ -1,6 +1,3 @@
-use std::collections::HashSet;
-use std::fmt::Display;
-
 use crate::{
     color,
     comments::Comment,
@@ -11,6 +8,8 @@ use crate::{
     todoist,
 };
 use futures::{StreamExt, TryStreamExt, future, stream};
+use std::collections::HashSet;
+use std::fmt::Display;
 use tokio::{fs, io::AsyncReadExt, task::JoinError};
 
 #[derive(Clone)]
@@ -55,20 +54,38 @@ pub async fn view(config: &mut Config, flag: Flag, sort: &SortOrder) -> Result<S
     Ok(buffer)
 }
 
-/// Prioritize all unprioritized tasks
-pub async fn prioritize(config: &Config, flag: Flag, sort: &SortOrder) -> Result<String, Error> {
-    let tasks = match &flag {
+pub async fn fetch_tasks_by_flag<F, P>(
+    config: &Config,
+    flag: &Flag,
+    project_filter: P,
+    filter_filter: F,
+) -> Result<Vec<Task>, Error>
+where
+    P: Fn(&Task) -> bool,
+    F: Fn(&Task) -> bool,
+{
+    let tasks = match flag {
         Flag::Project(project) => todoist::all_tasks_by_project(config, project, None)
             .await?
             .into_iter()
-            .filter(|task| task.priority == Priority::None)
+            .filter(|task| project_filter(task))
             .collect::<Vec<Task>>(),
         Flag::Filter(filter) => todoist::all_tasks_by_filters(config, filter)
             .await?
             .into_iter()
             .flat_map(|(_, tasks)| tasks)
+            .filter(|task| filter_filter(task))
             .collect::<Vec<Task>>(),
     };
+
+    Ok(tasks)
+}
+
+/// Prioritize all unprioritized tasks
+pub async fn prioritize(config: &Config, flag: Flag, sort: &SortOrder) -> Result<String, Error> {
+    let project_filter = |task: &Task| task.priority == Priority::None;
+    let filter_filter = |_task: &Task| true;
+    let tasks = fetch_tasks_by_flag(config, &flag, project_filter, filter_filter).await?;
 
     let empty_text = format!("No tasks for {flag}");
     let success = format!("Successfully prioritized {flag}");
@@ -98,19 +115,8 @@ pub async fn remind(config: &Config, flag: Flag, sort: &SortOrder) -> Result<Str
         .map(|r| r.item_id)
         .collect::<HashSet<String>>();
 
-    let tasks = match &flag {
-        Flag::Project(project) => todoist::all_tasks_by_project(config, project, None)
-            .await?
-            .into_iter()
-            .filter(|task| !reminder_task_ids.contains(&task.id))
-            .collect::<Vec<Task>>(),
-        Flag::Filter(filter) => todoist::all_tasks_by_filters(config, filter)
-            .await?
-            .into_iter()
-            .flat_map(|(_, tasks)| tasks)
-            .filter(|task| !reminder_task_ids.contains(&task.id))
-            .collect::<Vec<Task>>(),
-    };
+    let filter = |task: &Task| !reminder_task_ids.contains(&task.id);
+    let tasks = fetch_tasks_by_flag(config, &flag, filter, filter).await?;
 
     if tasks.is_empty() {
         let empty_text = format!("No tasks for {flag}");
@@ -136,18 +142,9 @@ pub async fn remind(config: &Config, flag: Flag, sort: &SortOrder) -> Result<Str
 
 /// Gives tasks durations
 pub async fn timebox(config: &Config, flag: Flag, sort: &SortOrder) -> Result<String, Error> {
-    let tasks = match &flag {
-        Flag::Project(project) => todoist::all_tasks_by_project(config, project, None)
-            .await?
-            .into_iter()
-            .filter(|task| task.duration.is_none())
-            .collect::<Vec<Task>>(),
-        Flag::Filter(filter) => todoist::all_tasks_by_filters(config, filter)
-            .await?
-            .into_iter()
-            .flat_map(|(_, tasks)| tasks)
-            .collect::<Vec<Task>>(),
-    };
+    let project_filter = |task: &Task| task.duration.is_none();
+    let filter_filter = |_task: &Task| true;
+    let tasks = fetch_tasks_by_flag(config, &flag, project_filter, filter_filter).await?;
 
     let empty_text = format!("No tasks for {flag}");
     let success = format!("Successfully timeboxed {flag}");
@@ -172,18 +169,13 @@ pub async fn timebox(config: &Config, flag: Flag, sort: &SortOrder) -> Result<St
 
 /// Get next tasks and give an interactive prompt for completing them one by one
 pub async fn process(config: &Config, flag: Flag, sort: &SortOrder) -> Result<String, Error> {
-    let tasks = match &flag {
-        Flag::Project(project) => {
-            let tasks = todoist::all_tasks_by_project(config, project, None).await?;
-            tasks::filter_not_in_future(tasks, config)
-        }
-
-        Flag::Filter(filter) => todoist::all_tasks_by_filters(config, filter)
-            .await?
-            .into_iter()
-            .flat_map(|(_, tasks)| tasks)
-            .collect::<Vec<Task>>(),
+    let project_filter = |task: &Task| {
+        task.is_today(config).unwrap_or_default()
+            || task.has_no_date()
+            || task.is_overdue(config).unwrap_or_default()
     };
+    let filter_filter = |_task: &Task| true;
+    let tasks = fetch_tasks_by_flag(config, &flag, project_filter, filter_filter).await?;
 
     let with_project = match &flag {
         Flag::Project(..) => false,
@@ -269,14 +261,8 @@ pub async fn label(
     labels: &[String],
     sort: &SortOrder,
 ) -> Result<String, Error> {
-    let tasks = match &flag {
-        Flag::Project(project) => todoist::all_tasks_by_project(config, project, None).await?,
-        Flag::Filter(filter) => todoist::all_tasks_by_filters(config, filter)
-            .await?
-            .into_iter()
-            .flat_map(|(_, tasks)| tasks)
-            .collect::<Vec<Task>>(),
-    };
+    let filter = |_task: &Task| true;
+    let tasks = fetch_tasks_by_flag(config, &flag, filter, filter).await?;
 
     let empty_text = format!("No tasks for {flag}");
     let success = format!("Successfully labeled {flag}");
