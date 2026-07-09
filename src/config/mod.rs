@@ -14,8 +14,6 @@ use regex::Regex;
 use serde::de::Error as DeError;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::path::PathBuf;
-#[cfg(test)]
-use tempfile;
 use terminal_size::{Height, Width, terminal_size};
 use tokio::sync::mpsc::UnboundedSender;
 
