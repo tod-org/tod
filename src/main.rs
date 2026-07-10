@@ -62,7 +62,7 @@ async fn main() -> ExitCode {
 
     let mut exit_code = output_result(result);
 
-    while let Some(error) = rx.recv().await {
+    while let Ok(error) = rx.try_recv() {
         if error.source.as_str() == "shell command" {
             exit_code = 1;
         }
