@@ -214,38 +214,46 @@ impl Config {
         self.internal.tx.expect("No tx in Config")
     }
 
-    pub async fn check_for_latest_version(self: Config) -> Result<(), Error> {
-        let last_version = self.clone().last_version_check;
-        let new_config = Config {
-            last_version_check: Some(time::date_string_today(&self)?),
-            ..self.clone()
-        };
+    pub async fn check_for_latest_version(self: Config) -> Result<Config, Error> {
+        let last_version = self.last_version_check.clone();
+        let today = time::date_string_today(&self)?;
 
-        if last_version != Some(time::date_string_today(&self)?) {
-            match cargo::compare_versions(None).await {
-                Ok(Version::Dated(version)) => {
-                    let message = format!(
-                        "Your version of Tod is out of date
+        if last_version != Some(today.clone()) {
+            let mut new_config = Config {
+                last_version_check: Some(today),
+                ..self.clone()
+            };
+
+            new_config.save().await?;
+            let cloned_config = new_config.clone();
+            tokio::spawn(async move {
+                match cargo::compare_versions(cloned_config.mock_url).await {
+                    Ok(Version::Dated(version)) => {
+                        let message = format!(
+                            "Your version of Tod is out of date
                         Latest Tod version is {}, you have {} installed.
                         Run {} to update if you installed with Cargo
                         or run {} if you installed with Homebrew",
-                        version,
-                        VERSION,
-                        color::cyan_string("cargo install tod --force"),
-                        color::cyan_string("brew update && brew upgrade tod")
-                    );
-                    self.tx().send(Error {
-                        message,
-                        source: "Crates.io".into(),
-                    })?;
-                    new_config.clone().save().await?;
+                            version,
+                            VERSION,
+                            color::cyan_string("cargo install tod --force"),
+                            color::cyan_string("brew update && brew upgrade tod")
+                        );
+                        let _ = self.tx().send(Error {
+                            message,
+                            source: "Crates.io".into(),
+                        });
+                    }
+                    Ok(Version::Latest) => (),
+                    Err(err) => {
+                        let _ = self.tx().send(err);
+                    }
                 }
-                Ok(Version::Latest) => (),
-                Err(err) => self.tx().send(err)?,
-            }
+            });
+            Ok(new_config)
+        } else {
+            Ok(self)
         }
-
-        Ok(())
     }
 
     pub fn clear_next_task(self) -> Config {
@@ -927,6 +935,47 @@ mod tests {
         assert!(result > 0);
         assert!(result <= MAX_COMMENT_LENGTH);
     }
+
+    #[tokio::test]
+    async fn check_for_latest_version_should_skip_if_checked_today() {
+        let today =
+            time::date_string_today(&Config::default_test()).expect("Could not get today's date");
+        let config = Config {
+            last_version_check: Some(today.clone()),
+            ..Config::default_test()
+        };
+
+        let result = config
+            .clone()
+            .check_for_latest_version()
+            .await
+            .expect("Expected check_for_latest_version to succeed");
+
+        assert_eq!(result.last_version_check, Some(today));
+        assert_eq!(result.path, config.path);
+    }
+
+    #[tokio::test]
+    async fn check_for_latest_version_should_update_when_not_checked_today() {
+        let (_temp_dir, path) = temp_config_path("version_check.cfg");
+        let mut config = Config::default_test().with_path(path.clone());
+        config = config.create().await.expect("Should create config file");
+        config.last_version_check = Some("2000-01-01".to_string());
+
+        let today = time::date_string_today(&config).expect("Could not get today's date");
+        let result = config
+            .check_for_latest_version()
+            .await
+            .expect("Expected check_for_latest_version to succeed");
+
+        assert_eq!(result.last_version_check, Some(today.clone()));
+
+        let saved = Config::load(&path)
+            .await
+            .expect("Expected config to be saved to disk");
+        assert_eq!(saved.last_version_check, Some(today));
+    }
+
     #[test]
     fn test_unknown_field_rejected() {
         let json = r#"

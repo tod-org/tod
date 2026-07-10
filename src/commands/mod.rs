@@ -430,10 +430,7 @@ async fn fetch_config(cli: &Cli, tx: &UnboundedSender<Error>) -> Result<Config, 
 
     let config = crate::config::get_or_create(config_path, verbose, timeout, tx).await?;
 
-    let async_config = config.clone();
-
-    tokio::spawn(async move { async_config.check_for_latest_version().await });
-
+    let config = config.check_for_latest_version().await?;
     config.maybe_set_timezone().await
 }
 
