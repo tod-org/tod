@@ -12,7 +12,7 @@ use commands::Cli;
 use errors::Error;
 use std::{
     io::{self, Write},
-    process,
+    process::ExitCode,
 };
 use tasks::SortOrder;
 use tokio::sync::mpsc::{UnboundedSender, unbounded_channel};
@@ -52,7 +52,7 @@ struct CommandResult {
 }
 
 #[tokio::main]
-async fn main() {
+async fn main() -> ExitCode {
     let cli = Cli::parse();
 
     // Channel for sending errors from async processes
@@ -69,10 +69,10 @@ async fn main() {
         eprintln!("Error from async process: {error}");
     }
 
-    process::exit(exit_code);
+    ExitCode::from(exit_code)
 }
 
-fn output_result(result: CommandResult) -> i32 {
+fn output_result(result: CommandResult) -> u8 {
     match result.result {
         Ok(text) => {
             println!("{text}");
