@@ -516,7 +516,7 @@ async fn fetch_project_or_filter(
 }
 
 fn fetch_priority(priority: Option<u8>, config: &Config) -> Result<Priority, Error> {
-    if let Some(priority) = priority::from_integer(priority) {
+    if let Some(priority) = priority::from_integer(priority)? {
         Ok(priority)
     } else {
         let options = vec![
