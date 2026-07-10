@@ -214,38 +214,45 @@ impl Config {
         self.internal.tx.expect("No tx in Config")
     }
 
-    pub async fn check_for_latest_version(self: Config) -> Result<(), Error> {
-        let last_version = self.clone().last_version_check;
-        let new_config = Config {
-            last_version_check: Some(time::date_string_today(&self)?),
-            ..self.clone()
-        };
+    pub async fn check_for_latest_version(self: Config) -> Result<Config, Error> {
+        let last_version = self.last_version_check.clone();
+        let today = time::date_string_today(&self)?;
 
-        if last_version != Some(time::date_string_today(&self)?) {
-            match cargo::compare_versions(None).await {
-                Ok(Version::Dated(version)) => {
-                    let message = format!(
-                        "Your version of Tod is out of date
+        if last_version != Some(today.clone()) {
+            let mut new_config = Config {
+                last_version_check: Some(today),
+                ..self.clone()
+            };
+
+            new_config.save().await?;
+            tokio::spawn(async move {
+                match cargo::compare_versions(None).await {
+                    Ok(Version::Dated(version)) => {
+                        let message = format!(
+                            "Your version of Tod is out of date
                         Latest Tod version is {}, you have {} installed.
                         Run {} to update if you installed with Cargo
                         or run {} if you installed with Homebrew",
-                        version,
-                        VERSION,
-                        color::cyan_string("cargo install tod --force"),
-                        color::cyan_string("brew update && brew upgrade tod")
-                    );
-                    self.tx().send(Error {
-                        message,
-                        source: "Crates.io".into(),
-                    })?;
-                    new_config.clone().save().await?;
+                            version,
+                            VERSION,
+                            color::cyan_string("cargo install tod --force"),
+                            color::cyan_string("brew update && brew upgrade tod")
+                        );
+                        let _ = self.tx().send(Error {
+                            message,
+                            source: "Crates.io".into(),
+                        });
+                    }
+                    Ok(Version::Latest) => (),
+                    Err(err) => {
+                        let _ = self.tx().send(err);
+                    }
                 }
-                Ok(Version::Latest) => (),
-                Err(err) => self.tx().send(err)?,
-            }
+            });
+            Ok(new_config)
+        } else {
+            Ok(self)
         }
-
-        Ok(())
     }
 
     pub fn clear_next_task(self) -> Config {

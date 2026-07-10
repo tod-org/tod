@@ -1,4 +1,4 @@
-use crate::color;
+use crate::{color, errors::Error};
 use std::fmt::Display;
 
 /// Add to `all_priorities` function if adding another priority
@@ -35,14 +35,14 @@ impl Priority {
     }
 }
 
-pub fn from_integer(priority: Option<u8>) -> Option<Priority> {
+pub fn from_integer(priority: Option<u8>) -> Result<Option<Priority>, Error> {
     match priority {
-        None => None,
-        Some(1) => Some(Priority::None),
-        Some(2) => Some(Priority::Low),
-        Some(3) => Some(Priority::Medium),
-        Some(4) => Some(Priority::High),
-        Some(_) => unreachable!(),
+        None => Ok(None),
+        Some(1) => Ok(Some(Priority::None)),
+        Some(2) => Ok(Some(Priority::Low)),
+        Some(3) => Ok(Some(Priority::Medium)),
+        Some(4) => Ok(Some(Priority::High)),
+        Some(num) => Err(Error::new("priority", &format!("Invalid priority: {num}"))),
     }
 }
 
@@ -74,22 +74,27 @@ mod tests {
 
     #[test]
     fn test_from_integer() {
-        let result = from_integer(Some(1));
+        let result = from_integer(Some(1)).unwrap();
         let expected = Some(Priority::None);
 
         assert_eq!(result, expected);
 
-        let result = from_integer(Some(4));
+        let result = from_integer(Some(4)).unwrap();
         let expected = Some(Priority::High);
 
         assert_eq!(result, expected);
 
         // All variants
-        assert_eq!(from_integer(Some(2)), Some(Priority::Low));
-        assert_eq!(from_integer(Some(3)), Some(Priority::Medium));
+        assert_eq!(from_integer(Some(2)).unwrap(), Some(Priority::Low));
+        assert_eq!(from_integer(Some(3)).unwrap(), Some(Priority::Medium));
 
         // None input
-        assert_eq!(from_integer(None), None);
+        assert_eq!(from_integer(None).unwrap(), None);
+
+        // Invalid input
+        let err = from_integer(Some(5)).unwrap_err();
+        assert_eq!(err.source, "priority");
+        assert_eq!(err.message, "Invalid priority: 5");
     }
 
     #[test]
