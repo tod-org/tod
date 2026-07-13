@@ -458,12 +458,6 @@ async fn fetch_project(project_name: Option<&str>, config: &Config) -> Result<Fl
         return Err(Error::new("fetch_project", NO_PROJECTS_ERR));
     }
 
-    if projects.len() == 1 {
-        return Ok(Flag::Project(
-            projects.first().expect("No projects found").clone(),
-        ));
-    }
-
     match project_name {
         Some(project_name) => projects
             .iter()
