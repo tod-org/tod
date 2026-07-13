@@ -13,6 +13,7 @@ pub const FILTER: &str = "Set filter";
 pub const PATH: &str = "Set path";
 pub const DATE: &str = "Set a due date";
 pub const TIME: &str = "Set time, i.e. 3pm or 1500";
+pub const DATE_AND_TIME: &str = "Set a date and time in natural language";
 pub const DURATION: &str = "Set duration in minutes";
 
 // Select
@@ -29,6 +30,7 @@ pub const TASK: &str = "Select a task";
 pub const NAT_LANG: &str = "Natural Language";
 pub const NO_DATE: &str = "No Date";
 pub const COMPLETE: &str = "Complete";
+pub const REMIND: &str = "Remind";
 pub const TIMEBOX: &str = "Timebox";
 pub const COMMENT: &str = "Comment";
 pub const SKIP: &str = "Skip";

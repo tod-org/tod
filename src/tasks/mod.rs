@@ -16,6 +16,7 @@ use crate::config::SortValue;
 use crate::debug;
 use crate::errors::Error;
 use crate::input::CONTENT;
+use crate::input::DATE_AND_TIME;
 use crate::input::DateTimeInput;
 use crate::projects;
 use crate::tasks;
@@ -590,6 +591,7 @@ pub async fn process_task(
         input::SKIP,
         input::SCHEDULE,
         input::COMMENT,
+        input::REMIND,
         input::DELETE,
         input::QUIT,
     ]
@@ -614,6 +616,12 @@ pub async fn process_task(
             let content = input::string(CONTENT, config.mock_string.clone())?;
 
             Ok(Some(spawn_comment_task(config.clone(), task.id, content)))
+        }
+
+        input::REMIND => {
+            let content = input::string(DATE_AND_TIME, config.mock_string.clone())?;
+
+            Ok(Some(spawn_create_reminder(config.clone(), task, content)))
         }
 
         input::SCHEDULE => {
@@ -1728,6 +1736,55 @@ mod tests {
             .await
             .with_mock_url(server.url())
             .mock_select(0)
+            .create()
+            .await
+            .expect("expected value or result, got None or Err");
+
+        let mut task_count = 3;
+        let comments = Vec::new();
+        process_task(comments, &config, task, &mut task_count, true)
+            .await
+            .expect("expected value or result, got None or Err")
+            .expect("expected value or result, got None or Err")
+            .await
+            .expect("expected value or result, got None or Err");
+        mock.assert();
+    }
+
+    #[tokio::test]
+    async fn test_process_task_remind() {
+        let mut server = mockito::Server::new_async().await;
+        let mock = server
+            .mock("POST", "/api/v1/reminders")
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(
+                r#"{
+                    "id": "abc",
+                    "item_id": "6Xqhv4cwxgjwG9w8",
+                    "notify_uid": "635166",
+                    "type": "relative",
+                    "is_deleted": false,
+                    "minute_offset": 0,
+                    "is_urgent": false,
+                    "due": {
+                        "date": "2026-01-18T17:00:00",
+                        "timezone": null,
+                        "string": "2026-01-18 17:00",
+                        "lang": "en",
+                        "is_recurring": false
+                    }
+                }"#,
+            )
+            .create_async()
+            .await;
+
+        let task = test::fixtures::today_task().await;
+        let config = test::fixtures::config()
+            .await
+            .with_mock_url(server.url())
+            .with_mock_string("tomorrow at 5pm")
+            .mock_select(4)
             .create()
             .await
             .expect("expected value or result, got None or Err");
