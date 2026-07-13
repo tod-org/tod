@@ -410,7 +410,7 @@ fn build_command_result_without_config(
 ) -> Result<CommandResult, Error> {
     Ok(CommandResult {
         bell_success: false,
-        bell_failure: false,
+        bell_failure: true,
         result,
     })
 }
