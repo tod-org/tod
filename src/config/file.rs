@@ -11,16 +11,12 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::sync::mpsc::UnboundedSender;
 
 impl Config {
-    /// Creates the blank config file by touching it and saving defaults
+    /// Creates a new config file, will overwrite an existing one
     pub async fn create(self) -> Result<Config, Error> {
         self.touch_file().await?;
         let mut config = self;
         // Save the config to disk
         config.save().await?;
-        println!(
-            "No config found. New config successfully created at {}",
-            config.path.display()
-        );
         Ok(config)
     }
 
@@ -119,7 +115,7 @@ pub async fn get_or_create(
         Ok(_) => Config::load(&path).await,
         Err(err) if err.kind() == std::io::ErrorKind::NotFound => {
             eprintln!("Config file not found, creating new config");
-            create_config(tx, path).await
+            generate_new_configuration(tx, path).await
         }
         Err(err) => Err(Error::new(
             "config.rs",
@@ -138,8 +134,8 @@ pub async fn get_or_create(
     debug::maybe_print_redacted_config(&config);
     Ok(config)
 }
-//create the config file with settings
-pub async fn create_config(
+// create the config file and prompt timezone and token
+pub async fn generate_new_configuration(
     tx: &UnboundedSender<Error>,
     config_path: PathBuf,
 ) -> Result<Config, Error> {
