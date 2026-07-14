@@ -19,7 +19,6 @@ use crate::input::CONTENT;
 use crate::input::DATE_AND_TIME;
 use crate::input::DateTimeInput;
 use crate::projects;
-use crate::tasks;
 use crate::tasks::priority::Priority;
 use crate::{input, time, todoist};
 
@@ -536,8 +535,8 @@ pub async fn update_task(
                 Ok(Some(handle))
             }
         }
-        TaskAttribute::Due => tasks::spawn_schedule_task(config.clone(), task.clone()).await,
-        TaskAttribute::Deadline => tasks::spawn_deadline_task(config.clone(), task.clone()).await,
+        TaskAttribute::Due => spawn_schedule_task(config.clone(), task.clone()).await,
+        TaskAttribute::Deadline => spawn_deadline_task(config.clone(), task.clone()).await,
         TaskAttribute::Labels => {
             let label_string = input::string(
                 "Enter labels separated by spaces:",
@@ -742,17 +741,17 @@ pub async fn spawn_schedule_task(
     )?;
     match datetime_input {
         input::DateTimeInput::Complete => {
-            let handle = tasks::spawn_complete_task(config, task.id);
+            let handle = spawn_complete_task(config, task.id);
             Ok(Some(handle))
         }
         DateTimeInput::Skip => Ok(None),
 
         input::DateTimeInput::Text(due_string) => {
-            let handle = tasks::spawn_update_task_due(config, task, due_string, None);
+            let handle = spawn_update_task_due(config, task, due_string, None);
             Ok(Some(handle))
         }
         input::DateTimeInput::None => {
-            let handle = tasks::spawn_update_task_due(config, task, "No date".to_string(), None);
+            let handle = spawn_update_task_due(config, task, "No date".to_string(), None);
             Ok(Some(handle))
         }
     }
@@ -775,17 +774,17 @@ pub async fn spawn_deadline_task(
     )?;
     match datetime_input {
         input::DateTimeInput::Complete => {
-            let handle = tasks::spawn_complete_task(config, task.id);
+            let handle = spawn_complete_task(config, task.id);
             Ok(Some(handle))
         }
         DateTimeInput::Skip => Ok(None),
 
         input::DateTimeInput::Text(date) => {
-            let handle = tasks::spawn_update_task_deadline(config, task.id, Some(date));
+            let handle = spawn_update_task_deadline(config, task.id, Some(date));
             Ok(Some(handle))
         }
         input::DateTimeInput::None => {
-            let handle = tasks::spawn_update_task_deadline(config, task.id, None);
+            let handle = spawn_update_task_deadline(config, task.id, None);
             Ok(Some(handle))
         }
     }
@@ -1052,13 +1051,13 @@ pub async fn create_reminder(config: &Config, task: Task) -> Result<Option<JoinH
     let config = config.clone();
     match datetime_input {
         input::DateTimeInput::Complete => {
-            let handle = tasks::spawn_complete_task(config, task.id);
+            let handle = spawn_complete_task(config, task.id);
             Ok(Some(handle))
         }
         DateTimeInput::Skip => Ok(None),
 
         input::DateTimeInput::Text(date) => {
-            let handle = tasks::spawn_create_reminder(config, task, date);
+            let handle = spawn_create_reminder(config, task, date);
             Ok(Some(handle))
         }
         input::DateTimeInput::None => Ok(None),
