@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.14.0](https://github.com/tod-org/tod/compare/v0.13.0...v0.14.0) (2026-07-14)
+
+
+### Features
+
+* add create reminder to list process ([75738b6](https://github.com/tod-org/tod/commit/75738b6137fe9d59a4ae86b6dbe5144380bac912))
+
+
+### Bug Fixes
+
+* async version check ([e4ffdd0](https://github.com/tod-org/tod/commit/e4ffdd06e66d936ea25b0861fd6ab9af7c3fbf6e))
+* dont select single project automatically ([149b8d7](https://github.com/tod-org/tod/commit/149b8d786731a6e2c43755c25eb8a252b7e2b0de))
+* reject out of range priorities ([f540b89](https://github.com/tod-org/tod/commit/f540b89221745dc35a8af9dd829d33bceb5a901f))
+* terminal bell on failure for functions without config ([07cd4d4](https://github.com/tod-org/tod/commit/07cd4d46319da9b87be83d666b08ce89ac9d8789))
+
 ## [0.13.0](https://github.com/tod-org/tod/compare/v0.12.1...v0.13.0) (2026-07-07)
 
 
