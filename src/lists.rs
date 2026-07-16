@@ -1,8 +1,8 @@
 use crate::{
-    color,
     comments::Comment,
     config::Config,
     errors::Error,
+    format,
     projects::Project,
     tasks::{self, FormatType, SortOrder, Task, priority::Priority},
     todoist,
@@ -42,7 +42,7 @@ pub async fn view(config: &mut Config, flag: Flag, sort: &SortOrder) -> Result<S
     for (query, tasks) in list_of_tasks {
         let title = format!("Tasks for {query}");
         buffer.push('\n');
-        buffer.push_str(&color::green_string(&title));
+        buffer.push_str(&format::green_string(&title));
         buffer.push('\n');
         for task in tasks::sort(tasks, config, *sort) {
             let comments = Vec::new();
@@ -91,7 +91,7 @@ pub async fn prioritize(config: &Config, flag: Flag, sort: &SortOrder) -> Result
     let success = format!("Successfully prioritized {flag}");
 
     if tasks.is_empty() {
-        return Ok(color::green_string(&empty_text));
+        return Ok(format::green_string(&empty_text));
     }
 
     let tasks = tasks::sort(tasks, config, *sort);
@@ -104,7 +104,7 @@ pub async fn prioritize(config: &Config, flag: Flag, sort: &SortOrder) -> Result
         .try_collect::<Vec<_>>()
         .await?;
     future::join_all(handles).await;
-    Ok(color::green_string(&success))
+    Ok(format::green_string(&success))
 }
 
 /// Add reminders to all tasks that do not have them
@@ -120,7 +120,7 @@ pub async fn remind(config: &Config, flag: Flag, sort: &SortOrder) -> Result<Str
 
     if tasks.is_empty() {
         let empty_text = format!("No tasks for {flag}");
-        return Ok(color::green_string(&empty_text));
+        return Ok(format::green_string(&empty_text));
     }
 
     let tasks = tasks::sort(tasks, config, *sort);
@@ -137,7 +137,7 @@ pub async fn remind(config: &Config, flag: Flag, sort: &SortOrder) -> Result<Str
         .collect::<Vec<_>>();
     future::join_all(handles).await;
     let success = format!("Successfully reminded {flag}");
-    Ok(color::green_string(&success))
+    Ok(format::green_string(&success))
 }
 
 /// Gives tasks durations
@@ -150,7 +150,7 @@ pub async fn timebox(config: &Config, flag: Flag, sort: &SortOrder) -> Result<St
     let success = format!("Successfully timeboxed {flag}");
 
     if tasks.is_empty() {
-        return Ok(color::green_string(&empty_text));
+        return Ok(format::green_string(&empty_text));
     }
 
     let tasks = tasks::sort(tasks, config, *sort);
@@ -160,11 +160,11 @@ pub async fn timebox(config: &Config, flag: Flag, sort: &SortOrder) -> Result<St
         println!();
         match tasks::timebox_task(&config.reload().await?, task, &mut task_count, false).await? {
             Some(handle) => handles.push(handle),
-            None => return Ok(color::green_string("Exited")),
+            None => return Ok(format::green_string("Exited")),
         }
     }
     future::join_all(handles).await;
-    Ok(color::green_string(&success))
+    Ok(format::green_string(&success))
 }
 
 /// Get next tasks and give an interactive prompt for completing them one by one
@@ -187,7 +187,7 @@ pub async fn process(config: &Config, flag: Flag, sort: &SortOrder) -> Result<St
     let success = format!("Successfully processed {flag}");
 
     if tasks.is_empty() {
-        return Ok(color::green_string(&empty_text));
+        return Ok(format::green_string(&empty_text));
     }
 
     let tasks = tasks::sort(tasks, config, *sort);
@@ -208,7 +208,7 @@ pub async fn process(config: &Config, flag: Flag, sort: &SortOrder) -> Result<St
                 .await?
                 {
                     Some(handle) => handles.push(handle),
-                    None => return Ok(color::green_string("Exited")),
+                    None => return Ok(format::green_string("Exited")),
                 }
             }
             Ok((task, Err(Error { message, source }))) => {
@@ -225,7 +225,7 @@ pub async fn process(config: &Config, flag: Flag, sort: &SortOrder) -> Result<St
                 .await?
                 {
                     Some(handle) => handles.push(handle),
-                    None => return Ok(color::green_string("Exited")),
+                    None => return Ok(format::green_string("Exited")),
                 }
             }
             Err(JoinError { .. }) => {
@@ -234,7 +234,7 @@ pub async fn process(config: &Config, flag: Flag, sort: &SortOrder) -> Result<St
         }
     }
     future::join_all(handles).await;
-    Ok(color::green_string(&success))
+    Ok(format::green_string(&success))
 }
 
 async fn fetch_comments_for_tasks(
@@ -268,7 +268,7 @@ pub async fn label(
     let success = format!("Successfully labeled {flag}");
 
     if tasks.is_empty() {
-        return Ok(color::green_string(&empty_text));
+        return Ok(format::green_string(&empty_text));
     }
 
     let tasks = tasks::sort(tasks, config, *sort);
@@ -280,7 +280,7 @@ pub async fn label(
         .try_collect::<Vec<_>>()
         .await?;
     future::join_all(handles).await;
-    Ok(color::green_string(&success))
+    Ok(format::green_string(&success))
 }
 
 pub async fn import(config: &Config, file_path: &str) -> Result<String, Error> {

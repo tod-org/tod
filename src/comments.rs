@@ -1,7 +1,7 @@
 use crate::{
     config::Config,
     errors::Error,
-    tasks::format::{format_osc8_link, hyperlinks_disabled},
+    format::{format_osc8_link, hyperlinks_disabled},
     time,
 };
 use serde::{Deserialize, Serialize};

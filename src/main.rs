@@ -18,13 +18,13 @@ use tasks::SortOrder;
 use tokio::sync::mpsc::{UnboundedSender, unbounded_channel};
 
 mod cargo;
-mod color;
 mod commands;
 mod comments;
 mod config;
 mod debug;
 mod errors;
 mod filters;
+mod format;
 mod input;
 mod labels;
 mod legacy;

@@ -2,9 +2,8 @@ use futures::lock::Mutex;
 use serde::Deserialize;
 use uuid::Uuid;
 
-use crate::color::green_string;
 use crate::errors::Error;
-use crate::tasks::format::maybe_format_url;
+use crate::format::{green_string, maybe_format_url};
 use crate::todoist::OAUTH_URL;
 use crate::{config::Config, todoist};
 

@@ -1,29 +1,25 @@
-use std::borrow::Cow;
-use supports_hyperlinks::Stream;
 use terminal_size::{Width, terminal_size};
 
 use super::{DateTimeInfo, Duration, Task, Unit, priority};
-use crate::{
-    color, comments::Comment, config::Config, errors::Error, projects::Project, regexes, time,
-};
+use crate::{comments::Comment, config::Config, errors::Error, format, projects::Project, time};
 
 pub fn content(task: &Task, config: &Config) -> String {
     let content = match task.priority {
-        priority::Priority::Low => color::blue_string(&task.content),
-        priority::Priority::Medium => color::yellow_string(&task.content),
-        priority::Priority::High => color::red_string(&task.content),
-        priority::Priority::None => color::normal_string(&task.content),
+        priority::Priority::Low => format::blue_string(&task.content),
+        priority::Priority::Medium => format::yellow_string(&task.content),
+        priority::Priority::High => format::red_string(&task.content),
+        priority::Priority::None => format::normal_string(&task.content),
     };
 
-    if hyperlinks_disabled(config) {
+    if format::hyperlinks_disabled(config) {
         content
     } else {
-        create_links(&content)
+        format::create_links(&content)
     }
 }
 
 pub async fn project(task: &Task, config: &Config, buffer: &str) -> Result<String, Error> {
-    let project_icon = color::purple_string("#");
+    let project_icon = format::purple_string("#");
     let maybe_project = config
         .projects()
         .await?
@@ -34,7 +30,7 @@ pub async fn project(task: &Task, config: &Config, buffer: &str) -> Result<Strin
     let text = if let Some(Project { name, .. }) = maybe_project.first() {
         format!("\n{buffer}{project_icon} {name}")
     } else {
-        let command = color::cyan_string("tod project import --auto");
+        let command = format::cyan_string("tod project import --auto");
         format!(
             "\n{buffer}{project_icon} Project not in config\nUse {command} to import missing projects"
         )
@@ -42,17 +38,13 @@ pub async fn project(task: &Task, config: &Config, buffer: &str) -> Result<Strin
     Ok(text)
 }
 
-pub fn hyperlinks_disabled(config: &Config) -> bool {
-    config.disable_links || !supports_hyperlinks::on(Stream::Stdout)
-}
-
 pub fn labels(task: &Task) -> String {
-    format!(" {} {}", color::purple_string("@"), task.labels.join(" "))
+    format!(" {} {}", format::purple_string("@"), task.labels.join(" "))
 }
 
 pub fn due(task: &Task, config: &Config, buffer: &str) -> String {
-    let due_icon = color::purple_string("!");
-    let recurring_icon = color::purple_string("↻");
+    let due_icon = format::purple_string("!");
+    let recurring_icon = format::purple_string("↻");
 
     match &task.datetimeinfo(config) {
         Ok(DateTimeInfo::Date {
@@ -104,31 +96,8 @@ pub fn due(task: &Task, config: &Config, buffer: &str) -> String {
     }
 }
 
-/// Formats a URL and display text as an OSC8 hyperlink sequence.
-pub(crate) fn format_osc8_link(url: &str, text: &str) -> String {
-    format!("\x1B]8;;{url}\x07{text}\x1B]8;;\x07")
-}
-
-// Converts markdown links to OSC8 hyperlinks showing only the link text (no URL).
-fn create_links(content: &str) -> String {
-    regexes::MARKDOWN_LINK
-        .replace_all(content, |caps: &regex::Captures| {
-            let text = &caps[1];
-            let url = &caps[2];
-            Cow::from(format_osc8_link(url, text))
-        })
-        .into_owned()
-}
-
-// Formats a single URL as a hyperlinked URL (with the URL as the Hyperlink), if hyperlinks are enabled in the config - If hyperlinks are disabled, it returns the same URL as a plain string.
-pub fn maybe_format_url(url: &str, config: &Config) -> String {
-    if hyperlinks_disabled(config) {
-        return url.to_string();
-    }
-    format_osc8_link(url, url)
-}
 pub fn number_comments(quantity: usize) -> String {
-    let comment_icon = color::purple_string("★");
+    let comment_icon = format::purple_string("★");
     if quantity == 1 {
         return format!("\n{comment_icon} 1 comment");
     }
@@ -138,16 +107,16 @@ pub fn number_comments(quantity: usize) -> String {
 /// Returns a hyperlink-formatted URL formatted as "[link]" for a given task ID if hyperlinks are enabled in the config.
 pub fn maybe_format_task_id(task_id: &str, config: &Config) -> String {
     let url = format!("https://app.todoist.com/app/task/{task_id}");
-    if hyperlinks_disabled(config) {
+    if format::hyperlinks_disabled(config) {
         url
     } else {
-        format_osc8_link(&url, "[link]")
+        format::format_osc8_link(&url, "[link]")
     }
 }
 
 #[allow(clippy::unused_async)]
 pub async fn render_comments(config: &Config, comments: Vec<Comment>) -> Result<String, Error> {
-    let comment_icon = color::purple_string("★");
+    let comment_icon = format::purple_string("★");
     let mut comments = comments
         .iter()
         .map(|c| {
@@ -247,35 +216,14 @@ fn byte_index_for_char_count(text: &str, char_count: usize) -> Option<usize> {
 
 #[cfg(test)]
 mod tests {
+    use crate::format;
     use crate::tasks::DateInfo;
     use crate::test;
     use crate::test::responses::ResponseFromFile;
 
     use super::*;
     use pretty_assertions::assert_eq;
-
-    #[test]
-    fn test_format_osc8_link() {
-        // URL used as display text (e.g. maybe_format_url)
-        assert_eq!(
-            format_osc8_link("https://example.com", "https://example.com"),
-            "\x1B]8;;https://example.com\x07https://example.com\x1B]8;;\x07"
-        );
-        // Custom label (e.g. maybe_format_task_id, create_links)
-        assert_eq!(
-            format_osc8_link("https://example.com", "[link]"),
-            "\x1B]8;;https://example.com\x07[link]\x1B]8;;\x07"
-        );
-    }
-
-    #[test]
-    fn test_create_links() {
-        assert_eq!(create_links("hello"), String::from("hello"));
-        assert_eq!(
-            create_links("This is text [Google](https://www.google.com/)"),
-            String::from("This is text \x1b]8;;https://www.google.com/\x07Google\x1b]8;;\x07")
-        );
-    }
+    use supports_hyperlinks::Stream;
 
     #[test]
     fn test_task_url_enabled() {
@@ -357,50 +305,6 @@ mod tests {
         assert_eq!(truncate_comment_text(text, 80, Some(10)), text);
     }
 
-    #[test]
-    fn test_create_links_multiple_and_edge_cases() {
-        // Multiple links in one string
-        let input = "Links: [Rust](https://www.rust-lang.org/) and [GitHub](https://github.com/)";
-        let expected = "Links: \x1b]8;;https://www.rust-lang.org/\x07Rust\x1b]8;;\x07 and \x1b]8;;https://github.com/\x07GitHub\x1b]8;;\x07";
-        assert_eq!(create_links(input), expected);
-
-        // Single link
-        let input = "Check this out: [Example](https://example.com)";
-        let expected = "Check this out: \x1b]8;;https://example.com\x07Example\x1b]8;;\x07";
-        assert_eq!(create_links(input), expected);
-
-        // No links present
-        assert_eq!(create_links("No links here."), "No links here.");
-
-        // Malformed markdown (should not match)
-        assert_eq!(
-            create_links("[Broken link](not a url"),
-            "[Broken link](not a url"
-        );
-    }
-
-    #[tokio::test]
-    async fn test_format_url_hyperlinks_enabled() {
-        let url = "https://www.rust-lang.org/";
-        let expected =
-            "\x1B]8;;https://www.rust-lang.org/\x07https://www.rust-lang.org/\x1B]8;;\x07";
-        let config = Config::default();
-        // Skip the test if hyperlinks are not supported in the current environment (otherwise test fails)
-        if !supports_hyperlinks::on(Stream::Stdout) {
-            eprintln!("Skipping test: hyperlinks not supported in this environment");
-            return;
-        }
-        assert_eq!(maybe_format_url(url, &config), expected);
-    }
-    #[test]
-    fn test_format_url_hyperlinks_disabled() {
-        let url = "https://www.rust-lang.org/";
-        // Create a config with disable_links set to true
-        let mut config = Config::default();
-        config.disable_links = true;
-        assert_eq!(maybe_format_url(url, &config), url);
-    }
-
     #[tokio::test]
     async fn test_content_priority_and_links() {
         let config = test::fixtures::config().await;
@@ -408,23 +312,23 @@ mod tests {
         task.content = "Test".to_string();
 
         task.priority = priority::Priority::Low;
-        assert_eq!(content(&task, &config), color::blue_string("Test"));
+        assert_eq!(content(&task, &config), format::blue_string("Test"));
 
         task.priority = priority::Priority::Medium;
-        assert_eq!(content(&task, &config), color::yellow_string("Test"));
+        assert_eq!(content(&task, &config), format::yellow_string("Test"));
 
         task.priority = priority::Priority::High;
-        assert_eq!(content(&task, &config), color::red_string("Test"));
+        assert_eq!(content(&task, &config), format::red_string("Test"));
 
         task.priority = priority::Priority::None;
-        assert_eq!(content(&task, &config), color::normal_string("Test"));
+        assert_eq!(content(&task, &config), format::normal_string("Test"));
 
         // Hyperlinks disabled
         let mut config_no_links = config.clone();
         config_no_links.disable_links = true;
         assert_eq!(
             content(&task, &config_no_links),
-            color::normal_string("Test")
+            format::normal_string("Test")
         );
     }
 

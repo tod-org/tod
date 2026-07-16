@@ -1,4 +1,4 @@
-use crate::{color, config::Config, errors::Error, projects::Project, todoist};
+use crate::{config::Config, errors::Error, format, projects::Project, todoist};
 
 impl Config {
     /// Returns projects from the config.
@@ -21,7 +21,7 @@ impl Config {
 
         self.projects = Some(updated_projects);
 
-        Ok(color::green_string("✓"))
+        Ok(format::green_string("✓"))
     }
 
     pub fn add_project(&mut self, project: Project) {

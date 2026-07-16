@@ -1,4 +1,4 @@
-use crate::{color, errors::Error};
+use crate::{errors::Error, format};
 use std::fmt::Display;
 
 /// Add to `all_priorities` function if adding another priority
@@ -16,10 +16,10 @@ pub enum Priority {
 impl Display for Priority {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Priority::None => write!(f, "{}", color::normal_string("NONE (P4)")),
-            Priority::Low => write!(f, "{}", color::blue_string("LOW (P3)")),
-            Priority::Medium => write!(f, "{}", color::yellow_string("MEDIUM (P2)")),
-            Priority::High => write!(f, "{}", color::red_string("HIGH (P1)")),
+            Priority::None => write!(f, "{}", format::normal_string("NONE (P4)")),
+            Priority::Low => write!(f, "{}", format::blue_string("LOW (P3)")),
+            Priority::Medium => write!(f, "{}", format::yellow_string("MEDIUM (P2)")),
+            Priority::High => write!(f, "{}", format::red_string("HIGH (P1)")),
         }
     }
 }

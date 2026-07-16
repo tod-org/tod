@@ -1,4 +1,4 @@
-use crate::{color, config::Config, errors::Error, input, lists::Flag, todoist};
+use crate::{config::Config, errors::Error, format, input, lists::Flag, todoist};
 use clap::{Parser, Subcommand};
 
 #[derive(Subcommand, Debug, Clone)]
@@ -29,5 +29,5 @@ pub async fn create(config: &Config, args: &Create) -> Result<String, Error> {
     };
 
     todoist::create_section(config, &name, &project, true).await?;
-    Ok(color::green_string("Section created successfully"))
+    Ok(format::green_string("Section created successfully"))
 }

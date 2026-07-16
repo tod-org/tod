@@ -11,12 +11,12 @@ use spinners::Spinner;
 use spinners::Spinners;
 use uuid::Uuid;
 
-use crate::color;
 use crate::config::Args;
 use crate::config::Config;
 use crate::config::DEFAULT_TIMEOUT_SECONDS;
 use crate::debug;
 use crate::errors::Error;
+use crate::format;
 use crate::todoist::REMINDERS_URL;
 
 const FAKE_UUID: &str = "42963283-2bab-4b1f-bad2-278ef2b6ba2c";
@@ -176,7 +176,7 @@ async fn handle_response(
         debug::maybe_print(config, &format!("{method} {url}\nresponse: {json_string}"));
         Ok(json_string)
     } else if requires_login(&status_code) && !is_pro_plan_url(url) {
-        let command = color::blue_string("tod auth login");
+        let command = format::blue_string("tod auth login");
         Err(Error::new(
             "reqwest",
             &format!(
