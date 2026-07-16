@@ -6,7 +6,8 @@ use std::sync::LazyLock;
 
 /// For finding markdown links, first capture group is the text and second is the url
 pub static MARKDOWN_LINK: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"\[([^\]]+)\]\(([^)]+)\)").expect("invalid markdown link regex pattern")
+    Regex::new(r"\[((?:[^\[\]]|\[[^\[\]]*\])+)\]\(([^)]+)\)")
+        .expect("invalid markdown link regex pattern")
 });
 
 /// Confirms regex pattern YYYY-MM-DD
@@ -69,6 +70,17 @@ mod tests {
         let text = "[A](http://a.com) and [B](http://b.com)";
         let matches: Vec<_> = MARKDOWN_LINK.find_iter(text).collect();
         assert_eq!(matches.len(), 2);
+    }
+
+    #[test]
+    fn test_markdown_link_allows_brackets_in_label() {
+        let text = "[[PODCAST 9]: Finish the project](https://example.com/podcast)";
+        let caps = MARKDOWN_LINK
+            .captures(text)
+            .expect("should match markdown link with brackets in its label");
+
+        assert_eq!(&caps[1], "[PODCAST 9]: Finish the project");
+        assert_eq!(&caps[2], "https://example.com/podcast");
     }
 
     #[test]
