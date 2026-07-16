@@ -97,6 +97,7 @@ pub(crate) fn generate_completions(shell: Shell) {
 mod tests {
     use super::*;
     use assert_cmd::Command;
+    #[cfg(unix)]
     use predicates::prelude::*;
     // Contains is used to make CMD test cases cross-platform compatible
     use predicates::str::contains;

@@ -1,5 +1,6 @@
 use assert_cmd::Command;
 use predicates::prelude::*;
+use serde_json::json;
 use std::fs;
 use tempfile::tempdir;
 
@@ -8,15 +9,16 @@ fn tod_command() -> Command {
 }
 
 fn write_config_with_timezone(path: &std::path::Path, token: Option<&str>) {
-    let token = token
-        .map(|token| format!(r#","token":"{token}""#))
-        .unwrap_or_default();
-    let path_value = path.to_string_lossy();
-    fs::write(
-        path,
-        format!(r#"{{"path":"{path_value}","timezone":"UTC"{token}}}"#),
-    )
-    .expect("config should be written");
+    let mut config = json!({
+        "path": path.to_string_lossy(),
+        "timezone": "UTC",
+    });
+
+    if let Some(token) = token {
+        config["token"] = json!(token);
+    }
+
+    fs::write(path, config.to_string()).expect("config should be written");
 }
 
 // --- Config creation via `auth token` (the non-interactive creation path) ---
