@@ -1,7 +1,7 @@
 use crate::{
     config::Config,
     errors::Error,
-    format::{format_osc8_link, hyperlinks_disabled},
+    format::{format_osc8_link, hyperlinks_disabled, maybe_format_text},
     time,
 };
 use serde::{Deserialize, Serialize};
@@ -148,10 +148,9 @@ impl Comment {
             }
         };
 
-        Ok(format!(
-            "Posted {}{}\n{}",
-            formatted_date, link, self.content
-        ))
+        let content = maybe_format_text(&self.content, config);
+
+        Ok(format!("Posted {formatted_date}{link}\n{content}"))
     }
 
     fn render_link(url: &str, label: &str, config: &Config) -> String {
@@ -292,6 +291,41 @@ mod tests {
         assert!(output.contains("Just a plain comment"));
     }
 
+    #[tokio::test]
+    async fn test_fmt_linkifies_bare_url_in_comment_content() {
+        if !supports_hyperlinks::on(supports_hyperlinks::Stream::Stdout) {
+            eprintln!("Skipping test: hyperlinks not supported in this environment");
+            return;
+        }
+
+        let config = fixtures::config().await;
+        let mut comment = fixtures::comment();
+        let url = "https://example.com/comment?source=tod";
+        comment.content = format!("Read {url} next");
+
+        let output = comment
+            .fmt(&config)
+            .expect("comment content should be formatted");
+
+        assert!(output.contains(&format_osc8_link(url, url)));
+    }
+
+    #[tokio::test]
+    async fn test_fmt_preserves_bare_url_when_links_are_disabled() {
+        let mut config = fixtures::config().await;
+        config.disable_links = true;
+        let mut comment = fixtures::comment();
+        let url = "https://example.com/comment?source=tod";
+        comment.content = format!("Read {url} next");
+
+        let output = comment
+            .fmt(&config)
+            .expect("comment content should be formatted");
+
+        assert!(output.contains(&comment.content));
+        assert!(!output.contains("\x1B]8;;"));
+    }
+
     #[test]
     fn test_comment_from_json_valid() {
         let json = r#"{
@@ -366,11 +400,11 @@ mod tests {
         let output = comment
             .fmt(&config)
             .expect("Failed to format the comment with the provided config");
-        // OSC8 opener sequence must be present when links are enabled
-        assert!(
-            output.contains("\x1B]8;;"),
-            "Expected OSC8 hyperlink sequence in output"
+        let expected = format!(
+            "Attachment {}",
+            format_osc8_link("https://example.com/file.pdf", "[file.pdf]")
         );
+        assert!(output.contains(&expected));
     }
 
     #[tokio::test]

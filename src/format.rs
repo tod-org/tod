@@ -1,6 +1,5 @@
-use std::borrow::Cow;
-
 use colored::{ColoredString, Colorize};
+use linkify::{LinkFinder, LinkKind};
 use supports_hyperlinks::Stream;
 
 use crate::{config::Config, regexes};
@@ -54,15 +53,58 @@ pub(crate) fn format_osc8_link(url: &str, text: &str) -> String {
     format!("\x1B]8;;{url}\x07{text}\x1B]8;;\x07")
 }
 
-/// Converts Markdown links to OSC8 hyperlinks showing only the link text.
+/// Converts Markdown links and bare HTTP URLs to OSC8 hyperlinks.
 pub(crate) fn create_links(content: &str) -> String {
-    regexes::MARKDOWN_LINK
-        .replace_all(content, |caps: &regex::Captures| {
-            let text = &caps[1];
-            let url = &caps[2];
-            Cow::from(format_osc8_link(url, text))
-        })
-        .into_owned()
+    let mut formatted = String::with_capacity(content.len());
+    let mut previous_end = 0;
+
+    for captures in regexes::MARKDOWN_LINK.captures_iter(content) {
+        let (Some(markdown), Some(text), Some(url)) =
+            (captures.get(0), captures.get(1), captures.get(2))
+        else {
+            continue;
+        };
+
+        formatted.push_str(&linkify_urls(&content[previous_end..markdown.start()]));
+        formatted.push_str(&format_osc8_link(url.as_str(), text.as_str()));
+        previous_end = markdown.end();
+    }
+
+    formatted.push_str(&linkify_urls(&content[previous_end..]));
+    formatted
+}
+
+pub(crate) fn maybe_format_text(content: &str, config: &Config) -> String {
+    if hyperlinks_disabled(config) {
+        return content.to_string();
+    }
+
+    create_links(content)
+}
+
+fn linkify_urls(content: &str) -> String {
+    let mut finder = LinkFinder::new();
+    finder.kinds(&[LinkKind::Url]);
+    finder.url_must_have_scheme(true);
+
+    let mut formatted = String::with_capacity(content.len());
+    for span in finder.spans(content) {
+        let text = span.as_str();
+        if span.kind() == Some(&LinkKind::Url) && is_http_url(text) {
+            formatted.push_str(&format_osc8_link(text, text));
+        } else {
+            formatted.push_str(text);
+        }
+    }
+    formatted
+}
+
+fn is_http_url(url: &str) -> bool {
+    url.get(..7)
+        .is_some_and(|scheme| scheme.eq_ignore_ascii_case("http://"))
+        || url
+            .get(..8)
+            .is_some_and(|scheme| scheme.eq_ignore_ascii_case("https://"))
 }
 
 /// Formats a URL as an OSC8 hyperlink when hyperlinks are enabled.
@@ -151,6 +193,48 @@ mod tests {
         assert_eq!(
             create_links("[Broken link](not a url"),
             "[Broken link](not a url"
+        );
+    }
+
+    #[test]
+    fn test_create_links_linkifies_bare_url() {
+        let url = "https://getpocket.com/explore/item/here-are-the-4-simple-introspection-steps-that-will-boost-self-awareness?utm_source=pocket-newtab";
+        let title = "Here Are The 4 Simple Introspection Steps That Will Boost Self Awareness - Nir Eyal - Pocket";
+        let input = format!("@Review {url} ({title})");
+        let expected = format!("@Review {} ({title})", format_osc8_link(url, url));
+
+        assert_eq!(create_links(&input), expected);
+    }
+
+    #[test]
+    fn test_create_links_supports_brackets_in_markdown_label() {
+        let url =
+            "https://learndobecome.com/podcast-9-how-to-get-your-projects-past-the-finish-line/";
+        let label = "[PODCAST 9]: How to Get Your Projects Past the Finish Line";
+        let input = format!("[{label}]({url})");
+
+        assert_eq!(create_links(&input), format_osc8_link(url, label));
+    }
+
+    #[test]
+    fn test_create_links_does_not_double_link_markdown_url() {
+        let markdown_url = "https://example.com/article";
+        let bare_url = "https://example.com/source";
+        let input = format!("[Article]({markdown_url}) via {bare_url}");
+        let expected = format!(
+            "{} via {}",
+            format_osc8_link(markdown_url, "Article"),
+            format_osc8_link(bare_url, bare_url)
+        );
+
+        assert_eq!(create_links(&input), expected);
+    }
+
+    #[test]
+    fn test_create_links_preserves_unsupported_schemes() {
+        assert_eq!(
+            create_links("Download ftp://example.com/file"),
+            "Download ftp://example.com/file"
         );
     }
 

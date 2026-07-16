@@ -11,11 +11,7 @@ pub fn content(task: &Task, config: &Config) -> String {
         priority::Priority::None => format::normal_string(&task.content),
     };
 
-    if format::hyperlinks_disabled(config) {
-        content
-    } else {
-        format::create_links(&content)
-    }
+    format::maybe_format_text(&content, config)
 }
 
 pub async fn project(task: &Task, config: &Config, buffer: &str) -> Result<String, Error> {
@@ -329,6 +325,28 @@ mod tests {
         assert_eq!(
             content(&task, &config_no_links),
             format::normal_string("Test")
+        );
+    }
+
+    #[tokio::test]
+    async fn test_content_linkifies_bare_url_in_task_title() {
+        if !supports_hyperlinks::on(Stream::Stdout) {
+            eprintln!("Skipping test: hyperlinks not supported in this environment");
+            return;
+        }
+
+        let config = test::fixtures::config().await;
+        let mut task = test::fixtures::today_task().await;
+        let url = "https://example.com/task?source=tod";
+        task.content = format!("@Review {url} (Task title)");
+        task.priority = priority::Priority::None;
+
+        assert_eq!(
+            content(&task, &config),
+            format!(
+                "@Review {} (Task title)",
+                format::format_osc8_link(url, url)
+            )
         );
     }
 
