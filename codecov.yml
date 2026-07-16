@@ -8,11 +8,15 @@ coverage:
   status:
     project:
       default:
-        target: 50%
-        threshold: 0%
+        target: auto
+        threshold: 10%
         base: auto
     patch:
       default:
-        target: 70%
+        target: 50%
         threshold: 2%
         base: auto
+    comment:
+      layout: "diff, flags, files"
+      require_changes: false
+

@@ -2,11 +2,9 @@
 
 ## [0.14.0](https://github.com/tod-org/tod/compare/v0.13.0...v0.14.0) (2026-07-14)
 
-
 ### Features
 
 * add create reminder to list process ([75738b6](https://github.com/tod-org/tod/commit/75738b6137fe9d59a4ae86b6dbe5144380bac912))
-
 
 ### Bug Fixes
 
@@ -17,14 +15,12 @@
 
 ## [0.13.0](https://github.com/tod-org/tod/compare/v0.12.1...v0.13.0) (2026-07-07)
 
-
 ### Features
 
 * **auth:** add `tod auth api --token` for non-interactive API token setup ([b4169cd](https://github.com/tod-org/tod/commit/b4169cde467ea4ea7d63b249de2f0b3959e35b12))
 * interactive edit config ([214adb9](https://github.com/tod-org/tod/commit/214adb93964301a5808070679abd00761952b01f))
 * list remind ([0241438](https://github.com/tod-org/tod/commit/0241438824b2e8b5dfbbb983e053dbf20a1dd8df))
 * list reminders ([aa5fa20](https://github.com/tod-org/tod/commit/aa5fa206e25fcbd8154f1b35da58de5b90c233bb))
-
 
 ### Bug Fixes
 
@@ -36,13 +32,11 @@
 
 ## [0.12.1](https://github.com/tod-org/tod/compare/v0.12.0...v0.12.1) (2026-05-01)
 
-
 ### Bug Fixes
 
 * config check ([adf2a00](https://github.com/tod-org/tod/commit/adf2a007e4e00c8f62568d9c3cb543ca38fba151))
 
 ## [0.12.0](https://github.com/tod-org/tod/compare/v0.11.3...v0.12.0) (2026-05-01)
-
 
 ### Features
 
@@ -50,7 +44,6 @@
 * **debug:** print build info once at top of verbose output ([60d5c6a](https://github.com/tod-org/tod/commit/60d5c6a31cc42fa8b64666b84e0df1263965a0e9))
 * **format:** render markdown link text (not brackets) as OSC8 hyperlink ([08b825a](https://github.com/tod-org/tod/commit/08b825abcf00d8fa6712a280077e29ab5426f058))
 * improve comment termination ([bab9679](https://github.com/tod-org/tod/commit/bab9679eae6a41e9f0919d9711224bf96072bd64))
-
 
 ### Bug Fixes
 
@@ -61,20 +54,17 @@
 
 ## [0.11.3](https://github.com/tod-org/tod/compare/v0.11.2...v0.11.3) (2026-04-27)
 
-
 ### Bug Fixes
 
 * verbose token ([e577ca3](https://github.com/tod-org/tod/commit/e577ca3006e2798a34bb3d5103b33e3fa33ecce3))
 
 ## [0.11.2](https://github.com/tod-org/tod/compare/v0.11.1...v0.11.2) (2026-01-25)
 
-
 ### Bug Fixes
 
 * change section_order type from u32 to i32 ([0058f23](https://github.com/tod-org/tod/commit/0058f23422d9583973b739f4c3d69e2a64705cfb))
 
 ## [0.11.1](https://github.com/tod-org/tod/compare/v0.11.0...v0.11.1) (2025-09-18)
-
 
 ### Bug Fixes
 
