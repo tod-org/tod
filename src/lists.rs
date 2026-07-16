@@ -195,46 +195,55 @@ pub async fn process(config: &Config, flag: Flag, sort: &SortOrder) -> Result<St
     let tasks_with_comments = fetch_comments_for_tasks(tasks, config).await;
     let mut handles = Vec::new();
     for task_with_comments in tasks_with_comments {
-        match task_with_comments {
-            Ok((task, Ok(comments))) => {
-                println!();
-                match tasks::process_task(
-                    comments,
-                    &config.reload().await?,
-                    task,
-                    &mut task_count,
-                    with_project,
-                )
-                .await?
-                {
-                    Some(handle) => handles.push(handle),
-                    None => return Ok(format::green_string("Exited")),
-                }
-            }
-            Ok((task, Err(Error { message, source }))) => {
-                println!("Could not fetch comments from {source}: {message}");
-                let comments = Vec::new();
-                println!();
-                match tasks::process_task(
-                    comments,
-                    &config.reload().await?,
-                    task,
-                    &mut task_count,
-                    false,
-                )
-                .await?
-                {
-                    Some(handle) => handles.push(handle),
-                    None => return Ok(format::green_string("Exited")),
-                }
-            }
-            Err(JoinError { .. }) => {
-                println!("JoinError");
-            }
+        match process_task_with_comments(task_with_comments, config, &mut task_count, with_project)
+            .await?
+        {
+            ProcessTaskOutcome::Handle(handle) => handles.push(handle),
+            ProcessTaskOutcome::Exit => return Ok(format::green_string("Exited")),
+            ProcessTaskOutcome::Skip => {}
         }
     }
     future::join_all(handles).await;
     Ok(format::green_string(&success))
+}
+
+enum ProcessTaskOutcome {
+    Handle(tokio::task::JoinHandle<()>),
+    Exit,
+    Skip,
+}
+
+async fn process_task_with_comments(
+    task_with_comments: Result<(Task, Result<Vec<Comment>, Error>), JoinError>,
+    config: &Config,
+    task_count: &mut i32,
+    with_project: bool,
+) -> Result<ProcessTaskOutcome, Error> {
+    let (task, comments, with_project) = match task_with_comments {
+        Ok((task, Ok(comments))) => (task, comments, with_project),
+        Ok((task, Err(Error { message, source }))) => {
+            println!("Could not fetch comments from {source}: {message}");
+            (task, Vec::new(), false)
+        }
+        Err(JoinError { .. }) => {
+            println!("JoinError");
+            return Ok(ProcessTaskOutcome::Skip);
+        }
+    };
+
+    println!();
+    match tasks::process_task(
+        comments,
+        &config.reload().await?,
+        task,
+        task_count,
+        with_project,
+    )
+    .await?
+    {
+        Some(handle) => Ok(ProcessTaskOutcome::Handle(handle)),
+        None => Ok(ProcessTaskOutcome::Exit),
+    }
 }
 
 async fn fetch_comments_for_tasks(
@@ -450,6 +459,35 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_timebox_returns_exited_when_quit_is_selected() {
+        let mut server = mockito::Server::new_async().await;
+        let tasks_mock = server
+            .mock("GET", "/api/v1/tasks/filter?query=today&limit=200")
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(ResponseFromFile::TodayTasksWithoutDuration.read().await)
+            .create_async()
+            .await;
+        let config = test::fixtures::config()
+            .await
+            .with_mock_url(server.url())
+            .mock_select(4)
+            .create()
+            .await
+            .expect("config should be created");
+
+        let result = timebox(
+            &config,
+            Flag::Filter("today".to_string()),
+            &SortOrder::Value,
+        )
+        .await;
+
+        assert_eq!(result, Ok("Exited".to_string()));
+        tasks_mock.assert();
+    }
+
+    #[tokio::test]
     async fn test_prioritize_tasks_with_no_tasks() {
         let mut server = mockito::Server::new_async().await;
         let mock = server
@@ -480,6 +518,57 @@ mod tests {
             ))
         );
         mock.assert();
+    }
+
+    #[tokio::test]
+    async fn test_empty_task_lists_return_messages() {
+        let mut server = mockito::Server::new_async().await;
+        let reminders_mock = server
+            .mock("GET", "/api/v1/reminders?limit=200")
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(r#"{"results":[],"next_cursor":null}"#)
+            .create_async()
+            .await;
+        let tasks_mock = server
+            .mock("GET", "/api/v1/tasks/filter?query=today&limit=200")
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(r#"{"results":[],"next_cursor":null}"#)
+            .expect(3)
+            .create_async()
+            .await;
+        let config = test::fixtures::config().await.with_mock_url(server.url());
+
+        assert_eq!(
+            remind(
+                &config,
+                Flag::Filter("today".to_string()),
+                &SortOrder::Value,
+            )
+            .await,
+            Ok("No tasks for 'today'".to_string())
+        );
+        assert_eq!(
+            timebox(
+                &config,
+                Flag::Filter("today".to_string()),
+                &SortOrder::Value,
+            )
+            .await,
+            Ok("No tasks for 'today'".to_string())
+        );
+        assert_eq!(
+            process(
+                &config,
+                Flag::Filter("today".to_string()),
+                &SortOrder::Value,
+            )
+            .await,
+            Ok("No tasks for 'today'".to_string())
+        );
+        reminders_mock.assert();
+        tasks_mock.assert();
     }
     #[tokio::test]
     async fn test_process_with_filter() {
@@ -586,6 +675,115 @@ mod tests {
         mock.assert();
         mock2.assert();
         mock3.assert();
+    }
+
+    #[tokio::test]
+    async fn test_process_returns_exited_when_quit_is_selected() {
+        let mut server = mockito::Server::new_async().await;
+        let tasks_mock = server
+            .mock("GET", "/api/v1/tasks/filter?query=today&limit=200")
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(ResponseFromFile::TodayTasks.read().await)
+            .create_async()
+            .await;
+        let comments_mock = server
+            .mock(
+                "GET",
+                "/api/v1/comments/?task_id=6Xqhv4cwxgjwG9w8&limit=200",
+            )
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(ResponseFromFile::CommentsAllTypes.read().await)
+            .create_async()
+            .await;
+        let config = test::fixtures::config()
+            .await
+            .with_mock_url(server.url())
+            .mock_select(6)
+            .create()
+            .await
+            .expect("config should be created");
+
+        let result = process(
+            &config,
+            Flag::Filter("today".to_string()),
+            &SortOrder::Value,
+        )
+        .await;
+
+        assert_eq!(result, Ok("Exited".to_string()));
+        tasks_mock.assert();
+        comments_mock.assert();
+    }
+
+    #[tokio::test]
+    async fn test_process_handles_comment_fetch_errors() {
+        let mut server = mockito::Server::new_async().await;
+        let tasks_mock = server
+            .mock("GET", "/api/v1/tasks/filter?query=today&limit=200")
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(ResponseFromFile::TodayTasks.read().await)
+            .expect(2)
+            .create_async()
+            .await;
+        let comments_mock = server
+            .mock(
+                "GET",
+                "/api/v1/comments/?task_id=6Xqhv4cwxgjwG9w8&limit=200",
+            )
+            .with_status(500)
+            .with_body("comment request failed")
+            .expect(2)
+            .create_async()
+            .await;
+        let config = test::fixtures::config()
+            .await
+            .with_mock_url(server.url())
+            .mock_select(1)
+            .create()
+            .await
+            .expect("config should be created");
+
+        let skipped = process(
+            &config,
+            Flag::Filter("today".to_string()),
+            &SortOrder::Value,
+        )
+        .await;
+        assert_eq!(skipped, Ok("Successfully processed 'today'".to_string()));
+
+        let quit_config = config
+            .mock_select(6)
+            .create()
+            .await
+            .expect("quit config should be created");
+        let exited = process(
+            &quit_config,
+            Flag::Filter("today".to_string()),
+            &SortOrder::Value,
+        )
+        .await;
+        assert_eq!(exited, Ok("Exited".to_string()));
+        tasks_mock.assert();
+        comments_mock.assert();
+    }
+
+    #[tokio::test]
+    async fn test_process_skips_cancelled_comment_fetch() {
+        let handle: tokio::task::JoinHandle<(Task, Result<Vec<Comment>, Error>)> =
+            tokio::spawn(std::future::pending());
+        handle.abort();
+        let cancelled = handle.await;
+        let config = test::fixtures::config().await;
+        let mut task_count = 1;
+
+        let outcome = process_task_with_comments(cancelled, &config, &mut task_count, false)
+            .await
+            .expect("cancelled comment fetch should be skipped");
+
+        assert!(matches!(outcome, ProcessTaskOutcome::Skip));
     }
     #[tokio::test]
     async fn test_label() {
