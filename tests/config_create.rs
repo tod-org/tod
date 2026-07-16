@@ -196,3 +196,38 @@ fn config_reset_force_when_config_absent_reports_not_found() {
         .success()
         .stdout(predicate::str::contains("No config file found at"));
 }
+
+/// `-c` passes an explicit config path through reset and reports that exact path on deletion.
+#[test]
+fn config_reset_force_with_short_config_flag_deletes_manual_path() {
+    let dir = tempdir().expect("temp dir should be created");
+    let path = dir.path().join("manual-tod.cfg");
+    fs::write(&path, "{}").expect("config should be written");
+    let expected = format!("Config file at {} deleted successfully.", path.display());
+
+    tod_command()
+        .arg("-c")
+        .arg(&path)
+        .args(["config", "reset", "--force"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(expected));
+
+    assert!(!path.exists(), "manual config path should be deleted");
+}
+
+/// `-c` reports the explicit path when reset is requested for a missing config.
+#[test]
+fn config_reset_force_with_short_config_flag_reports_missing_manual_path() {
+    let dir = tempdir().expect("temp dir should be created");
+    let path = dir.path().join("missing-manual-tod.cfg");
+    let expected = format!("No config file found at {}.", path.display());
+
+    tod_command()
+        .arg("-c")
+        .arg(&path)
+        .args(["config", "reset", "--force"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(expected));
+}

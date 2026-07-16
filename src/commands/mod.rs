@@ -131,7 +131,7 @@ pub async fn select_command(cli: Cli, tx: UnboundedSender<Error>) -> Result<Comm
     }
 
     match &cli.command {
-        Commands::Auth(command) => auth_command(command, &cli, &tx).await,
+        Commands::Auth(command) => auth_command(command, &cli).await,
         Commands::Config(command) => config_command(command, &cli, &tx).await,
         Commands::List(command) => list_command(command, &cli, &tx).await,
         Commands::Project(command) => project_command(command, &cli, &tx).await,
@@ -358,17 +358,10 @@ async fn config_command(
     }
 }
 
-async fn auth_command(
-    command: &AuthCommands,
-    cli: &Cli,
-    tx: &UnboundedSender<Error>,
-) -> Result<CommandResult, Error> {
+async fn auth_command(command: &AuthCommands, cli: &Cli) -> Result<CommandResult, Error> {
     match command {
         AuthCommands::Login(args) => {
-            let mut config = match get_existing_config_exists(cli.config.clone()).await {
-                Ok(config) => config,
-                Err(_) => fetch_config(cli, tx).await?,
-            };
+            let mut config = auth_commands::load_or_create_config(cli.config.clone()).await?;
             let result = auth_commands::login(&mut config, args).await;
             build_command_result(result, config)
         }
@@ -432,14 +425,6 @@ async fn fetch_config(cli: &Cli, tx: &UnboundedSender<Error>) -> Result<Config, 
 
     let config = config.check_for_latest_version().await?;
     config.maybe_set_timezone().await
-}
-
-/// Only fetches the config if it exists, otherwise errors.
-async fn get_existing_config_exists(config_path: Option<PathBuf>) -> Result<Config, Error> {
-    match crate::config::get_config(config_path).await {
-        Ok(config) => Ok(config),
-        Err(e) => Err(e),
-    }
 }
 
 fn fetch_string(
