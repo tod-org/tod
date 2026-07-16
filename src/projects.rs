@@ -8,7 +8,7 @@ use crate::config::Config;
 use crate::errors::Error;
 use crate::sections::Section;
 use crate::tasks::{FormatType, Task};
-use crate::{SortOrder, color, input, sections, tasks, todoist};
+use crate::{SortOrder, format, input, sections, tasks, todoist};
 use serde::{Deserialize, Serialize};
 
 const PAD_WIDTH: usize = 30;
@@ -107,8 +107,8 @@ pub async fn list(config: &mut Config) -> Result<String, Error> {
     }
     projects.sort();
     let mut buffer = String::new();
-    buffer.push_str(&color::green_string("Projects").pad_to_width(PAD_WIDTH + 5));
-    buffer.push_str(&color::green_string("# Tasks"));
+    buffer.push_str(&format::green_string("Projects").pad_to_width(PAD_WIDTH + 5));
+    buffer.push_str(&format::green_string("# Tasks"));
 
     for key in projects {
         buffer.push_str("\n - ");
@@ -177,7 +177,7 @@ pub async fn next_task(config: Config, project: &Project) -> Result<String, Erro
             config.set_next_task(task).save().await?;
             Ok(format!("{task_string}\n{remaining} task(s) remaining"))
         }
-        Ok(None) => Ok(color::green_string("No tasks on list")),
+        Ok(None) => Ok(format::green_string("No tasks on list")),
         Err(e) => Err(e),
     }
 }
@@ -199,7 +199,7 @@ pub async fn remove_auto(config: &mut Config) -> Result<String, Error> {
     let missing_projects = filter_missing_projects(config, projects).await?;
 
     if missing_projects.is_empty() {
-        return Ok(color::green_string("No projects to auto remove"));
+        return Ok(format::green_string("No projects to auto remove"));
     }
 
     for project in &missing_projects {
@@ -212,7 +212,7 @@ pub async fn remove_auto(config: &mut Config) -> Result<String, Error> {
         .collect::<Vec<String>>()
         .join(", ");
     let message = format!("Auto removed: '{project_names}'");
-    Ok(color::green_string(&message))
+    Ok(format::green_string(&message))
 }
 
 /// Removes all projects from config
@@ -230,7 +230,7 @@ pub async fn remove_all(config: &mut Config) -> Result<String, Error> {
 
     let projects = config.projects().await?;
     if projects.is_empty() {
-        return Ok(color::green_string("No projects to remove"));
+        return Ok(format::green_string("No projects to remove"));
     }
 
     for project in &projects {
@@ -238,7 +238,7 @@ pub async fn remove_all(config: &mut Config) -> Result<String, Error> {
     }
     config.save().await?;
     let message = "Removed all projects from config";
-    Ok(color::green_string(message))
+    Ok(format::green_string(message))
 }
 
 /// Returns the projects that are not already in config
@@ -266,7 +266,7 @@ pub async fn import(config: &mut Config, auto: &bool) -> Result<String, Error> {
     for project in new_projects {
         maybe_add_project(config, project, auto).await?;
     }
-    Ok(color::green_string("No more projects"))
+    Ok(format::green_string("No more projects"))
 }
 
 /// Returns the projects that are not already in config
@@ -352,7 +352,7 @@ pub async fn empty(config: &mut Config, project: &Project) -> Result<String, Err
     let tasks = todoist::all_tasks_by_project(config, project, None).await?;
 
     if tasks.is_empty() {
-        Ok(color::green_string(&format!(
+        Ok(format::green_string(&format!(
             "No tasks to empty from '{}'",
             project.name
         )))
@@ -369,7 +369,7 @@ pub async fn empty(config: &mut Config, project: &Project) -> Result<String, Err
             handles.push(move_task_to_project(config, task, &sections).await?);
         }
         future::join_all(handles).await;
-        Ok(color::green_string(&format!(
+        Ok(format::green_string(&format!(
             "Successfully emptied '{}'",
             project.name
         )))
@@ -402,7 +402,7 @@ pub async fn schedule(
     };
 
     if filtered_tasks.is_empty() {
-        Ok(color::green_string(&format!(
+        Ok(format::green_string(&format!(
             "No tasks to schedule in '{}'",
             project.name
         )))
@@ -416,7 +416,7 @@ pub async fn schedule(
             .collect::<Vec<_>>();
 
         future::join_all(handles).await;
-        Ok(color::green_string(&format!(
+        Ok(format::green_string(&format!(
             "Successfully scheduled tasks in '{}'",
             project.name
         )))
@@ -436,7 +436,7 @@ pub async fn deadline(
         .collect::<Vec<Task>>();
 
     if filtered_tasks.is_empty() {
-        Ok(color::green_string(&format!(
+        Ok(format::green_string(&format!(
             "No tasks to deadline in '{}'",
             project.name
         )))
@@ -450,7 +450,7 @@ pub async fn deadline(
             .collect::<Vec<_>>();
 
         future::join_all(handles).await;
-        Ok(color::green_string(&format!(
+        Ok(format::green_string(&format!(
             "Successfully deadlined tasks in '{}'",
             project.name
         )))

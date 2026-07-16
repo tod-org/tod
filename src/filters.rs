@@ -1,9 +1,10 @@
 use futures::{StreamExt, TryStreamExt, future, stream};
 
 use crate::{
-    SortOrder, color,
+    SortOrder,
     config::Config,
     errors::Error,
+    format,
     input::{self},
     projects::TaskFilter,
     tasks::{self, FormatType, Task},
@@ -52,7 +53,7 @@ pub async fn next_task(config: &Config, filter: &str) -> Result<String, Error> {
             config.set_next_task(task).save().await?;
             Ok(format!("{task_string}\n{remaining} task(s) remaining"))
         }
-        Ok(None) => Ok(color::green_string("No tasks on list")),
+        Ok(None) => Ok(format::green_string("No tasks on list")),
         Err(e) => Err(e),
     }
 }
@@ -80,7 +81,7 @@ pub async fn schedule(config: &Config, filter: &str, sort: &SortOrder) -> Result
     let tasks = tasks::sort(tasks, config, *sort);
 
     if tasks.is_empty() {
-        Ok(color::green_string(&format!(
+        Ok(format::green_string(&format!(
             "No tasks to schedule in '{filter}'"
         )))
     } else {
@@ -93,7 +94,7 @@ pub async fn schedule(config: &Config, filter: &str, sort: &SortOrder) -> Result
             .collect::<Vec<_>>();
 
         future::join_all(handles).await;
-        Ok(color::green_string(&format!(
+        Ok(format::green_string(&format!(
             "Successfully scheduled tasks in '{filter}'"
         )))
     }
@@ -113,7 +114,7 @@ pub async fn deadline(config: &Config, filter: &str, sort: &SortOrder) -> Result
         .collect::<Vec<Task>>();
 
     if filtered_tasks.is_empty() {
-        Ok(color::green_string(&format!(
+        Ok(format::green_string(&format!(
             "No tasks to deadline in '{filter}'"
         )))
     } else {
@@ -126,7 +127,7 @@ pub async fn deadline(config: &Config, filter: &str, sort: &SortOrder) -> Result
             .collect::<Vec<_>>();
 
         future::join_all(handles).await;
-        Ok(color::green_string(&format!(
+        Ok(format::green_string(&format!(
             "Successfully deadlined tasks in '{filter}'"
         )))
     }

@@ -3,9 +3,9 @@ use std::fmt::Display;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    color,
     config::Config,
     errors::Error,
+    format,
     tasks::{DateInfo, Task},
     todoist,
 };
@@ -73,7 +73,7 @@ pub async fn list(config: &mut Config) -> Result<String, Error> {
         .collect::<Vec<(Option<Task>, Reminder)>>();
 
     let mut buffer = String::new();
-    buffer.push_str(&color::green_string("Reminders"));
+    buffer.push_str(&format::green_string("Reminders"));
 
     for (maybe_task, reminder) in reminders_with_tasks {
         buffer.push_str("\n - ");

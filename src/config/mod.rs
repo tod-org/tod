@@ -3,13 +3,13 @@ mod file;
 mod projects;
 mod timezone;
 use crate::errors::Error;
+use crate::format::maybe_format_url;
 use crate::input::page_size;
 use crate::legacy;
 use crate::projects::Project;
 use crate::tasks::Task;
-use crate::tasks::format::maybe_format_url;
 use crate::time::{SystemTimeProvider, TimeProviderEnum};
-use crate::{VERSION, cargo, color, input, oauth, time};
+use crate::{VERSION, cargo, format, input, oauth, time};
 use regex::Regex;
 use serde::de::Error as DeError;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -367,8 +367,8 @@ impl Config {
                         or run {} if you installed with Homebrew",
                             version,
                             VERSION,
-                            color::cyan_string("cargo install tod --force"),
-                            color::cyan_string("brew update && brew upgrade tod")
+                            format::cyan_string("cargo install tod --force"),
+                            format::cyan_string("brew update && brew upgrade tod")
                         );
                         let _ = self.tx().send(Error {
                             message,

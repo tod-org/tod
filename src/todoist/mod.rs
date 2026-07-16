@@ -17,7 +17,7 @@ use crate::shell::execute_command;
 use crate::tasks::priority::Priority;
 use crate::tasks::{Task, TaskResponse};
 use crate::users::User;
-use crate::{color, time};
+use crate::{format, time};
 use regex::Regex;
 
 // TODOIST URLS
@@ -133,7 +133,7 @@ pub async fn test_all_endpoints(config: &Config) -> Result<String, Error> {
     println!("Get user data");
     let _data = get_user_data(config).await?;
 
-    Ok(color::green_string("Completed successfully"))
+    Ok(format::green_string("Completed successfully"))
 }
 
 /// Add a new task to the inbox with natural language support

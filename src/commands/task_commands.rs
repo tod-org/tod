@@ -1,10 +1,9 @@
 use clap::{Parser, Subcommand};
 
 use crate::{
-    color,
     config::Config,
     errors::Error,
-    filters,
+    filters, format,
     input::{self, DateTimeInput},
     labels,
     lists::Flag,
@@ -125,7 +124,7 @@ pub async fn quick_add(config: &Config, args: &QuickAdd) -> Result<String, Error
         (content, None)
     };
     todoist::quick_create_task(config, &content, reminder).await?;
-    Ok(color::green_string("✓"))
+    Ok(format::green_string("✓"))
 }
 
 /// User does not want to use sections
@@ -236,7 +235,7 @@ pub async fn create(config: Config, args: &Create) -> Result<String, Error> {
         )
         .await?;
     }
-    Ok(color::green_string("✓"))
+    Ok(format::green_string("✓"))
 }
 
 fn no_flags_used(args: &Create) -> bool {
@@ -278,7 +277,7 @@ pub async fn complete(config: Config, _args: &Complete) -> Result<String, Error>
         Some(task) => {
             todoist::complete_task(&config, &task.id, true).await?;
 
-            Ok(color::green_string("Task completed successfully"))
+            Ok(format::green_string("Task completed successfully"))
         }
         None => Err(Error::new(
             "task_complete",
@@ -293,7 +292,7 @@ pub async fn comment(config: Config, args: &Comment) -> Result<String, Error> {
         Some(task) => {
             let content = super::fetch_string(content.as_deref(), &config, input::CONTENT)?;
             todoist::create_comment(&config, &task.id, &content, true).await?;
-            Ok(color::green_string("Comment created successfully"))
+            Ok(format::green_string("Comment created successfully"))
         }
         None => Err(Error::new(
             "task_comment",

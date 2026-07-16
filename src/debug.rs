@@ -1,4 +1,4 @@
-use crate::{color, config::Config};
+use crate::{config::Config, format};
 
 const TOKEN_SUFFIX_LENGTH: usize = 5;
 const TOKEN_LENGTH: usize = 40;
@@ -28,7 +28,7 @@ pub fn maybe_print_redacted_config(config: &Config) {
 // Print a debug statement
 pub fn print(text: &str) {
     let text = format!("=== DEBUG ===\n{text}\n===");
-    let text = color::debug_string(&text);
+    let text = format::debug_string(&text);
 
     println!("{text}");
 }

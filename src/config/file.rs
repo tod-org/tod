@@ -3,8 +3,8 @@
 use crate::config::{Args, Internal};
 #[cfg(test)]
 use crate::config::{SortDirection, SortKey, SortRule};
-use crate::{color, debug, input};
 use crate::{config::Config, errors::Error};
+use crate::{debug, format, input};
 use inquire::Confirm;
 use serde_json::json;
 use std::path::{Path, PathBuf};
@@ -53,7 +53,7 @@ impl Config {
         file.flush().await?;
         file.sync_all().await?;
 
-        Ok(color::green_string("✓"))
+        Ok(format::green_string("✓"))
     }
 
     pub async fn load(path: &Path) -> Result<Config, Error> {
@@ -81,7 +81,7 @@ fn config_load_error(error: &serde_json::Error, path: &Path) -> Error {
     let source = "serde_json";
     let message = format!(
         "\n{}",
-        color::red_string(&format!(
+        format::red_string(&format!(
             "Error loading configuration file '{}':\n{error}\n\
             \nThe file contains an invalid value.\n\
             Run 'tod config check' to remove invalid values, or run 'tod config reset' to delete (reset) the config.",

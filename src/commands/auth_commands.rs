@@ -1,8 +1,7 @@
 use crate::{
-    color,
     config::{self, Config},
     errors::Error,
-    oauth,
+    format, oauth,
 };
 use clap::{Parser, Subcommand};
 use std::{io::ErrorKind, path::PathBuf};
@@ -59,7 +58,7 @@ pub async fn token(config_path: Option<PathBuf>, args: &Token) -> Result<String,
     let path = config.path.clone();
 
     config.set_developer_token(&args.key).await?;
-    Ok(color::green_string(&format!(
+    Ok(format::green_string(&format!(
         "✓ API token saved to {}",
         path.display()
     )))

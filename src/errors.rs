@@ -3,7 +3,7 @@ use std::{
     num::{ParseIntError, TryFromIntError},
 };
 
-use crate::color;
+use crate::format;
 use homedir::GetHomeError;
 use serde::Deserialize;
 use tokio::{sync::oneshot::error::RecvError, task::JoinError};
@@ -20,8 +20,8 @@ impl Display for Error {
         write!(
             f,
             "Error from {}:\n{}",
-            color::yellow_string(source),
-            color::red_string(message)
+            format::yellow_string(source),
+            format::red_string(message)
         )
     }
 }
