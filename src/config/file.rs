@@ -186,11 +186,11 @@ fn maybe_expand_home_dir(path: PathBuf) -> Result<PathBuf, Error> {
 /// Deletes the config file after resolving its path and confirming with the user.
 pub async fn config_reset(cli_config_path: Option<PathBuf>, force: bool) -> Result<String, Error> {
     // Defer to the testable version, but use `inquire::Confirm` for interactive input to pass true/false.
-    config_reset_with_prompt(cli_config_path.clone(), force, || {
-        let path_display = cli_config_path
-            .as_ref()
-            .map_or_else(|| "<default path>".into(), |p| p.display().to_string());
-        let desc = &format!("Are you sure you want to delete the config at {path_display}?");
+    config_reset_with_prompt(cli_config_path, force, |path| {
+        let desc = &format!(
+            "Are you sure you want to delete the config at {}?",
+            path.display()
+        );
         input::confirm(desc).unwrap_or_default()
     })
     .await
@@ -203,7 +203,7 @@ pub async fn config_reset_with_prompt<F>(
     prompt_fn: F,
 ) -> Result<String, Error>
 where
-    F: FnOnce() -> bool,
+    F: FnOnce(&Path) -> bool,
 {
     let path = match cli_config_path {
         Some(p) => maybe_expand_home_dir(p)?,
@@ -214,7 +214,7 @@ where
         return Ok(format!("No config file found at {}.", path.display()));
     }
 
-    if !force && !prompt_fn() {
+    if !force && !prompt_fn(&path) {
         return Ok("Aborted: Config not deleted.".to_string());
     }
 
@@ -655,7 +655,7 @@ mod tests {
         assert!(temp_path.exists(), "Temp config should exist before reset");
 
         // Simulate user saying "yes"
-        let result = config_reset_with_prompt(Some(temp_path.clone()), false, || true).await;
+        let result = config_reset_with_prompt(Some(temp_path.clone()), false, |_| true).await;
 
         assert!(result.is_ok(), "Expected Ok, got {result:?}");
         let msg = result.expect("Could not get msg");
@@ -676,12 +676,30 @@ mod tests {
         assert!(temp_path.exists(), "Temp config should exist before reset");
 
         // Simulate user saying "no"
-        let result = config_reset_with_prompt(Some(temp_path.clone()), false, || false).await;
+        let result = config_reset_with_prompt(Some(temp_path.clone()), false, |_| false).await;
 
         assert!(result.is_ok(), "Expected Ok, got {result:?}");
         let msg = result.expect("Could not get reset config response");
         assert_eq!(msg, "Aborted: Config not deleted.");
         assert!(temp_path.exists(), "File should not be deleted after abort");
+    }
+
+    #[tokio::test]
+    async fn test_config_reset_prompt_receives_resolved_path() {
+        let (_temp_dir, temp_path) = temp_config_path("temp_test_config_prompt_path.cfg");
+        tokio::fs::File::create(&temp_path)
+            .await
+            .expect("Failed to create temp config file");
+        let mut prompted_path = None;
+
+        let result = config_reset_with_prompt(Some(temp_path.clone()), false, |path| {
+            prompted_path = Some(path.to_path_buf());
+            false
+        })
+        .await;
+
+        assert_eq!(result, Ok("Aborted: Config not deleted.".to_string()));
+        assert_eq!(prompted_path, Some(temp_path));
     }
 
     #[tokio::test]
