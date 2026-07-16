@@ -314,6 +314,7 @@ impl Config {
     }
 
     /// Set token on Config struct only
+    #[allow(dead_code)]
     pub fn with_token(self: &Config, token: &str) -> Config {
         Config {
             token: Some(token.into()),
@@ -486,6 +487,19 @@ impl Config {
         self.save().await
     }
 
+    pub async fn set_developer_token(mut self, key: &str) -> Result<Config, Error> {
+        let trimmed_key = key.trim();
+        if trimmed_key.is_empty() {
+            return Err(Error::new(
+                "auth token",
+                "Todoist API token cannot be empty or whitespace",
+            ));
+        }
+
+        self.set_token(trimmed_key.to_string()).await?;
+        self.maybe_set_timezone().await
+    }
+
     async fn maybe_set_token(self) -> Result<Config, Error> {
         if self.token.clone().unwrap_or_default().trim().is_empty() {
             let mock_select = Some(1);
@@ -502,7 +516,7 @@ impl Config {
                     // We can't use mock_string from config here because it can't be set in test.
                     let fake_token = Some("faketoken".into());
                     let token = input::string(&desc, fake_token)?;
-                    self.with_token(&token)
+                    self.set_developer_token(&token).await?
                 }
                 _ => unreachable!(),
             };

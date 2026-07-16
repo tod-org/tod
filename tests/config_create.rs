@@ -7,15 +7,26 @@ fn tod_command() -> Command {
     Command::cargo_bin("tod").expect("tod binary should build")
 }
 
+fn write_config_with_timezone(path: &std::path::Path, token: Option<&str>) {
+    let token = token
+        .map(|token| format!(r#","token":"{token}""#))
+        .unwrap_or_default();
+    let path_value = path.to_string_lossy();
+    fs::write(
+        path,
+        format!(r#"{{"path":"{path_value}","timezone":"UTC"{token}}}"#),
+    )
+    .expect("config should be written");
+}
+
 // --- Config creation via `auth token` (the non-interactive creation path) ---
 
-/// When the config file does not exist, `auth token` creates it and reports success.
+/// When the config file already has a timezone, `auth token` updates the token and reports success.
 #[test]
-fn auth_token_creates_config_when_not_present() {
+fn auth_token_updates_config_with_existing_timezone() {
     let dir = tempdir().expect("temp dir should be created");
     let path = dir.path().join("tod.cfg");
-
-    assert!(!path.exists(), "config should not exist before test");
+    write_config_with_timezone(&path, None);
 
     tod_command()
         .arg("--config")
@@ -27,7 +38,7 @@ fn auth_token_creates_config_when_not_present() {
 
     assert!(
         path.exists(),
-        "config file should be created after auth token"
+        "config file should still exist after auth token"
     );
 }
 
@@ -36,6 +47,7 @@ fn auth_token_creates_config_when_not_present() {
 fn auth_token_output_includes_config_path() {
     let dir = tempdir().expect("temp dir should be created");
     let path = dir.path().join("tod.cfg");
+    write_config_with_timezone(&path, None);
 
     tod_command()
         .arg("--config")
@@ -53,13 +65,7 @@ fn auth_token_succeeds_with_existing_config() {
     let dir = tempdir().expect("temp dir should be created");
     let path = dir.path().join("tod.cfg");
 
-    // Bootstrap a properly-formed config via auth token so the path field is persisted.
-    tod_command()
-        .arg("--config")
-        .arg(&path)
-        .args(["auth", "token", "initial-token"])
-        .assert()
-        .success();
+    write_config_with_timezone(&path, Some("initial-token"));
 
     tod_command()
         .arg("--config")
@@ -77,14 +83,12 @@ fn auth_token_can_update_after_creating() {
     let dir = tempdir().expect("temp dir should be created");
     let path = dir.path().join("tod.cfg");
 
-    tod_command()
-        .arg("--config")
-        .arg(&path)
-        .args(["auth", "token", "first-token"])
-        .assert()
-        .success();
+    write_config_with_timezone(&path, Some("first-token"));
 
-    assert!(path.exists(), "config should exist after first auth token");
+    assert!(
+        path.exists(),
+        "config should exist before auth token update"
+    );
 
     tod_command()
         .arg("--config")
