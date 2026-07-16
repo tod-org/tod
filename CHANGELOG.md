@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.15.0](https://github.com/tod-org/tod/compare/v0.14.0...v0.15.0) (2026-07-16)
+
+
+### Features
+
+* configure task sort order ([e54c815](https://github.com/tod-org/tod/commit/e54c8154ac4031a72357ef2be3f6b1ec58809b87))
+* linkify urls in task and comment text ([abdfab5](https://github.com/tod-org/tod/commit/abdfab51322c30703030be9980276a615ece97c2))
+
+
+### Bug Fixes
+
+* duplicate oAuth login ([5494e52](https://github.com/tod-org/tod/commit/5494e5249470c513b697da6b782bd8539c85ea42))
+* remove useless import ([723f576](https://github.com/tod-org/tod/commit/723f576ad462ae8b5e9996538d0d3a7456b52516))
+* restore windows test compatibility ([526d58f](https://github.com/tod-org/tod/commit/526d58f7fcb50ef350e1b9ca17b3cf7078387db3))
+* save timezone for auth token ([546892b](https://github.com/tod-org/tod/commit/546892bf7a0b928510034de71f326014c0d6c9a6))
+* **tasks:** build sortable datetimes in config timezone ([6d82cda](https://github.com/tod-org/tod/commit/6d82cda1c2e296b36c77044849ef7c8e649b5e3e))
+
 ## [0.14.0](https://github.com/tod-org/tod/compare/v0.13.0...v0.14.0) (2026-07-14)
 
 ### Features
