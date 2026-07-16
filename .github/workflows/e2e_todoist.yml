@@ -1,6 +1,5 @@
 # End-to-end integration tests that run Tod against the live Todoist API.
 # Uses the Tod_DEV_CI project in the dev Todoist account.
-# Run manually only — never triggered automatically to avoid unintended API usage.
 
 name: E2E Todoist Integration Tests
 
@@ -120,22 +119,24 @@ jobs:
         run: |
           output=$($TOD_BIN --config "$TOD_CONFIG" list view --project "$TOD_PROJECT")
           echo "$output"
-          echo "$output" | grep -q "\[E2E\] High Priority Task"    || { echo "FAIL: High not found";   exit 1; }
-          echo "$output" | grep -q "\[E2E\] Medium Priority Task"  || { echo "FAIL: Medium not found"; exit 1; }
-          echo "$output" | grep -q "\[E2E\] No Priority Task"      || { echo "FAIL: None not found";   exit 1; }
-          echo "$output" | grep -q "\[E2E\] Low Priority Task"     || { echo "FAIL: Low not found";    exit 1; }
+          echo "$output" | grep -q "\[E2E\] High Priority Task" || { echo "FAIL: High not found"; exit 1; }
+          echo "$output" | grep -q "\[E2E\] Medium Priority Task" || { echo "FAIL: Medium not found"; exit 1; }
+          echo "$output" | grep -q "\[E2E\] No Priority Task" || { echo "FAIL: None not found"; exit 1; }
+          echo "$output" | grep -q "\[E2E\] Low Priority Task" || { echo "FAIL: Low not found"; exit 1; }
           echo "✓ All four tasks present"
 
       # ─── Verify sort order via task next ─────────────────────────────────────
-      # Expected sort values for undated, non-recurring tasks (defaults from docs):
-      #   no_due_date(80) + not_recurring(50) + priority_X
+      # Default sort_order is ["priority:desc", "due_date:asc", ...], which sorts
+      # by raw Todoist API priority value, descending. No special-casing for
+      # unset priority: it's compared using its raw API value (1), same as any
+      # other priority level.
       #
-      #   High   (p4, priority_high=4):  80+50+4 = 134  ← 1st
-      #   Medium (p3, priority_medium=3):80+50+3 = 133  ← 2nd
-      #   None   (p1, priority_none=2):  80+50+2 = 132  ← 3rd (none > low!)
-      #   Low    (p2, priority_low=1):   80+50+1 = 131  ← 4th
+      # High   (p4, raw priority 4) ← 1st
+      # Medium (p3, raw priority 3) ← 2nd
+      # Low    (p2, raw priority 2) ← 3rd
+      # None   (p1, raw priority 1) ← 4th (lowest raw value, sorts last)
 
-      - name: "Sort check 1/4 — next task should be High Priority (score 134)"
+      - name: "Sort check 1/4 — next task should be High Priority (priority 4)"
         run: |
           output=$($TOD_BIN --config "$TOD_CONFIG" task next --project "$TOD_PROJECT")
           echo "$output"
@@ -146,7 +147,7 @@ jobs:
       - name: Complete High Priority Task
         run: $TOD_BIN --config "$TOD_CONFIG" task complete
 
-      - name: "Sort check 2/4 — next task should be Medium Priority (score 133)"
+      - name: "Sort check 2/4 — next task should be Medium Priority (priority 3)"
         run: |
           output=$($TOD_BIN --config "$TOD_CONFIG" task next --project "$TOD_PROJECT")
           echo "$output"
@@ -157,26 +158,26 @@ jobs:
       - name: Complete Medium Priority Task
         run: $TOD_BIN --config "$TOD_CONFIG" task complete
 
-      - name: "Sort check 3/4 — next task should be No Priority (score 132, priority_none=2 > priority_low=1)"
-        run: |
-          output=$($TOD_BIN --config "$TOD_CONFIG" task next --project "$TOD_PROJECT")
-          echo "$output"
-          echo "$output" | grep -q "\[E2E\] No Priority Task" \
-            || { echo "FAIL: Expected No Priority Task third (priority_none beats priority_low)"; exit 1; }
-          echo "✓ No Priority Task is third"
-
-      - name: Complete No Priority Task
-        run: $TOD_BIN --config "$TOD_CONFIG" task complete
-
-      - name: "Sort check 4/4 — next task should be Low Priority (score 131)"
+      - name: "Sort check 3/4 — next task should be Low Priority (priority 2)"
         run: |
           output=$($TOD_BIN --config "$TOD_CONFIG" task next --project "$TOD_PROJECT")
           echo "$output"
           echo "$output" | grep -q "\[E2E\] Low Priority Task" \
-            || { echo "FAIL: Expected Low Priority Task last"; exit 1; }
-          echo "✓ Low Priority Task is last"
+            || { echo "FAIL: Expected Low Priority Task third"; exit 1; }
+          echo "✓ Low Priority Task is third"
 
       - name: Complete Low Priority Task
+        run: $TOD_BIN --config "$TOD_CONFIG" task complete
+
+      - name: "Sort check 4/4 — next task should be No Priority (priority 1, lowest raw value)"
+        run: |
+          output=$($TOD_BIN --config "$TOD_CONFIG" task next --project "$TOD_PROJECT")
+          echo "$output"
+          echo "$output" | grep -q "\[E2E\] No Priority Task" \
+            || { echo "FAIL: Expected No Priority Task last"; exit 1; }
+          echo "✓ No Priority Task is last"
+
+      - name: Complete No Priority Task
         run: $TOD_BIN --config "$TOD_CONFIG" task complete
 
       # ─── Verify project is empty ──────────────────────────────────────────────
