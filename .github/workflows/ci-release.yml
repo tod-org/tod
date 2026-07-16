@@ -1,0 +1,48 @@
+# Full CI, reserved for release PRs (opened by release-please) and manual runs.
+# Runs the complete cross-platform test matrix plus the Todoist E2E suite,
+# which otherwise only runs on manual workflow_dispatch.
+#
+# Assumes release-please-action's default label "autorelease: pending" on its
+# PRs — check that label name matches your release_please.yml config.
+
+name: CI Release
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  is-release-pr:
+    name: Detect release PR
+    runs-on: ubuntu-latest
+    outputs:
+      is_release: ${{ steps.check.outputs.is_release }}
+    steps:
+      - id: check
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "is_release=true" >> "$GITHUB_OUTPUT"
+          elif [[ "${{ contains(github.event.pull_request.labels.*.name, 'autorelease: pending') }}" == "true" ]]; then
+            echo "is_release=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "is_release=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  full-matrix-test:
+    needs: is-release-pr
+    if: needs.is-release-pr.outputs.is_release == 'true'
+    uses: ./.github/workflows/_reusable-test.yml
+    with:
+      os_matrix: '["ubuntu-latest","ubuntu-24.04-arm","macos-latest","windows-latest"]'
+      upload_codecov: false
+
+  e2e:
+    needs: is-release-pr
+    if: needs.is-release-pr.outputs.is_release == 'true'
+    uses: ./.github/workflows/e2e_todoist.yml
+    secrets: inherit

@@ -11,40 +11,10 @@ on:
 
 jobs:
   test:
-    name: Test on ${{ matrix.name }}
     if: |
       github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'pull_request' && github.event.pull_request.user.login == 'dependabot[bot]')
-    runs-on: ${{ matrix.os }}
-
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - name: Linux (AMD64)
-            os: ubuntu-latest
-
-          - name: Linux (ARM64)
-            os: ubuntu-24.04-arm
-
-          - name: macOS (ARM64)
-            os: macos-latest
-
-          - name: Windows (AMD64)
-            os: windows-latest
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v7
-
-      - name: Install Rust Toolchain
-        run: rustup toolchain install
-
-      - name: Install cargo-nextest
-        uses: taiki-e/install-action@nextest
-
-      - name: Cache cargo
-        uses: Swatinem/rust-cache@v2
-
-      - name: Run cargo nextest
-        run: cargo nextest run
+    uses: ./.github/workflows/_reusable-test.yml
+    with:
+      os_matrix: '["ubuntu-latest","ubuntu-24.04-arm","macos-latest","windows-latest"]'
+      upload_codecov: false
