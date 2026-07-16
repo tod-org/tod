@@ -1,0 +1,70 @@
+# Reusable workflow: static checks that don't require running the test suite.
+# Called by ci-push.yml and ci-pr.yml so these job definitions exist exactly once.
+
+name: Reusable / Lint
+
+on:
+  workflow_call:
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0
+  CARGO_PROFILE_TEST_DEBUG: 0
+  CARGO_PROFILE_RELEASE_LTO: true
+  CARGO_PROFILE_RELEASE_CODEGEN_UNITS: 1
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Cargo Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-all-crates: true
+      - name: Check
+        run: cargo check --locked --all-features
+
+  fmt:
+    name: Rust-fmt (Cargo Format)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-all-crates: true
+      - run: rustup component add rustfmt
+      - run: cargo fmt --all -- --check
+
+  clippy:
+    name: Clippy (Cargo Clippy Lint Check)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install Rust Toolchain
+        run: rustup toolchain install stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-all-crates: true
+      - run: rustup component add clippy
+      - run: cargo clippy -- -D warnings
+
+  todos:
+    name: TODO and FIXME
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: ./scripts/lint_string.sh "TODO "
+      - run: ./scripts/lint_string.sh "TODO:"
+      - run: ./scripts/lint_string.sh "FIXME "
+      - run: ./scripts/lint_string.sh "FIXME:"
+      - run: ./scripts/lint_string.sh "todo "
+      - run: ./scripts/lint_string.sh "todo:"
+      - run: ./scripts/lint_string.sh "fixme "
+      - run: ./scripts/lint_string.sh "fixme:"
+      - run: ./scripts/lint_string.sh "dbg!"

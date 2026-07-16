@@ -1,0 +1,25 @@
+# Quick feedback loop for every push. Deliberately minimal: single-OS test run,
+# no coverage upload, no matrix. Bigger checks live in ci-pr.yml, full checks in ci-release.yml.
+# Replaces the old ci_push.yml.
+
+name: CI Push
+
+on:
+  push:
+    branches-ignore:
+      - 'release-please--**' # release-please's PR branch is covered by ci-pr.yml / ci-release.yml
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    uses: ./.github/workflows/_reusable-lint.yml
+
+  test:
+    uses: ./.github/workflows/_reusable-test.yml
+    with:
+      os_matrix: '["ubuntu-latest"]'
+      upload_codecov: false

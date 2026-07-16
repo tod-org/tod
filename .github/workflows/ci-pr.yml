@@ -1,0 +1,26 @@
+# Fuller checks for pull requests: same lint suite as push, plus test-result
+# reporting to Codecov. Replaces the old ci_pr.yml.
+# (pr_check.yml, release_check.yml, commitlint.yml and gitleaks.yml stay as
+# their own small, single-purpose workflows — nothing to de-duplicate there.)
+
+name: CI PR
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    uses: ./.github/workflows/_reusable-lint.yml
+
+  test:
+    uses: ./.github/workflows/_reusable-test.yml
+    with:
+      os_matrix: '["ubuntu-latest"]'
+      upload_codecov: true
+      skip_codecov_for_fork_prs: true
+    secrets: inherit
