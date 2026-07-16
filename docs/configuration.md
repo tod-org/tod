@@ -26,7 +26,7 @@
 
 If the config does not exist, Tod will prompt for your initial Todoist API token and create a default config with the following values:
 
-``` json
+```json
 {
   "bell_on_failure": true,
   "bell_on_success": false,
@@ -91,44 +91,53 @@ Run `tod config check` to validate the configuration file and optionally remove 
 
 ### bell_on_success
 
-``` json
+```yaml
+{
   type: boolean
   default: false
+}
 ```
 
 Triggers the terminal bell on successful completion of a command
 
 ### bell_on_failure
 
-``` json
+```yaml
+{
   type: boolean
   default: true
+}
 ```
 
 Triggers the terminal bell on an error
 
 ### disable_links
 
-``` json
+``` yaml
+{
   type: boolean
   default: false
+}
 ```
 
 If true, disables OSC8 linking and just displays plain text
 
 ### last_version_check
 
-``` json
-  type: nullable string
+``` yaml
+ {
+ type: nullable string
   default: null
   possible_values: any string in format YYYY-MM-DD
+ }
 ```
 
 Holds a string date, i.e. `"2023-08-30"` representing the last time crates.io was checked for the latest `tod` version. Tod will check crates.io a maximum of once per day.
 
 ### max_comment_length
 
-``` json
+```yaml
+  
   type: nullable positive integer
   default: null
   possible_values: Any positive integer or null
@@ -143,7 +152,7 @@ If not set, this is dynamically calculated at runtime based on terminal window s
 
 ### next_id
 
-``` json
+```yaml
   type: nullable string
   default: null
   possible values: null or any positive integer in string form
@@ -153,7 +162,7 @@ When `task next` is executed the ID is stored in this field. When `task complete
 
 ### path
 
-``` json
+```yaml
   type: string
   default: $XDG_CONFIG_HOME/tod.cfg
   possible values: Any path
@@ -173,7 +182,7 @@ If true, the datetime selection in `project schedule` will go straight to natura
 
 ### no_sections
 
-``` json
+``` yaml
   type: nullable boolean
   default: null
   possible values: null, true, or false
@@ -183,7 +192,7 @@ If true will not prompt for a section whenever possible
 
 ### projectsv1
 
-```json
+```yaml
   type: Nullable array of objects
   default: []
   possible values: List of project objects from the Todoist API
@@ -195,6 +204,7 @@ Projects are stored locally in config to help save on API requests and speed up 
 
 Deprecated in latest version, replaced with sort_order. Will be removed in future release.
 
+```json
     {
       "deadline_days": 5,
       "deadline_value": 30,
@@ -203,11 +213,12 @@ Deprecated in latest version, replaced with sort_order. Will be removed in futur
       "now": 200,
       "overdue": 150,
       "priority_high": 4,
-      "priority_low": 1,
       "priority_medium": 3,
-      "priority_none": 2,
+      "priority_low": 2,
+      "priority_none": 1,
       "today": 100
     }
+```
 
 ### sort_order
 
@@ -217,7 +228,7 @@ New config files include this default order: `priority:desc`, `due_date:asc`, `o
 
 The direction may be omitted to use the key's default. For example, `priority` is equivalent to `priority:desc`:
 
-``` json
+```yaml
   "sort_order": ["priority", "due_date:desc"]
 ```
 
@@ -227,7 +238,7 @@ Legacy configs that still contain `sort_value` will be accepted temporarily. Tod
 
 ### spinners
 
-``` json
+```yaml
   type: nullable boolean
   default: null
   possible values: null, true, or false
@@ -243,7 +254,7 @@ You can also use the environment variable `DISABLE_SPINNER` to turn them off.
 
 ### timeout
 
-```json
+```yaml
   type: integer
   default: 30 (seconds)
   possible values: Any positive number in seconds
@@ -251,7 +262,7 @@ You can also use the environment variable `DISABLE_SPINNER` to turn them off.
 
 ### timezone
 
-```json
+```yaml
   type: string
   default: No default
   possible values: Any timezone string i.e. "Canada/Pacific"
@@ -261,7 +272,7 @@ You will be prompted for timezone on first run
 
 ### token
 
-```json
+```yaml
   type: string
   default: No default
   possible values: Any valid token
@@ -271,7 +282,7 @@ You will be prompted for your [Todoist API token](https://todoist.com/prefs/inte
 
 ### timeprovider
 
-```json
+```yaml
   type: string
   default: No default
   possible values: Enum of SystemTimeProvider or FixedTimeProvider
@@ -281,7 +292,7 @@ Used for dev/testing only to return fixed time (fixture) for use in test cases. 
 
 ### task_comment_command
 
-``` json
+```yaml
 type: string
 default: null
 possible values: Any valid executable shell command (such as 'echo task commented')
@@ -293,7 +304,7 @@ Command output is suppressed while the hook runs so it cannot interfere with ter
 
 ### task_create_command
 
-``` json
+```yaml
 type: string
 default: null
 possible values: Any valid executable shell command (such as 'echo task created')
@@ -305,7 +316,7 @@ Command output is suppressed while the hook runs so it cannot interfere with ter
 
 ### task_complete_command
 
-``` json
+```yaml
 type: string
 default: null
 possible values: Any valid executable shell command (such as 'echo task completed')
@@ -317,7 +328,7 @@ Command output is suppressed while the hook runs so it cannot interfere with ter
 
 ### task_exclude_regex
 
-``` json
+```yaml
 type: Regex in String form (JSON escaped)  
 default: null
 possible values: Any valid Regex expression
@@ -329,7 +340,7 @@ For example, this could be used to exclude uncompletable tasks ("^* ").
 
 ### comment_exclude_regex
 
-``` json
+```yaml
 type: Regex in String form (JSON escaped)  
 default: null
 possible values: Any valid Regex expression
@@ -339,7 +350,7 @@ Defaults to `null` (no comments excluded). This field must be a valid JSON-escap
 
 ### verbose
 
-```json
+```yaml
   type: nullable boolean
   default: null
   possible values: null, true, or false
