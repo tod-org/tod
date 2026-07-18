@@ -31,3 +31,30 @@ pub fn print(text: &str) {
 
     println!("{text}");
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::config::Config;
+
+    #[test]
+    fn redact_token_keeps_first_four_chars() {
+        let redacted = redact_token("abcd1234");
+        assert_eq!(redacted, "abcdxxxx");
+    }
+
+    #[test]
+    fn redact_token_handles_short_tokens() {
+        let redacted = redact_token("abc");
+        assert_eq!(redacted, "abc");
+    }
+
+    #[test]
+    fn maybe_print_redacted_config_with_token_does_not_panic() {
+        let mut config = Config::default();
+        config.verbose = Some(true);
+        config.token = Some("abcd1234".to_string());
+
+        maybe_print_redacted_config(&config);
+    }
+}

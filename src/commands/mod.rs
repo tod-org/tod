@@ -533,3 +533,57 @@ async fn maybe_fetch_labels(config: &Config, labels: &[String]) -> Result<Vec<St
         Ok(labels.to_vec())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn build_command_result_uses_config_bell_settings() {
+        let mut config = Config::default();
+        config.bell_on_success = true;
+        config.bell_on_failure = false;
+
+        let result = build_command_result(Ok("ok".to_string()), &config);
+        assert!(result.bell_success);
+        assert!(!result.bell_failure);
+        assert!(matches!(result.result, Ok(text) if text == "ok"));
+    }
+
+    #[test]
+    fn build_command_result_without_config_uses_defaults() {
+        let result = build_command_result_without_config(Ok("ok".to_string()));
+        assert!(!result.bell_success);
+        assert!(result.bell_failure);
+        assert!(matches!(result.result, Ok(text) if text == "ok"));
+    }
+
+    #[test]
+    fn ensure_auth_present_errors_when_token_missing() {
+        let mut config = Config::default();
+        config.token = None;
+
+        let result = ensure_auth_present(&config, "test-source");
+        let error = result.expect_err("missing token should fail auth check");
+        assert!(error.message.contains("tod auth login"));
+    }
+
+    #[test]
+    fn ensure_auth_present_errors_when_token_whitespace() {
+        let mut config = Config::default();
+        config.token = Some("   ".to_string());
+
+        let result = ensure_auth_present(&config, "test-source");
+        let error = result.expect_err("whitespace token should fail auth check");
+        assert!(error.message.contains("tod auth login"));
+    }
+
+    #[test]
+    fn ensure_auth_present_succeeds_with_token() {
+        let mut config = Config::default();
+        config.token = Some("token".to_string());
+
+        let result = ensure_auth_present(&config, "test-source");
+        assert!(result.is_ok());
+    }
+}
