@@ -9,7 +9,7 @@ use crate::legacy;
 use crate::projects::Project;
 use crate::tasks::Task;
 use crate::time::{SystemTimeProvider, TimeProviderEnum};
-use crate::{VERSION, cargo, format, input, oauth, time};
+use crate::{VERSION, cargo, format, input, time};
 use regex::Regex;
 use serde::de::Error as DeError;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -19,15 +19,11 @@ use tokio::sync::mpsc::UnboundedSender;
 
 const MAX_COMMENT_LENGTH: u32 = 500;
 pub const DEFAULT_TIMEOUT_SECONDS: u64 = 30;
-pub const OAUTH: &str = "Login with OAuth (recommended)";
-pub const DEVELOPER: &str = "Login with developer API token";
-pub const TOKEN_METHOD: &str = "Choose your Todoist login method";
 const TODOIST_INTEGRATIONS_URL: &str = "https://todoist.com/prefs/integrations";
 pub use file::config_open;
 pub use file::config_reset;
 pub use file::generate_path;
 pub use file::get_config;
-pub use file::get_or_create;
 pub use file::resolve_config_path;
 pub use legacy::LegacySortValue;
 
@@ -498,33 +494,6 @@ impl Config {
 
         self.set_token(trimmed_key.to_string()).await?;
         self.maybe_set_timezone().await
-    }
-
-    async fn maybe_set_token(self) -> Result<Config, Error> {
-        if self.token.clone().unwrap_or_default().trim().is_empty() {
-            let mock_select = Some(1);
-            let options = vec![OAUTH, DEVELOPER];
-            let mut config = match input::select(TOKEN_METHOD, options, mock_select)? {
-                OAUTH => {
-                    let mut config = self.clone();
-                    oauth::login(&mut config, None).await?;
-                    config
-                }
-                DEVELOPER => {
-                    let desc = self.token_message();
-
-                    // We can't use mock_string from config here because it can't be set in test.
-                    let fake_token = Some("faketoken".into());
-                    let token = input::string(&desc, fake_token)?;
-                    self.set_developer_token(&token).await?
-                }
-                _ => unreachable!(),
-            };
-            config.save().await?;
-            Ok(config)
-        } else {
-            Ok(self)
-        }
     }
 
     pub async fn edit_interactive(self) -> Result<String, Error> {
