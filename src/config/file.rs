@@ -1,18 +1,17 @@
 //! For config functions that operate on the filesystem
 
-use crate::config::{Args, Internal};
 #[cfg(test)]
 use crate::config::{SortDirection, SortKey, SortRule};
 use crate::{config::Config, errors::Error};
-use crate::{debug, format, input};
+use crate::{format, input};
 use serde_json::json;
 use std::path::{Path, PathBuf};
 use tokio::fs;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tokio::sync::mpsc::UnboundedSender;
 
 impl Config {
     /// Creates a new config file, will overwrite an existing one
+    #[cfg(test)]
     pub async fn create(self) -> Result<Config, Error> {
         self.touch_file().await?;
         let mut config = self;
@@ -89,63 +88,6 @@ fn config_load_error(error: &serde_json::Error, path: &Path) -> Error {
     );
 
     Error::new(source, &message)
-}
-/// Fetches config from from disk and creates it if it doesn't exist
-/// Prompts for Todoist API token
-pub async fn get_or_create(
-    config_path: Option<PathBuf>,
-    verbose: bool,
-    timeout: Option<u64>,
-    tx: &UnboundedSender<Error>,
-) -> Result<Config, Error> {
-    let path = match config_path {
-        None => generate_path().await?,
-        Some(path) => maybe_expand_home_dir(path)?,
-    };
-
-    let config = match fs::File::open(&path).await {
-        Ok(_) => Config::load(&path).await,
-        Err(err) if err.kind() == std::io::ErrorKind::NotFound => {
-            eprintln!("Config file not found, creating new config");
-            generate_new_configuration(tx, path).await
-        }
-        Err(err) => Err(Error::new(
-            "config.rs",
-            &format!("Failed to open config file: {err}"),
-        )),
-    }?;
-
-    let config = Config {
-        args: Args { verbose, timeout },
-        internal: Internal {
-            tx: Some(tx.clone()),
-        },
-        ..config
-    };
-
-    debug::maybe_print_redacted_config(&config);
-    Ok(config)
-}
-// create the config file and prompt timezone and token
-pub async fn generate_new_configuration(
-    tx: &UnboundedSender<Error>,
-    config_path: PathBuf,
-) -> Result<Config, Error> {
-    // Create the default in-memory config
-    let mut config = Config::new(Some(tx.clone()), config_path).await?;
-    // Create the empty file
-    config = config.create().await?;
-
-    // Populate the required fields - prompt for token or use existing token logic
-    config = config.maybe_set_token().await?;
-
-    // Populate the required timezone
-    config = config.maybe_set_timezone().await?;
-
-    // write updated config to disk
-    config.save().await?;
-
-    Ok(config)
 }
 pub async fn generate_path() -> Result<PathBuf, Error> {
     if cfg!(test) {
@@ -272,7 +214,10 @@ pub async fn get_config(config_path: Option<PathBuf>) -> Result<Config, Error> {
     if !check_config_exists(Some(path)).await? {
         return Err(Error::new(
             "get_config",
-            &format!("No config file found at {}.", path_for_error.display()),
+            &format!(
+                "No config file found at {}. Run 'tod auth login' to initialize tod.",
+                path_for_error.display()
+            ),
         ));
     }
 
@@ -310,11 +255,6 @@ mod tests {
             .with_token(&token.into())
     }
 
-    fn tx() -> UnboundedSender<Error> {
-        let (tx, _rx) = tokio::sync::mpsc::unbounded_channel();
-        tx
-    }
-
     fn temp_config_path(file_name: &str) -> (TempDir, PathBuf) {
         let dir = tempdir().expect("Could not create temp config directory");
         let path = dir.path().join(file_name);
@@ -344,16 +284,10 @@ mod tests {
         let config_create = config_with_mock(&mock_url)
             .await
             .with_path(temp_dir.path().join("create.cfg"));
-        let path_create = config_create.path.clone();
         config_create
             .create()
             .await
             .expect("Failed to create config in async call");
-
-        let created = get_or_create(Some(path_create.clone()), false, None, &tx())
-            .await
-            .expect("get_or_create (create) failed");
-        assert!(created.token.is_some());
 
         let config_load = config_with_mock_and_token(&mock_url, "loaded")
             .await
@@ -364,14 +298,10 @@ mod tests {
             .await
             .expect("Failed to create config load asynchronously");
 
-        let loaded = get_or_create(Some(path_load.clone()), false, None, &tx())
+        let loaded = Config::load(&path_load)
             .await
-            .expect("get_or_create (load) failed");
+            .expect("Failed to load config from path asynchronously");
         assert_eq!(loaded.token, Some("loaded".into()));
-        assert!(loaded.internal.tx.is_some());
-
-        let fetched = get_or_create(Some(path_load.clone()), false, None, &tx()).await;
-        assert_matches!(fetched, Ok(Config { .. }));
     }
 
     #[tokio::test]
