@@ -408,23 +408,44 @@ fn build_command_result_without_config(
     })
 }
 
-/// Get or create config
+/// Load existing config and ensure auth is present.
 async fn fetch_config(cli: &Cli, tx: &UnboundedSender<Error>) -> Result<Config, Error> {
-    let Cli {
-        verbose,
-        config: config_path,
-        timeout,
-        command: _,
-    } = cli;
-
-    let config_path = config_path.to_owned();
-    let verbose = verbose.to_owned();
-    let timeout = timeout.to_owned();
-
-    let config = crate::config::get_or_create(config_path, verbose, timeout, tx).await?;
-
+    let config = get_existing_config_exists(cli.config.clone()).await?;
+    let config = with_cli_context(config, cli, tx);
+    ensure_auth_present(&config, "fetch_config")?;
     let config = config.check_for_latest_version().await?;
     config.maybe_set_timezone().await
+}
+
+/// Only fetches the config if it exists, otherwise errors.
+async fn get_existing_config_exists(config_path: Option<PathBuf>) -> Result<Config, Error> {
+    match crate::config::get_config(config_path).await {
+        Ok(config) => Ok(config),
+        Err(e) => Err(e),
+    }
+}
+
+fn with_cli_context(mut config: Config, cli: &Cli, tx: &UnboundedSender<Error>) -> Config {
+    config.args.verbose = cli.verbose;
+    config.args.timeout = cli.timeout;
+    config.internal.tx = Some(tx.clone());
+    config
+}
+
+fn ensure_auth_present(config: &Config, source: &str) -> Result<(), Error> {
+    if config
+        .token
+        .as_ref()
+        .map(|token| token.trim().is_empty())
+        .unwrap_or(true)
+    {
+        Err(Error::new(
+            source,
+            "No auth present - run \"tod auth login\"",
+        ))
+    } else {
+        Ok(())
+    }
 }
 
 fn fetch_string(
