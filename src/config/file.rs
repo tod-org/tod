@@ -5,7 +5,6 @@ use crate::config::{Args, Internal};
 use crate::config::{SortDirection, SortKey, SortRule};
 use crate::{config::Config, errors::Error};
 use crate::{debug, format, input};
-use inquire::Confirm;
 use serde_json::json;
 use std::path::{Path, PathBuf};
 use tokio::fs;
@@ -230,44 +229,20 @@ where
     }
 }
 
-/// Opens the config file in the user's editor, creating a default config first if requested.
+/// Opens the existing config file in the user's editor.
 pub async fn config_open(cli_config_path: Option<PathBuf>) -> Result<String, Error> {
-    config_open_with_prompt_and_editor(
-        cli_config_path,
-        |path| {
-            Confirm::new(&format!(
-                "No config file found at {}. Create it?",
-                path.display()
-            ))
-            .with_default(true)
-            .prompt()
-            .unwrap_or(false)
-        },
-        |path| edit::edit_file(path).map_err(Error::from),
-    )
-    .await
+    config_open_with_editor(cli_config_path, |path| edit::edit_file(path).map_err(Error::from)).await
 }
 
-async fn config_open_with_prompt_and_editor<P, E>(
+async fn config_open_with_editor<E>(
     cli_config_path: Option<PathBuf>,
-    prompt_fn: P,
     editor_fn: E,
 ) -> Result<String, Error>
 where
-    P: FnOnce(&Path) -> bool,
     E: FnOnce(&Path) -> Result<(), Error>,
 {
     let path = resolve_config_path(cli_config_path).await?;
-
-    if !path.exists() {
-        if !prompt_fn(&path) {
-            return Ok("Aborted: Config not created.".to_string());
-        }
-
-        let mut config = Config::new(None, path.clone()).await?;
-        config.touch_file().await?;
-        config.save().await?;
-    }
+    get_config(Some(path.clone())).await?;
 
     editor_fn(&path)?;
     Config::load(&path).await?;
@@ -703,37 +678,24 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_config_open_missing_prompt_no_aborts() {
+    async fn test_config_open_missing_returns_error() {
         let (_temp_dir, temp_path) = temp_config_path("missing_open_no.cfg");
 
-        let result = config_open_with_prompt_and_editor(
-            Some(temp_path.clone()),
-            |_| false,
-            |_| -> Result<(), Error> { panic!("editor should not be called") },
-        )
+        let result = config_open_with_editor(Some(temp_path.clone()), |_| -> Result<(), Error> {
+            panic!("editor should not be called")
+        })
         .await;
 
-        assert_eq!(result, Ok("Aborted: Config not created.".to_string()));
+        let err = result.expect_err("missing config should fail");
         assert!(
             !temp_path.exists(),
-            "Config file should not be created after abort"
+            "Config file should not be created"
         );
-    }
-
-    #[tokio::test]
-    async fn test_config_open_missing_prompt_yes_creates_and_validates() {
-        let (_temp_dir, temp_path) = temp_config_path("missing_open_yes.cfg");
-
-        let result =
-            config_open_with_prompt_and_editor(Some(temp_path.clone()), |_| true, |_| Ok(())).await;
-
-        assert!(result.is_ok(), "Expected Ok, got {result:?}");
-        assert!(temp_path.exists(), "Config file should be created");
-
-        let loaded = Config::load(&temp_path)
-            .await
-            .expect("Created config should load");
-        assert_eq!(loaded.path, temp_path);
+        assert!(
+            err.to_string()
+                .contains("Run 'tod auth login' to initialize tod."),
+            "missing config should guide user to auth login"
+        );
     }
 
     #[tokio::test]
@@ -745,9 +707,8 @@ mod tests {
             .await
             .expect("Failed to create temp config");
 
-        let result = config_open_with_prompt_and_editor(
+        let result = config_open_with_editor(
             Some(temp_path.clone()),
-            |_| -> bool { panic!("prompt should not be called") },
             |path| {
                 let mut file = std::fs::File::create(path).expect("Failed to open invalid config");
                 file.write_all(b"{ invalid")
