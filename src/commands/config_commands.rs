@@ -169,7 +169,7 @@ where
 {
     let path = resolve_config_path(cli_config_path).await?;
 
-    if !path.exists() {
+    if !tokio::fs::try_exists(&path).await? {
         return Err(Error::new(
             "config_check",
             &format!(
