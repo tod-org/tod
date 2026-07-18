@@ -49,14 +49,16 @@ pub async fn login(config: &mut Config, test_tx: Option<Sender<()>>) -> Result<S
         .code
         .ok_or_else(|| Error::new("params", "no code provided"))?;
     let access_token = todoist::get_access_token(config, &code).await?;
-    let result = config.set_token(access_token).await;
+    let result = config.set_token(access_token).await?;
+    let current = std::mem::take(config);
+    *config = current.maybe_set_timezone().await?;
 
     // Print authentication success message to the terminal
     let check = green_string("Authentication Successful!");
     println!("{check}");
     println!("You can now use the `tod` command to manage your Todoist tasks.");
 
-    result
+    Ok(result)
 }
 
 fn print_oauth_url(config: &Config) -> String {
@@ -100,13 +102,13 @@ async fn receive_callback(
             }
 
             if let Some(tx) = response.lock().await.take() {
-                if let Some(error_message) = params.error.clone() {
-                    tx.send(params).expect(TRANSMIT_ERROR);
+                let response_message = if let Some(error_message) = params.error.as_deref() {
                     format!("Error from Todoist: {error_message}")
                 } else {
-                    tx.send(params).expect(TRANSMIT_ERROR);
                     String::from("Success! You can close this window and return to your terminal.")
-                }
+                };
+                tx.send(params).expect(TRANSMIT_ERROR);
+                response_message
             } else {
                 String::from("Error: Could not get response tx")
             }
@@ -125,7 +127,7 @@ async fn receive_callback(
 
     if let Some(message) = params.error {
         Err(Error::new("oauth get code", &message))
-    } else if params.state.clone().unwrap_or_default() == csrf_token {
+    } else if params.state.as_deref().unwrap_or_default() == csrf_token {
         Ok(params)
     } else {
         Err(Error::new(
@@ -147,7 +149,7 @@ pub fn new_uuid() -> String {
 mod tests {
 
     use super::*;
-    use crate::test::{self, responses::ResponseFromFile};
+    use crate::test::responses::ResponseFromFile;
     use pretty_assertions::assert_eq;
     use serde_test::{Token, assert_de_tokens};
 
@@ -180,11 +182,23 @@ mod tests {
             .with_body(ResponseFromFile::AccessToken.read().await)
             .create_async()
             .await;
+        let user_mock = server
+            .mock("GET", "/api/v1/user")
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(ResponseFromFile::User.read().await)
+            .create_async()
+            .await;
 
-        let mut config = test::fixtures::config().await.with_mock_url(server.url());
+        let temp_dir = tempfile::tempdir().expect("temp dir should be created");
+        let path = temp_dir.path().join("oauth-login.cfg");
+        let mut config = Config::new(None, path)
+            .await
+            .expect("config should be created")
+            .with_mock_url(server.url())
+            .with_token("alreadycreated");
 
-        config
-            .clone()
+        config = config
             .create()
             .await
             .expect("Failed to create config asynchronously in oauth test");
@@ -192,9 +206,10 @@ mod tests {
         assert_eq!(config.token, Some(String::from("alreadycreated")));
         let (test_tx, test_rx) = oneshot::channel::<()>();
         let login_handle = tokio::spawn(async move {
-            login(&mut config, Some(test_tx))
+            let result = login(&mut config, Some(test_tx))
                 .await
-                .expect("Login async operation failed")
+                .expect("Login async operation failed");
+            (result, config)
         });
 
         test_rx
@@ -217,11 +232,18 @@ mod tests {
             .expect("Failed to get text from response asynchronously");
         assert!(body.contains("Success"));
 
-        let result = login_handle
+        let (result, config) = login_handle
             .await
             .expect("Failed to await login handle completion");
         assert_eq!(result, String::from("✓"));
+        assert_eq!(
+            config
+                .get_timezone()
+                .expect("Timezone should be set after login"),
+            "America/Vancouver"
+        );
         mock.assert();
+        user_mock.assert();
     }
 
     #[tokio::test]

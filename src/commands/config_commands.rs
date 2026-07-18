@@ -308,13 +308,25 @@ fn confirm(message: &str, default: bool) -> Result<bool, Error> {
 }
 
 pub async fn set_timezone(config: Config, _args: &SetTimezone) -> Result<String, Error> {
+    if config
+        .token
+        .as_ref()
+        .map(|token| token.trim().is_empty())
+        .unwrap_or(true)
+    {
+        return Err(Error::new(
+            "config set-timezone",
+            "No auth present - run \"tod auth login\"",
+        ));
+    }
+
     match config.set_timezone().await {
         Ok(updated_config) => {
             let tz = updated_config.get_timezone()?;
             Ok(format!("Timezone set successfully to: {tz}"))
         }
         Err(e) => Err(Error::new(
-            "tz_reset",
+            "config set-timezone",
             &format!("Could not reset timezone in config. {e}"),
         )),
     }
@@ -451,5 +463,22 @@ mod tests {
 
         // Ensure the mock was actually called
         mock.assert();
+    }
+
+    #[tokio::test]
+    async fn test_set_timezone_requires_auth() {
+        let config = Config::default();
+
+        let error = set_timezone(config, &SetTimezone { timezone: None })
+            .await
+            .expect_err("set-timezone should fail when no auth token is present");
+
+        assert_eq!(error.source, "config set-timezone");
+        assert!(
+            error
+                .message
+                .contains("No auth present - run \"tod auth login\""),
+            "error should guide user to auth login"
+        );
     }
 }
