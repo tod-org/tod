@@ -169,6 +169,16 @@ where
 {
     let path = resolve_config_path(cli_config_path).await?;
 
+    if !path.exists() {
+        return Err(Error::new(
+            "config_check",
+            &format!(
+                "No config file found at {}. Run 'tod auth login' to initialize tod.",
+                path.display()
+            ),
+        ));
+    }
+
     if Config::load(&path).await.is_ok() {
         return Ok(format!("Config file at {} is valid.", path.display()));
     }
@@ -402,6 +412,24 @@ mod tests {
             .await
             .expect("config should be readable");
         assert_eq!(unchanged, contents);
+    }
+
+    #[tokio::test]
+    async fn test_config_check_missing_file_returns_init_guidance() {
+        let dir = tempdir().expect("temp dir should be created");
+        let path = dir.path().join("missing.cfg");
+
+        let error = check_with_prompts(Some(path.clone()), |_| Ok(true), |_| Ok(true))
+            .await
+            .expect_err("missing config should fail");
+
+        assert_eq!(error.source, "config_check");
+        assert!(
+            error
+                .message
+                .contains("Run 'tod auth login' to initialize tod."),
+            "missing config should guide user to auth login"
+        );
     }
 
     #[tokio::test]
