@@ -187,7 +187,15 @@ where
     E: FnOnce(&Path) -> Result<(), Error>,
 {
     let path = resolve_config_path(cli_config_path).await?;
-    get_config(Some(path.clone())).await?;
+    if !path.exists() {
+        return Err(Error::new(
+            "config_open",
+            &format!(
+                "No config file found at {}. Run 'tod auth login' to initialize tod.",
+                path.display()
+            ),
+        ));
+    }
 
     editor_fn(&path)?;
     Config::load(&path).await?;
@@ -650,6 +658,22 @@ mod tests {
         assert!(
             err.message.contains("Error loading configuration file"),
             "Expected config load error, got: {err}"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_config_open_invalid_before_editor_can_be_fixed() {
+        let (_temp_dir, temp_path) = temp_config_path("invalid_before_open.cfg");
+        std::fs::write(&temp_path, "{ invalid").expect("Failed to seed invalid config");
+
+        let result = config_open_with_editor(Some(temp_path.clone()), |path| {
+            std::fs::write(path, "{}").map_err(Error::from)
+        })
+        .await;
+
+        assert!(
+            result.is_ok(),
+            "Editing invalid existing config should be allowed and validated after edit"
         );
     }
     #[tokio::test]
