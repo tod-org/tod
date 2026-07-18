@@ -154,8 +154,8 @@ pub async fn get_todoist(config: &Config, url: &str, spinner: bool) -> Result<St
 const CODES_REQUIRING_LOGIN: [u16; 2] = [HTTP_FORBIDDEN, HTTP_UNAUTHORIZED];
 const PRO_PLAN_URLS: [&str; 1] = [REMINDERS_URL];
 
-fn requires_login(status_code: &u16) -> bool {
-    CODES_REQUIRING_LOGIN.contains(status_code)
+fn requires_login(status_code: u16) -> bool {
+    CODES_REQUIRING_LOGIN.contains(&status_code)
 }
 
 /// Returns true if this url can only be accessed by Todoist pro plan users
@@ -175,7 +175,7 @@ async fn handle_response(
         let json_string = response.text().await?;
         debug::maybe_print(config, &format!("{method} {url}\nresponse: {json_string}"));
         Ok(json_string)
-    } else if requires_login(&status_code) && !is_pro_plan_url(url) {
+    } else if requires_login(status_code) && !is_pro_plan_url(url) {
         let command = format::blue_string("tod auth login");
         Err(Error::new(
             "reqwest",
@@ -183,7 +183,7 @@ async fn handle_response(
                 "Unauthorized or Forbidden response from Todoist\nRun {command} to reauthenticate"
             ),
         ))
-    } else if requires_login(&status_code) && is_pro_plan_url(url) {
+    } else if requires_login(status_code) && is_pro_plan_url(url) {
         Err(Error::new("reqwest", REMINDERS_PRO_PLAN_MESSAGE))
     } else {
         let json_string = response.text().await?;
@@ -275,10 +275,10 @@ mod tests {
 
     #[test]
     fn test_requires_login() {
-        assert!(requires_login(&HTTP_UNAUTHORIZED));
-        assert!(requires_login(&HTTP_FORBIDDEN));
-        assert!(!requires_login(&200));
-        assert!(!requires_login(&500));
+        assert!(requires_login(HTTP_UNAUTHORIZED));
+        assert!(requires_login(HTTP_FORBIDDEN));
+        assert!(!requires_login(200));
+        assert!(!requires_login(500));
     }
 
     #[test]

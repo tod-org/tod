@@ -321,8 +321,7 @@ pub async fn set_timezone(config: Config, _args: &SetTimezone) -> Result<String,
     if config
         .token
         .as_ref()
-        .map(|token| token.trim().is_empty())
-        .unwrap_or(true)
+        .is_none_or(|token| token.trim().is_empty())
     {
         return Err(Error::new(
             "config set-timezone",

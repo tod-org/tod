@@ -143,7 +143,7 @@ pub fn confirm(desc: &str) -> Result<bool, Error> {
     Confirm::new(desc)
         .with_default(false)
         .prompt()
-        .map_err(|e| e.into())
+        .map_err(Into::into)
 }
 
 /// Get string input with default value
@@ -172,7 +172,7 @@ pub fn number_with_default(desc: &str, default_message: usize) -> Result<usize, 
 
 pub fn bool(desc: &str, default_value: bool, mock_select: Option<usize>) -> Result<bool, Error> {
     let options = vec![true, false];
-    let cursor_index = if default_value { 0 } else { 1 };
+    let cursor_index = usize::from(!default_value);
     select_with_cursor_index(desc, options, cursor_index, mock_select)
 }
 
