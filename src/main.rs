@@ -78,14 +78,14 @@ fn output_result(result: CommandResult) -> u8 {
         Ok(text) => {
             println!("{text}");
             if result.bell_success {
-                terminal_bell()
+                terminal_bell();
             }
             0
         }
         Err(e) => {
             eprintln!("\n\n{e}");
             if result.bell_failure {
-                terminal_bell()
+                terminal_bell();
             }
             1
         }

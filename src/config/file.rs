@@ -173,7 +173,10 @@ where
 
 /// Opens the existing config file in the user's editor.
 pub async fn config_open(cli_config_path: Option<PathBuf>) -> Result<String, Error> {
-    config_open_with_editor(cli_config_path, |path| edit::edit_file(path).map_err(Error::from)).await
+    config_open_with_editor(cli_config_path, |path| {
+        edit::edit_file(path).map_err(Error::from)
+    })
+    .await
 }
 
 async fn config_open_with_editor<E>(
@@ -617,10 +620,7 @@ mod tests {
         .await;
 
         let err = result.expect_err("missing config should fail");
-        assert!(
-            !temp_path.exists(),
-            "Config file should not be created"
-        );
+        assert!(!temp_path.exists(), "Config file should not be created");
         assert!(
             err.to_string()
                 .contains("Run 'tod auth login' to initialize tod."),
@@ -637,16 +637,13 @@ mod tests {
             .await
             .expect("Failed to create temp config");
 
-        let result = config_open_with_editor(
-            Some(temp_path.clone()),
-            |path| {
-                let mut file = std::fs::File::create(path).expect("Failed to open invalid config");
-                file.write_all(b"{ invalid")
-                    .expect("Failed to write invalid config");
-                file.sync_all().expect("Failed to sync invalid config");
-                Ok(())
-            },
-        )
+        let result = config_open_with_editor(Some(temp_path.clone()), |path| {
+            let mut file = std::fs::File::create(path).expect("Failed to open invalid config");
+            file.write_all(b"{ invalid")
+                .expect("Failed to write invalid config");
+            file.sync_all().expect("Failed to sync invalid config");
+            Ok(())
+        })
         .await;
 
         let err = result.expect_err("Invalid config should fail validation");

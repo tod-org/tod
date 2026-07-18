@@ -22,7 +22,7 @@ pub struct Login {}
 
 #[derive(Parser, Debug, Clone)]
 pub struct Token {
-    /// Todoist developer API token from https://todoist.com/prefs/integrations
+    /// Todoist developer API token from <https://todoist.com/prefs/integrations>
     key: String,
 }
 

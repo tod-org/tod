@@ -33,11 +33,11 @@ impl Reminder {
 impl Display for Reminder {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if let Some(dateinfo) = &self.due {
-            write!(f, "{}", dateinfo)
+            write!(f, "{dateinfo}")
         } else if let Some(minute_offset) = self.minute_offset {
-            write!(f, "{}", minute_offset)
+            write!(f, "{minute_offset}")
         } else {
-            write!(f, "{:?}", self)
+            write!(f, "{self:?}")
         }
     }
 }

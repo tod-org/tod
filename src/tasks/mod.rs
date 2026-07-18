@@ -855,7 +855,7 @@ pub fn sort_by_value(mut tasks: Vec<Task>, config: &Config) -> Vec<Task> {
 
 fn compare_by_sort_order(a: &Task, b: &Task, config: &Config) -> Ordering {
     for rule in config.sort_order.as_deref().unwrap_or_default() {
-        let ordering = compare_by_sort_key(a, b, config, &rule.key);
+        let ordering = compare_by_sort_key(a, b, config, rule.key);
         if ordering != Ordering::Equal {
             return match rule.direction {
                 SortDirection::Asc => ordering,
@@ -867,7 +867,7 @@ fn compare_by_sort_order(a: &Task, b: &Task, config: &Config) -> Ordering {
     Ordering::Equal
 }
 
-fn compare_by_sort_key(a: &Task, b: &Task, config: &Config, key: &SortKey) -> Ordering {
+fn compare_by_sort_key(a: &Task, b: &Task, config: &Config, key: SortKey) -> Ordering {
     match key {
         SortKey::Priority => a.priority.to_integer().cmp(&b.priority.to_integer()),
         SortKey::DueDate => compare_datetime(a.datetime(config), b.datetime(config)),
@@ -1007,13 +1007,12 @@ pub async fn create_reminder(config: &Config, task: Task) -> Result<Option<JoinH
             let handle = spawn_complete_task(config, task.id);
             Ok(Some(handle))
         }
-        DateTimeInput::Skip => Ok(None),
+        DateTimeInput::Skip | input::DateTimeInput::None => Ok(None),
 
         input::DateTimeInput::Text(date) => {
             let handle = spawn_create_reminder(config, task, date);
             Ok(Some(handle))
         }
-        input::DateTimeInput::None => Ok(None),
     }
 }
 

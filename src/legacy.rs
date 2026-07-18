@@ -62,9 +62,9 @@ pub(crate) fn detect_and_migrate_sort_value(
     ];
 
     weighted_keys.sort_by(|(left_key, left_weight), (right_key, right_weight)| {
-        right_weight
-            .cmp(left_weight)
-            .then_with(|| sort_key_default_index(left_key).cmp(&sort_key_default_index(right_key)))
+        right_weight.cmp(left_weight).then_with(|| {
+            sort_key_default_index(*left_key).cmp(&sort_key_default_index(*right_key))
+        })
     });
 
     let mut keys: Vec<SortKey> = weighted_keys.into_iter().map(|(key, _)| key).collect();
@@ -81,9 +81,9 @@ pub(crate) fn detect_and_migrate_sort_value(
     )
 }
 
-fn sort_key_default_index(key: &SortKey) -> usize {
+fn sort_key_default_index(key: SortKey) -> usize {
     SortKey::default_order()
         .iter()
-        .position(|default_key| default_key == key)
+        .position(|default_key| *default_key == key)
         .unwrap_or(usize::MAX)
 }

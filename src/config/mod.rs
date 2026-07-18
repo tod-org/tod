@@ -345,7 +345,9 @@ impl Config {
         let last_version = self.last_version_check.clone();
         let today = time::date_string_today(&self)?;
 
-        if last_version != Some(today.clone()) {
+        if last_version == Some(today.clone()) {
+            Ok(self)
+        } else {
             let mut new_config = Config {
                 last_version_check: Some(today),
                 ..self.clone()
@@ -378,8 +380,6 @@ impl Config {
                 }
             });
             Ok(new_config)
-        } else {
-            Ok(self)
         }
     }
 
@@ -496,6 +496,7 @@ impl Config {
         self.maybe_set_timezone().await
     }
 
+    #[allow(clippy::too_many_lines)]
     pub async fn edit_interactive(self) -> Result<String, Error> {
         let Config {
             bell_on_failure,
@@ -660,17 +661,17 @@ impl Config {
         // ---
 
         let mut config = Config {
-            bell_on_failure,
-            max_comment_length,
+            token,
             bell_on_success,
-            timeout,
-            comment_exclude_regex,
+            bell_on_failure,
             task_exclude_regex,
+            timeout,
             spinners,
             disable_links,
-            no_sections,
+            max_comment_length,
+            comment_exclude_regex,
             verbose,
-            token,
+            no_sections,
             natural_language_only,
             ..self.clone()
         };
