@@ -152,7 +152,10 @@ where
     };
 
     if !path.exists() {
-        return Ok(format!("No config file found at {}.", path.display()));
+        return Err(Error::new(
+            "config_reset",
+            &format!("No config file found at {}.", path.display()),
+        ));
     }
 
     if !force && !prompt_fn(&path) {
@@ -616,6 +619,25 @@ mod tests {
 
         assert_eq!(result, Ok("Aborted: Config not deleted.".to_string()));
         assert_eq!(prompted_path, Some(temp_path));
+    }
+
+    #[tokio::test]
+    async fn test_config_reset_with_prompt_missing_config_returns_error() {
+        let (_temp_dir, temp_path) = temp_config_path("temp_test_config_prompt_missing.cfg");
+
+        let result = config_reset_with_prompt(Some(temp_path.clone()), true, |_| {
+            panic!("prompt should not be called for missing config")
+        })
+        .await;
+
+        let err = result.expect_err("missing config should return an error");
+        assert_eq!(err.source, "config_reset");
+        assert!(
+            err.message
+                .contains(&format!("No config file found at {}", temp_path.display())),
+            "Expected missing config path in error message, got: {}",
+            err.message
+        );
     }
 
     #[tokio::test]

@@ -182,7 +182,7 @@ fn config_reset_force_deletes_existing_config() {
     assert!(!path.exists(), "config should be gone after reset --force");
 }
 
-/// `config reset --force` when no config file exists reports the path and succeeds.
+/// `config reset --force` when no config file exists reports the path and fails.
 #[test]
 fn config_reset_force_when_config_absent_reports_not_found() {
     let dir = tempdir().expect("temp dir should be created");
@@ -195,8 +195,8 @@ fn config_reset_force_when_config_absent_reports_not_found() {
         .arg(&path)
         .args(["config", "reset", "--force"])
         .assert()
-        .success()
-        .stdout(predicate::str::contains("No config file found at"));
+        .failure()
+        .stderr(predicate::str::contains("No config file found at"));
 }
 
 /// `-c` passes an explicit config path through reset and reports that exact path on deletion.
@@ -230,6 +230,6 @@ fn config_reset_force_with_short_config_flag_reports_missing_manual_path() {
         .arg(&path)
         .args(["config", "reset", "--force"])
         .assert()
-        .success()
-        .stdout(predicate::str::contains(expected));
+        .failure()
+        .stderr(predicate::str::contains(expected));
 }
