@@ -87,3 +87,37 @@ fn sort_key_default_index(key: SortKey) -> usize {
         .position(|default_key| *default_key == key)
         .unwrap_or(usize::MAX)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn detect_and_migrate_sort_value_returns_none_for_missing_input() {
+        assert_eq!(detect_and_migrate_sort_value(None), None);
+    }
+
+    #[test]
+    fn detect_and_migrate_sort_value_prioritizes_highest_weighted_key() {
+        let legacy = LegacySortValue {
+            priority_none: Some(0),
+            priority_low: Some(0),
+            priority_medium: Some(0),
+            priority_high: Some(0),
+            no_due_date: Some(0),
+            not_recurring: Some(0),
+            today: Some(0),
+            overdue: Some(9),
+            now: Some(0),
+            deadline_value: Some(1),
+            deadline_days: Some(0),
+        };
+
+        let migrated = detect_and_migrate_sort_value(Some(&legacy))
+            .expect("legacy sort config should migrate");
+        let first = migrated
+            .first()
+            .expect("migrated sort order should not be empty");
+        assert_eq!(first.key, SortKey::Overdue);
+    }
+}

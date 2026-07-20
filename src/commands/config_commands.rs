@@ -432,6 +432,98 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_config_check_aborts_when_remove_declined() {
+        let dir = tempdir().expect("temp dir should be created");
+        let path = dir.path().join("tod.cfg");
+        let contents = serde_json::json!({
+            "path": path,
+            "timezone": "UTC",
+            "unknown_key": []
+        })
+        .to_string();
+        tokio::fs::write(&path, &contents)
+            .await
+            .expect("config should be written");
+
+        let response = check_with_prompts(Some(path.clone()), |_| Ok(false), |_| Ok(true))
+            .await
+            .expect("config check should abort when remove prompt is declined");
+
+        assert_eq!(response, "Config check aborted. No changes made.");
+        let unchanged = tokio::fs::read_to_string(&path)
+            .await
+            .expect("config should still be readable");
+        assert_eq!(unchanged, contents);
+    }
+
+    #[tokio::test]
+    async fn test_config_check_reports_parse_error_for_invalid_json() {
+        let dir = tempdir().expect("temp dir should be created");
+        let path = dir.path().join("tod.cfg");
+        tokio::fs::write(&path, "{ invalid")
+            .await
+            .expect("invalid config should be written");
+
+        let error = check_with_prompts(Some(path.clone()), |_| Ok(true), |_| Ok(true))
+            .await
+            .expect_err("invalid JSON should fail config check");
+
+        assert_eq!(error.source, "config_check");
+        assert!(
+            error.message.contains("could not be parsed as JSON"),
+            "Expected parse guidance in error message, got: {}",
+            error.message
+        );
+    }
+
+    #[tokio::test]
+    async fn test_config_check_reports_unrepairable_config_error() {
+        let dir = tempdir().expect("temp dir should be created");
+        let path = dir.path().join("tod.cfg");
+        let contents = serde_json::json!({
+            "path": path,
+            "timezone": 123
+        })
+        .to_string();
+        tokio::fs::write(&path, contents)
+            .await
+            .expect("invalid config should be written");
+
+        let error = check_with_prompts(Some(path.clone()), |_| Ok(true), |_| Ok(true))
+            .await
+            .expect_err("non-repairable config should fail");
+
+        assert_eq!(error.source, "config_check");
+        assert!(
+            error
+                .message
+                .contains("could not be automatically repaired"),
+            "Expected repair guidance in error message, got: {}",
+            error.message
+        );
+    }
+
+    #[tokio::test]
+    async fn test_config_check_valid_file_returns_valid_message() {
+        let dir = tempdir().expect("temp dir should be created");
+        let path = dir.path().join("tod.cfg");
+        Config::default_test()
+            .with_path(path.clone())
+            .create()
+            .await
+            .expect("valid config should be created");
+
+        let response = check_with_prompts(Some(path.clone()), |_| Ok(true), |_| Ok(true))
+            .await
+            .expect("valid config should pass check");
+
+        assert_eq!(
+            response,
+            format!("Config file at {} is valid.", path.display())
+        );
+    }
+
+    #[tokio::test]
     async fn test_config_check_version_outdated() {
         // Start mock server
         let mut server = Server::new_async().await;

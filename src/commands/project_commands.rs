@@ -198,3 +198,25 @@ pub async fn empty(config: &mut Config, args: &Empty) -> Result<String, Error> {
 
     projects::empty(config, &project).await
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn remove_rejects_conflicting_all_and_auto_flags() {
+        let mut config = Config::default();
+        let args = Remove {
+            auto: true,
+            repeat: false,
+            all: true,
+            project: None,
+        };
+
+        let error = remove(&mut config, &args)
+            .await
+            .expect_err("conflicting flags should fail");
+        assert_eq!(error.source, "project_remove");
+        assert_eq!(error.message, "Incorrect flags provided");
+    }
+}
