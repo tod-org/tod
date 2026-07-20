@@ -187,25 +187,55 @@ fn list_view_sort_value_orders_by_priority() {
     let output = tod()
         .arg("--config")
         .arg(&config)
-        .args(["list", "view", "--project", STATIC_PROJECT, "--sort", "value"])
+        .args([
+            "list",
+            "view",
+            "--project",
+            STATIC_PROJECT,
+            "--sort",
+            "value",
+        ])
         .output()
         .expect("list view should run");
 
     assert!(output.status.success(), "list view should succeed");
     let stdout = String::from_utf8_lossy(&output.stdout);
-    let tasks: Vec<&str> = stdout
-        .lines()
-        .filter(|l| l.starts_with("- "))
-        .collect();
+    let tasks: Vec<&str> = stdout.lines().filter(|l| l.starts_with("- ")).collect();
 
-    assert!(tasks.len() >= 6, "expected at least 6 tasks, got {}", tasks.len());
-    assert!(tasks[0].contains("Overdue High Priority"), "task 1 should be p4: {:?}", tasks[0]);
-    assert!(tasks[1].contains("Section Task Future High Priority Labeled"), "task 2 should be 2nd p4: {:?}", tasks[1]);
-    assert!(tasks[2].contains("Overdue Medium Priority"), "task 3 should be p3: {:?}", tasks[2]);
-    assert!(tasks[3].contains("Future Low Priority Labeled"), "task 4 should be p2: {:?}", tasks[3]);
+    assert!(
+        tasks.len() >= 6,
+        "expected at least 6 tasks, got {}",
+        tasks.len()
+    );
+    assert!(
+        tasks[0].contains("Overdue High Priority"),
+        "task 1 should be p4: {:?}",
+        tasks[0]
+    );
+    assert!(
+        tasks[1].contains("Section Task Future High Priority Labeled"),
+        "task 2 should be 2nd p4: {:?}",
+        tasks[1]
+    );
+    assert!(
+        tasks[2].contains("Overdue Medium Priority"),
+        "task 3 should be p3: {:?}",
+        tasks[2]
+    );
+    assert!(
+        tasks[3].contains("Future Low Priority Labeled"),
+        "task 4 should be p2: {:?}",
+        tasks[3]
+    );
     let last_two: Vec<&str> = tasks[tasks.len() - 2..].to_vec();
-    assert!(last_two.iter().any(|t| t.contains("No Date No Label")), "last two should include No Date No Label");
-    assert!(last_two.iter().any(|t| t.contains("Section Task No Date")), "last two should include Section Task No Date");
+    assert!(
+        last_two.iter().any(|t| t.contains("No Date No Label")),
+        "last two should include No Date No Label"
+    );
+    assert!(
+        last_two.iter().any(|t| t.contains("Section Task No Date")),
+        "last two should include Section Task No Date"
+    );
 }
 
 /// `list view --sort datetime` returns tasks with no due date first, then ascending
@@ -218,22 +248,46 @@ fn list_view_sort_datetime_orders_by_date() {
     let output = tod()
         .arg("--config")
         .arg(&config)
-        .args(["list", "view", "--project", STATIC_PROJECT, "--sort", "datetime"])
+        .args([
+            "list",
+            "view",
+            "--project",
+            STATIC_PROJECT,
+            "--sort",
+            "datetime",
+        ])
         .output()
         .expect("list view should run");
 
     assert!(output.status.success(), "list view should succeed");
     let stdout = String::from_utf8_lossy(&output.stdout);
-    let tasks: Vec<&str> = stdout
-        .lines()
-        .filter(|l| l.starts_with("- "))
-        .collect();
+    let tasks: Vec<&str> = stdout.lines().filter(|l| l.starts_with("- ")).collect();
 
-    assert!(tasks.len() >= 6, "expected at least 6 tasks, got {}", tasks.len());
-    assert!(tasks[2].contains("Overdue High Priority"), "task 3 should be 2020-01-01: {:?}", tasks[2]);
-    assert!(tasks[3].contains("Overdue Medium Priority"), "task 4 should be 2020-06-15: {:?}", tasks[3]);
-    assert!(tasks[4].contains("Section Task Future High Priority Labeled"), "task 5 should be 2099-06-15: {:?}", tasks[4]);
-    assert!(tasks[5].contains("Future Low Priority Labeled"), "task 6 should be 2099-12-31: {:?}", tasks[5]);
+    assert!(
+        tasks.len() >= 6,
+        "expected at least 6 tasks, got {}",
+        tasks.len()
+    );
+    assert!(
+        tasks[2].contains("Overdue High Priority"),
+        "task 3 should be 2020-01-01: {:?}",
+        tasks[2]
+    );
+    assert!(
+        tasks[3].contains("Overdue Medium Priority"),
+        "task 4 should be 2020-06-15: {:?}",
+        tasks[3]
+    );
+    assert!(
+        tasks[4].contains("Section Task Future High Priority Labeled"),
+        "task 5 should be 2099-06-15: {:?}",
+        tasks[4]
+    );
+    assert!(
+        tasks[5].contains("Future Low Priority Labeled"),
+        "task 6 should be 2099-12-31: {:?}",
+        tasks[5]
+    );
 }
 
 /// Filter `#TOD_DEV_CI_STATIC & p1` (Todoist p1 = raw priority 4, the highest)
@@ -255,9 +309,20 @@ fn filter_by_priority_returns_expected_tasks() {
     let stdout = String::from_utf8_lossy(&output.stdout);
     let tasks: Vec<&str> = stdout.lines().filter(|l| l.starts_with("- ")).collect();
 
-    assert_eq!(tasks.len(), 2, "expected exactly 2 p1 tasks, got {}: {stdout}", tasks.len());
-    assert!(stdout.contains("Overdue High Priority"), "missing Overdue High Priority");
-    assert!(stdout.contains("Section Task Future High Priority Labeled"), "missing Section Task Future High Priority Labeled");
+    assert_eq!(
+        tasks.len(),
+        2,
+        "expected exactly 2 p1 tasks, got {}: {stdout}",
+        tasks.len()
+    );
+    assert!(
+        stdout.contains("Overdue High Priority"),
+        "missing Overdue High Priority"
+    );
+    assert!(
+        stdout.contains("Section Task Future High Priority Labeled"),
+        "missing Section Task Future High Priority Labeled"
+    );
 }
 
 /// Filter `#TOD_DEV_CI_STATIC & @e2estatic` returns exactly the two labeled tasks.
@@ -278,9 +343,20 @@ fn filter_by_label_returns_expected_tasks() {
     let stdout = String::from_utf8_lossy(&output.stdout);
     let tasks: Vec<&str> = stdout.lines().filter(|l| l.starts_with("- ")).collect();
 
-    assert_eq!(tasks.len(), 2, "expected exactly 2 labeled tasks, got {}: {stdout}", tasks.len());
-    assert!(stdout.contains("Future Low Priority Labeled"), "missing Future Low Priority Labeled");
-    assert!(stdout.contains("Section Task Future High Priority Labeled"), "missing Section Task Future High Priority Labeled");
+    assert_eq!(
+        tasks.len(),
+        2,
+        "expected exactly 2 labeled tasks, got {}: {stdout}",
+        tasks.len()
+    );
+    assert!(
+        stdout.contains("Future Low Priority Labeled"),
+        "missing Future Low Priority Labeled"
+    );
+    assert!(
+        stdout.contains("Section Task Future High Priority Labeled"),
+        "missing Section Task Future High Priority Labeled"
+    );
 }
 
 /// Filter `#TOD_DEV_CI_STATIC & /Static Section` returns exactly the two tasks
@@ -302,9 +378,20 @@ fn filter_by_section_returns_expected_tasks() {
     let stdout = String::from_utf8_lossy(&output.stdout);
     let tasks: Vec<&str> = stdout.lines().filter(|l| l.starts_with("- ")).collect();
 
-    assert_eq!(tasks.len(), 2, "expected exactly 2 tasks in Static Section, got {}: {stdout}", tasks.len());
-    assert!(stdout.contains("Section Task No Date"), "missing Section Task No Date");
-    assert!(stdout.contains("Section Task Future High Priority Labeled"), "missing Section Task Future High Priority Labeled");
+    assert_eq!(
+        tasks.len(),
+        2,
+        "expected exactly 2 tasks in Static Section, got {}: {stdout}",
+        tasks.len()
+    );
+    assert!(
+        stdout.contains("Section Task No Date"),
+        "missing Section Task No Date"
+    );
+    assert!(
+        stdout.contains("Section Task Future High Priority Labeled"),
+        "missing Section Task Future High Priority Labeled"
+    );
 }
 
 // ---------------------------------------------------------------------------
