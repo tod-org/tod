@@ -279,11 +279,16 @@ pub async fn import(
         let target = projects
             .into_iter()
             .find(|p| p.name == project_name)
-            .ok_or_else(|| Error::new("project_import", "Could not find project in Todoist"))?;
+            .ok_or_else(|| {
+                Error::new(
+                    "project_import",
+                    &format!("Could not find Todoist project named '{project_name}'"),
+                )
+            })?;
         let new_projects = filter_new_projects(config, vec![target]).await?;
 
         return if let Some(project) = new_projects.into_iter().next() {
-            add(config, &project).await
+            add_imported_project(config, &project).await
         } else {
             Ok(format::green_string("Project already in config"))
         };
@@ -293,11 +298,16 @@ pub async fn import(
         let target = projects
             .into_iter()
             .find(|p| p.id == project_id)
-            .ok_or_else(|| Error::new("project_import", "Could not find project in Todoist"))?;
+            .ok_or_else(|| {
+                Error::new(
+                    "project_import",
+                    &format!("Could not find Todoist project with id '{project_id}'"),
+                )
+            })?;
         let new_projects = filter_new_projects(config, vec![target]).await?;
 
         return if let Some(project) = new_projects.into_iter().next() {
-            add(config, &project).await
+            add_imported_project(config, &project).await
         } else {
             Ok(format::green_string("Project already in config"))
         };
@@ -326,6 +336,27 @@ async fn filter_new_projects(
         .collect();
 
     Ok(new_projects)
+}
+
+async fn add_imported_project(config: &mut Config, project: &Project) -> Result<String, Error> {
+    add(config, project).await?;
+    let added_project_name = config
+        .projects()
+        .await?
+        .into_iter()
+        .find(|p| p.id == project.id)
+        .map(|p| p.name)
+        .ok_or_else(|| {
+            Error::new(
+                "project_import",
+                "Added project was not found in config after saving",
+            )
+        })?;
+
+    Ok(format!(
+        "{} Added project {added_project_name}",
+        format::green_string("✓")
+    ))
 }
 
 /// Prompt the user if they want to add project to config and maybe add
@@ -738,7 +769,7 @@ mod tests {
 
         assert_eq!(
             import(&mut config, &false, Some("Doomsday"), None).await,
-            Ok("✓".to_string())
+            Ok("✓ Added project Doomsday".to_string())
         );
         mock.assert_async().await;
     }
@@ -763,7 +794,65 @@ mod tests {
 
         assert_eq!(
             import(&mut config, &false, None, Some("890")).await,
-            Ok("✓".to_string())
+            Ok("✓ Added project Doomsday".to_string())
+        );
+        mock.assert_async().await;
+    }
+
+    #[tokio::test]
+    async fn test_import_by_project_name_not_found() {
+        let mut server = mockito::Server::new_async().await;
+        let mock = server
+            .mock("GET", "/api/v1/projects?limit=200")
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(ResponseFromFile::NewProjects.read().await)
+            .create_async()
+            .await;
+
+        let mut config = test::fixtures::config()
+            .await
+            .with_mock_url(server.url())
+            .create()
+            .await
+            .expect("expected value or result, got None or Err");
+
+        let result = import(&mut config, &false, Some("does-not-exist"), None).await;
+        assert_eq!(
+            result,
+            Err(Error::new(
+                "project_import",
+                "Could not find Todoist project named 'does-not-exist'"
+            ))
+        );
+        mock.assert_async().await;
+    }
+
+    #[tokio::test]
+    async fn test_import_by_project_id_not_found() {
+        let mut server = mockito::Server::new_async().await;
+        let mock = server
+            .mock("GET", "/api/v1/projects?limit=200")
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(ResponseFromFile::NewProjects.read().await)
+            .create_async()
+            .await;
+
+        let mut config = test::fixtures::config()
+            .await
+            .with_mock_url(server.url())
+            .create()
+            .await
+            .expect("expected value or result, got None or Err");
+
+        let result = import(&mut config, &false, None, Some("999999")).await;
+        assert_eq!(
+            result,
+            Err(Error::new(
+                "project_import",
+                "Could not find Todoist project with id '999999'"
+            ))
         );
         mock.assert_async().await;
     }
