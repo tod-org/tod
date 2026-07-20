@@ -1,4 +1,14 @@
+[profile.default]
+default-filter = "not binary(e2e_todoist)"
+
+[profile.ci]
+default-filter = "not binary(e2e_todoist)"
+
 [profile.ci.junit]
 path = "junit.xml"
 store-success-output = false
 store-failure-output = true
+
+# Run with: TOD_E2E_TOKEN=xxx cargo nextest run --features e2e --profile e2e
+[profile.e2e]
+default-filter = "binary(e2e_todoist)"
