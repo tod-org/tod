@@ -29,7 +29,10 @@ cd ../..
 echo "=== CREATING GITHUB RELEASE ===" &&
 gh release create "v$VERSION" ./target/release/*.tar.gz --title "v$VERSION" --generate-notes &&
 echo "=== RUNNING cargo publish FOR CRATES.IO ===" &&
-cargo publish || { echo "Error: cargo publish failed. Please check your credentials, network connection, or other potential issues."; exit 1; }
+if ! cargo publish; then
+  echo "Error: cargo publish failed. Please check your credentials, network connection, or other potential issues."
+  exit 1
+fi
 # echo "=== RUNNING push_aur.sh TO PUSH NEW VERSION TO AUR ===" &&
 # ./scripts/push_aur.sh &&
 echo "=== DELETING MERGED BRANCHES ===" &&
@@ -38,7 +41,7 @@ echo "Hashing release" &&
 if [ -f "./target/release/tod-mac.tar.gz" ]; then
   HASH=$(shasum -a 256 ./target/release/tod-mac.tar.gz | awk '{print $1}')
   echo "HASH:"
-  echo $HASH
+  echo "$HASH"
 else
   echo "Error: File ./target/release/tod-mac.tar.gz does not exist. Ensure the tar command succeeded."
   exit 1
