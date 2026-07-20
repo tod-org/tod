@@ -151,7 +151,7 @@ where
         None => generate_path().await?,
     };
 
-    if !path.exists() {
+    if !fs::try_exists(&path).await? {
         return Err(Error::new(
             "config_reset",
             &format!("No config file found at {}.", path.display()),
