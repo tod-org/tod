@@ -53,9 +53,22 @@ pub struct Create {
 
 #[derive(Parser, Debug, Clone)]
 pub struct Import {
-    #[arg(short = 'a', long, default_value_t = false)]
+    #[arg(
+        short = 'a',
+        long,
+        default_value_t = false,
+        conflicts_with_all = ["project", "id"]
+    )]
     /// Add all projects to config that are not there already
     auto: bool,
+
+    #[arg(short = 'p', long, conflicts_with = "id")]
+    /// Import a specific project by name from Todoist
+    project: Option<String>,
+
+    #[arg(short = 'i', long, conflicts_with = "project")]
+    /// Import a specific project by Todoist project ID
+    id: Option<String>,
 }
 
 #[derive(Parser, Debug, Clone)]
@@ -184,9 +197,8 @@ pub async fn rename(config: &mut Config, args: &Rename) -> Result<String, Error>
 }
 
 pub async fn import(config: &mut Config, args: &Import) -> Result<String, Error> {
-    let Import { auto } = args;
-
-    projects::import(config, auto).await
+    let Import { auto, project, id } = args;
+    projects::import(config, auto, project.as_deref(), id.as_deref()).await
 }
 
 pub async fn empty(config: &mut Config, args: &Empty) -> Result<String, Error> {

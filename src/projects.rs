@@ -260,8 +260,49 @@ async fn filter_missing_projects(
 }
 
 /// Fetch projects and prompt to add them to config one by one
-pub async fn import(config: &mut Config, auto: &bool) -> Result<String, Error> {
+pub async fn import(
+    config: &mut Config,
+    auto: &bool,
+    project: Option<&str>,
+    id: Option<&str>,
+) -> Result<String, Error> {
+    if project.is_some() && id.is_some() {
+        return Err(Error::new(
+            "project_import",
+            "Cannot provide both project and id",
+        ));
+    }
+
     let projects = todoist::all_projects(config, None).await?;
+
+    if let Some(project_name) = project {
+        let target = projects
+            .into_iter()
+            .find(|p| p.name == project_name)
+            .ok_or_else(|| Error::new("project_import", "Could not find project in Todoist"))?;
+        let new_projects = filter_new_projects(config, vec![target]).await?;
+
+        return if let Some(project) = new_projects.into_iter().next() {
+            add(config, &project).await
+        } else {
+            Ok(format::green_string("Project already in config"))
+        };
+    }
+
+    if let Some(project_id) = id {
+        let target = projects
+            .into_iter()
+            .find(|p| p.id == project_id)
+            .ok_or_else(|| Error::new("project_import", "Could not find project in Todoist"))?;
+        let new_projects = filter_new_projects(config, vec![target]).await?;
+
+        return if let Some(project) = new_projects.into_iter().next() {
+            add(config, &project).await
+        } else {
+            Ok(format::green_string("Project already in config"))
+        };
+    }
+
     let new_projects = filter_new_projects(config, projects).await?;
     for project in new_projects {
         maybe_add_project(config, project, auto).await?;
@@ -658,7 +699,7 @@ mod tests {
             .expect("expected value or result, got None or Err");
 
         assert_eq!(
-            import(&mut config, &false).await,
+            import(&mut config, &false, None, None).await,
             Ok("No more projects".to_string())
         );
         mock.assert_async().await;
@@ -675,6 +716,56 @@ mod tests {
             .map(|p| p.name.clone())
             .collect();
         assert!(config_keys.contains(&"Doomsday".to_string()));
+    }
+
+    #[tokio::test]
+    async fn test_import_by_project_name() {
+        let mut server = mockito::Server::new_async().await;
+        let mock = server
+            .mock("GET", "/api/v1/projects?limit=200")
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(ResponseFromFile::NewProjects.read().await)
+            .create_async()
+            .await;
+
+        let mut config = test::fixtures::config()
+            .await
+            .with_mock_url(server.url())
+            .create()
+            .await
+            .expect("expected value or result, got None or Err");
+
+        assert_eq!(
+            import(&mut config, &false, Some("Doomsday"), None).await,
+            Ok("✓".to_string())
+        );
+        mock.assert_async().await;
+    }
+
+    #[tokio::test]
+    async fn test_import_by_project_id() {
+        let mut server = mockito::Server::new_async().await;
+        let mock = server
+            .mock("GET", "/api/v1/projects?limit=200")
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(ResponseFromFile::NewProjects.read().await)
+            .create_async()
+            .await;
+
+        let mut config = test::fixtures::config()
+            .await
+            .with_mock_url(server.url())
+            .create()
+            .await
+            .expect("expected value or result, got None or Err");
+
+        assert_eq!(
+            import(&mut config, &false, None, Some("890")).await,
+            Ok("✓".to_string())
+        );
+        mock.assert_async().await;
     }
 
     #[tokio::test]

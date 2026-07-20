@@ -118,6 +118,7 @@ tod task create --content "Write more rust" --project code
 
 # Import your projects
 tod project import
+tod project import -p work # or --id 123
 
 # Import all projects in Todoist into Tod
 tod project import -a
