@@ -15,3 +15,13 @@ pub struct All {}
 pub async fn all(config: &Config, _args: &All) -> Result<String, Error> {
     todoist::test_all_endpoints(config).await
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn all_command_is_constructible() {
+        let _ = All {};
+    }
+}

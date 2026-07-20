@@ -300,3 +300,51 @@ pub async fn comment(config: Config, args: &Comment) -> Result<String, Error> {
         )),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn create_args() -> Create {
+        Create {
+            project: None,
+            due: None,
+            description: String::new(),
+            content: None,
+            no_section: false,
+            priority: None,
+            label: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn no_flags_used_returns_true_for_default_create_args() {
+        let args = create_args();
+        assert!(no_flags_used(&args));
+    }
+
+    #[test]
+    fn no_flags_used_returns_false_when_any_flag_is_set() {
+        let mut args = create_args();
+        args.priority = Some(3);
+        assert!(!no_flags_used(&args));
+    }
+
+    #[test]
+    fn is_no_sections_respects_argument_flag() {
+        let mut args = create_args();
+        args.no_section = true;
+
+        let config = Config::default();
+        assert!(is_no_sections(&args, &config));
+    }
+
+    #[test]
+    fn is_no_sections_respects_config_setting() {
+        let args = create_args();
+        let mut config = Config::default();
+        config.no_sections = Some(true);
+
+        assert!(is_no_sections(&args, &config));
+    }
+}

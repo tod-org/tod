@@ -31,3 +31,24 @@ pub async fn create(config: &Config, args: &Create) -> Result<String, Error> {
     todoist::create_section(config, &name, &project, true).await?;
     Ok(format::green_string("Section created successfully"))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn create_fails_when_no_projects_exist_in_config() {
+        let config = Config::default();
+        let args = Create {
+            name: Some("new-section".to_string()),
+            project: None,
+        };
+
+        let error = create(&config, &args)
+            .await
+            .expect_err("creating a section should fail without configured projects");
+
+        assert_eq!(error.source, "fetch_project");
+        assert!(error.message.contains("No projects in config"));
+    }
+}

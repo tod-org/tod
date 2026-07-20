@@ -641,6 +641,28 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_config_reset_with_prompt_directory_path_returns_delete_error() {
+        let temp_dir = tempdir().expect("temp dir should be created");
+        let dir_path = temp_dir.path().to_path_buf();
+
+        let result = config_reset_with_prompt(Some(dir_path.clone()), true, |_| {
+            panic!("prompt should not be called when force is enabled")
+        })
+        .await;
+
+        let err = result.expect_err("directory paths should fail file deletion");
+        assert_eq!(err.source, "config_reset");
+        assert!(
+            err.message.contains(&format!(
+                "Could not delete config file at {}",
+                dir_path.display()
+            )),
+            "Expected deletion error with path, got: {}",
+            err.message
+        );
+    }
+
+    #[tokio::test]
     async fn test_config_open_missing_returns_error() {
         let (_temp_dir, temp_path) = temp_config_path("missing_open_no.cfg");
 
