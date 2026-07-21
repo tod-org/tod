@@ -39,7 +39,7 @@ same job definitions aren't duplicated:
 | Workflow | Runs on | What it does |
 | --- | --- | --- |
 | **CI Release** | release PRs (opened by release-please) or manual trigger | Runs the *full* cross-platform test matrix (Linux, Linux/ARM, macOS, Windows) and, only for genuine release PRs, also triggers the Todoist E2E suite below. |
-| **E2E Todoist Integration Tests** | manual trigger, or automatically as part of CI Release | Exercises `tod` against a real Todoist account rather than mocks — see [`ci.md`](./ci.md) for the full breakdown of what's covered (task/project lifecycle, config commands, sorting, filtering, labels, quick-add) and what's intentionally out of scope. |
+| **E2E Todoist Integration Tests** | manual trigger, or automatically as part of CI Release | Exercises `tod` against a real Todoist account rather than mocks — see [`ci_end2end.md`](./ci_end2end.md) for the full breakdown of what's covered (task/project lifecycle, config commands, sorting, filtering, labels, quick-add) and what's intentionally out of scope. |
 | **Release Check** | pull requests targeting `main` | Confirms the version number in `CHANGELOG.md` matches `Cargo.toml`, so a release can't ship with mismatched versions. |
 | **Dependabot Full CI** | Dependabot PRs | Runs the full cross-platform test matrix against dependency-bump PRs specifically, since a dependency update is exactly the kind of change most likely to break a single platform silently. |
 
