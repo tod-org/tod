@@ -35,23 +35,4 @@ jobs:
           TOD_E2E_TOKEN: ${{ secrets.TODOIST_DEV_API_TEST }}
         run: |
           test -n "${TOD_E2E_TOKEN}" || { echo "TODOIST_DEV_API_TEST secret is required"; exit 1; }
-          cargo nextest run --features e2e --profile e2e --no-fail-fast \
-            version_prints_semver \
-            help_includes_expected_commands \
-            check_version_runs_without_config \
-            config_reset_force_fails_when_file_absent \
-            config_reset_force_reports_deletion \
-            auth_token_setup_saves_token_and_timezone \
-            auth_token_updates_existing_config_without_overwrite \
-            set_timezone_updates_existing_config_without_overwrite \
-            project_import_auto_includes_static_project \
-            list_view_sort_value_orders_by_priority \
-            list_view_sort_datetime_orders_by_date \
-            filter_by_priority_returns_expected_tasks \
-            filter_by_label_returns_expected_tasks \
-            filter_by_section_returns_expected_tasks \
-            recurring_vs_not_recurring_filters \
-            dynamic_task_lifecycle \
-            task_comment_create_is_visible_on_next \
-            empty_project_list_and_next_show_nothing_present \
-            dynamic_empty_project_create_query_delete
+          cargo nextest run --features e2e --profile e2e --no-fail-fast
