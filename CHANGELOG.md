@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.17.0](https://github.com/tod-org/tod/compare/v0.16.0...v0.17.0) (2026-07-21)
+
+
+### Features
+
+* add Rust e2e test suite with assert_cmd feature flag ([d9b3b9f](https://github.com/tod-org/tod/commit/d9b3b9fc3c1f178ed654b95d7e9e167a142b8c59))
+
 ## [0.16.0](https://github.com/tod-org/tod/compare/v0.15.0...v0.16.0) (2026-07-21)
 
 
