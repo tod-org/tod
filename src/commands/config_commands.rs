@@ -41,7 +41,7 @@ pub enum ConfigCommands {
     Open(ConfigOpen),
 
     #[clap(alias = "tz")]
-    /// (tz) Change the timezone in the configuration file
+    /// (tz) Automatically set the timezone to your Todoist timezone. Can be overriden with the --timezone flag.
     SetTimezone(SetTimezone),
 
     #[clap(alias = "e")]
@@ -80,7 +80,7 @@ pub struct Edit {}
 #[derive(Parser, Debug, Clone)]
 pub struct SetTimezone {
     #[arg(short, long)]
-    /// `TimeZone` to add, i.e. "Canada/Pacific"
+    /// Explicitly set a `TimeZone`, i.e. "Canada/Pacific")
     timezone: Option<String>,
 }
 pub async fn check_version(args: &CheckVersion, mock_url: Option<String>) -> Result<String, Error> {
