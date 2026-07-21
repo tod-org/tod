@@ -18,6 +18,8 @@ the approved Todoist E2E scenarios execute in a stable order.
 
 The workflow maps this secret to `TOD_E2E_TOKEN` before running tests.
 
+The required projects can be imported from 'e2e_todoist_fixtures'
+
 ## Test model
 
 ### Static fixture project
