@@ -38,7 +38,7 @@ jobs:
         with:
           tool: cargo-tarpaulin
       - name: Run tests with coverage
-        run: cargo tarpaulin --all-features --out xml --frozen --skip-clean --exclude-files tests/e2e_todoist.rs
+        run: cargo tarpaulin --out xml --frozen --skip-clean
       - name: Upload to codecov.io
         uses: codecov/codecov-action@v7
         with:
