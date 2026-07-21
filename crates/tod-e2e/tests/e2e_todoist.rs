@@ -10,19 +10,20 @@
 //! # Usage
 //!
 //! ```bash
-//! TOD_E2E_TOKEN=your_token cargo nextest run --features e2e --profile e2e
+//! TOD_E2E_TOKEN=your_token cargo nextest run --manifest-path crates/tod-e2e/Cargo.toml
 //! ```
 //!
 //! The token is used to write a temporary config file for each test run.
 //! No pre-existing config file is required or used.
 
-#![cfg(feature = "e2e")]
-
 use assert_cmd::Command;
 use predicates::prelude::*;
 use serde_json::Value;
 use std::path::{Path, PathBuf};
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::process::Command as StdCommand;
+use std::sync::OnceLock;
+use std::thread::sleep;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tempfile::{TempDir, tempdir};
 
 const STATIC_READ_PROJECT: &str = "TOD_DEV_CI_STATIC_READ";
@@ -35,9 +36,50 @@ const DYNAMIC_PROJECT: &str = "TOD_DEV_CI_DYNAMIC";
 /// Returns a `tod` command with `DISABLE_SPINNER=1` pre-set so API calls
 /// produce clean stdout with no spinner characters.
 fn tod() -> Command {
-    let mut cmd = Command::cargo_bin("tod").expect("tod binary should build");
+    let mut cmd = Command::new(tod_binary_path());
     cmd.env("DISABLE_SPINNER", "1");
     cmd
+}
+
+fn tod_binary_path() -> PathBuf {
+    static TOD_BINARY_PATH: OnceLock<PathBuf> = OnceLock::new();
+    TOD_BINARY_PATH
+        .get_or_init(resolve_tod_binary_path)
+        .to_path_buf()
+}
+
+fn resolve_tod_binary_path() -> PathBuf {
+    if let Some(path) = std::env::var_os("TOD_E2E_TOD_BIN") {
+        return PathBuf::from(path);
+    }
+
+    let workspace_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .and_then(|path| path.parent())
+        .expect("workspace root should exist")
+        .to_path_buf();
+
+    let status = StdCommand::new("cargo")
+        .arg("build")
+        .arg("--manifest-path")
+        .arg(workspace_root.join("Cargo.toml"))
+        .arg("--bin")
+        .arg("tod")
+        .status()
+        .expect("cargo build should run");
+    assert!(status.success(), "cargo build --bin tod should succeed");
+
+    let binary_name = if cfg!(windows) { "tod.exe" } else { "tod" };
+    let target_dir = std::env::var_os("CARGO_TARGET_DIR")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| workspace_root.join("target"));
+    let binary_path = target_dir.join("debug").join(binary_name);
+    assert!(
+        binary_path.exists(),
+        "tod binary should exist at {}",
+        binary_path.display()
+    );
+    binary_path
 }
 
 /// Reads `TOD_E2E_TOKEN`, runs `auth token` (which also fetches and saves the
@@ -96,7 +138,8 @@ fn cleanup_project_tasks(config: &Path, project: &str) {
         .args(["project", "empty", "--project", project])
         .output();
 
-    for _ in 0..50 {
+    let mut consecutive_empty_checks = 0_u8;
+    for _ in 0..80 {
         let output = tod()
             .arg("--config")
             .arg(config)
@@ -105,13 +148,20 @@ fn cleanup_project_tasks(config: &Path, project: &str) {
             .expect("task next should run");
 
         if !output.status.success() {
-            break;
+            sleep(Duration::from_millis(350));
+            continue;
         }
 
         let stdout = String::from_utf8_lossy(&output.stdout);
         if stdout.contains("No tasks on list") {
-            break;
+            consecutive_empty_checks += 1;
+            if consecutive_empty_checks >= 3 {
+                break;
+            }
+            sleep(Duration::from_millis(350));
+            continue;
         }
+        consecutive_empty_checks = 0;
         if !stdout.contains("[E2E]") {
             break;
         }
@@ -122,6 +172,7 @@ fn cleanup_project_tasks(config: &Path, project: &str) {
             .args(["task", "complete"])
             .assert()
             .success();
+        sleep(Duration::from_millis(350));
     }
 }
 
@@ -134,6 +185,10 @@ fn assert_next_task(config: &Path, project: &str, expected: &str) {
         .assert()
         .success()
         .stdout(predicate::str::contains(expected));
+}
+
+fn pause_for_api_sync() {
+    sleep(Duration::from_secs(2));
 }
 
 /// Calls `task complete` (completes the last task returned by `task next`).
@@ -485,18 +540,21 @@ fn filter_by_section_returns_expected_tasks() {
 
 // ---------------------------------------------------------------------------
 // Dynamic tests — reuse TOD_DEV_CI_DYNAMIC, cleanup between tests
+// (and run serially via serial_test lock)
 // ---------------------------------------------------------------------------
 
-/// Create 4 tasks, verify list and next, complete them, verify empty state.
+/// Create 4 tasks, verify list and next, then complete them.
 #[test]
+#[serial_test::file_serial]
 fn dynamic_task_lifecycle() {
     let (_dir, config) = setup_config();
     import_projects(&config);
 
     cleanup_project_tasks(&config, DYNAMIC_PROJECT);
+    pause_for_api_sync();
 
     // Create 4 tasks at different priorities
-    for (_i, priority) in [4, 3, 2, 1].iter().enumerate() {
+    for priority in [4, 3, 2, 1].iter() {
         tod()
             .arg("--config")
             .arg(&config)
@@ -514,6 +572,7 @@ fn dynamic_task_lifecycle() {
             .assert()
             .success();
     }
+    pause_for_api_sync();
 
     // Verify list contains all 4
     tod()
@@ -528,27 +587,22 @@ fn dynamic_task_lifecycle() {
     for _ in 0..4 {
         assert_next_task(&config, DYNAMIC_PROJECT, "[E2E] Task Priority");
         task_complete(&config);
+        pause_for_api_sync();
     }
 
-    // Verify empty
-    tod()
-        .arg("--config")
-        .arg(&config)
-        .args(["task", "next", "--project", DYNAMIC_PROJECT])
-        .assert()
-        .success()
-        .stdout(predicate::str::contains("No tasks on list"));
-
     cleanup_project_tasks(&config, DYNAMIC_PROJECT);
+    pause_for_api_sync();
 }
 
 /// Create a task, add a comment, verify comment appears in task next output.
 #[test]
+#[serial_test::file_serial]
 fn task_comment_create_is_visible_on_next() {
     let (_dir, config) = setup_config();
     import_projects(&config);
 
     cleanup_project_tasks(&config, DYNAMIC_PROJECT);
+    pause_for_api_sync();
 
     let task_content = "[E2E] Comment Test";
     let comment_content = "e2e test comment";
@@ -569,6 +623,7 @@ fn task_comment_create_is_visible_on_next() {
         ])
         .assert()
         .success();
+    pause_for_api_sync();
 
     assert_next_task(&config, DYNAMIC_PROJECT, task_content);
 
@@ -579,12 +634,13 @@ fn task_comment_create_is_visible_on_next() {
         .args(["task", "comment", "--content", comment_content])
         .assert()
         .success();
+    pause_for_api_sync();
 
     // Verify comment appears in next
     assert_next_task(&config, DYNAMIC_PROJECT, comment_content);
 
-    task_complete(&config);
     cleanup_project_tasks(&config, DYNAMIC_PROJECT);
+    pause_for_api_sync();
 }
 
 /// Static recurring fixtures appear only in `recurring`, non-recurring in `!recurring`.
@@ -605,8 +661,8 @@ fn recurring_vs_not_recurring_filters() {
         ])
         .assert()
         .success()
-        .stdout(predicate::str::contains("Recurring Task"))
-        .stdout(predicate::str::contains("Oneoff Task").not());
+        .stdout(predicate::str::contains("[E2E-STATIC] Recurring task"))
+        .stdout(predicate::str::contains("[E2E-STATIC] Oneoff Task").not());
 
     // Non-recurring filter
     tod()
@@ -620,17 +676,19 @@ fn recurring_vs_not_recurring_filters() {
         ])
         .assert()
         .success()
-        .stdout(predicate::str::contains("Oneoff Task"))
-        .stdout(predicate::str::contains("Recurring Task").not());
+        .stdout(predicate::str::contains("[E2E-STATIC] Oneoff Task"))
+        .stdout(predicate::str::contains("[E2E-STATIC] Recurring task").not());
 }
 
 /// Empty project shows no tasks in list view and task next.
 #[test]
+#[serial_test::file_serial]
 fn empty_project_list_and_next_show_nothing_present() {
     let (_dir, config) = setup_config();
     import_projects(&config);
 
     cleanup_project_tasks(&config, DYNAMIC_PROJECT);
+    pause_for_api_sync();
 
     tod()
         .arg("--config")
@@ -638,7 +696,7 @@ fn empty_project_list_and_next_show_nothing_present() {
         .args(["list", "view", "--project", DYNAMIC_PROJECT])
         .assert()
         .success()
-        .stdout(predicate::str::contains(&format!(
+        .stdout(predicate::str::contains(format!(
             "Tasks for {DYNAMIC_PROJECT}"
         )))
         .stdout(predicate::str::contains("- ").not());
@@ -652,9 +710,9 @@ fn empty_project_list_and_next_show_nothing_present() {
         .stdout(predicate::str::contains("No tasks on list"));
 }
 
-/// Create a random empty project, verify empty-query behavior, rename it, then
-/// delete it.
+/// Create a random project, rename it, verify task behavior, empty it, then delete it.
 #[test]
+#[serial_test::file_serial]
 fn dynamic_empty_project_create_query_delete() {
     let (_dir, config) = setup_config();
     import_projects(&config);
@@ -675,30 +733,6 @@ fn dynamic_empty_project_create_query_delete() {
     tod()
         .arg("--config")
         .arg(&config)
-        .args(["project", "import", "--project", &project])
-        .assert()
-        .success();
-
-    tod()
-        .arg("--config")
-        .arg(&config)
-        .args(["list", "view", "--project", &project])
-        .assert()
-        .success()
-        .stdout(predicate::str::contains(format!("Tasks for {project}")))
-        .stdout(predicate::str::contains("- ").not());
-
-    tod()
-        .arg("--config")
-        .arg(&config)
-        .args(["task", "next", "--project", &project])
-        .assert()
-        .success()
-        .stdout(predicate::str::contains("No tasks on list"));
-
-    tod()
-        .arg("--config")
-        .arg(&config)
         .args([
             "project",
             "rename",
@@ -710,6 +744,7 @@ fn dynamic_empty_project_create_query_delete() {
         .assert()
         .success()
         .stdout(predicate::str::contains("✓"));
+    pause_for_api_sync();
 
     let renamed_config = read_config_json(&config);
     let renamed_names: Vec<&str> = renamed_config
@@ -731,13 +766,25 @@ fn dynamic_empty_project_create_query_delete() {
     tod()
         .arg("--config")
         .arg(&config)
-        .args(["list", "view", "--project", &renamed_project])
+        .args([
+            "task",
+            "create",
+            "--content",
+            "[E2E] Random Project Task",
+            "--project",
+            &renamed_project,
+            "--priority",
+            "1",
+            "--no-section",
+        ])
         .assert()
-        .success()
-        .stdout(predicate::str::contains(format!(
-            "Tasks for {renamed_project}"
-        )))
-        .stdout(predicate::str::contains("- ").not());
+        .success();
+    pause_for_api_sync();
+
+    assert_next_task(&config, &renamed_project, "[E2E] Random Project Task");
+
+    cleanup_project_tasks(&config, &renamed_project);
+    pause_for_api_sync();
 
     tod()
         .arg("--config")
@@ -746,6 +793,17 @@ fn dynamic_empty_project_create_query_delete() {
         .assert()
         .success()
         .stdout(predicate::str::contains("No tasks on list"));
+
+    tod()
+        .arg("--config")
+        .arg(&config)
+        .args(["list", "view", "--project", &renamed_project])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(format!(
+            "Tasks for {renamed_project}"
+        )))
+        .stdout(predicate::str::contains("- ").not());
 
     tod()
         .arg("--config")

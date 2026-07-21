@@ -1,0 +1,12 @@
+[package]
+name = "tod-e2e"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dev-dependencies]
+assert_cmd = "2.2.2"
+predicates = "3.1.4"
+serde_json = "1.0.150"
+serial_test = { version = "3.5.0", features = ["file_locks"] }
+tempfile = "3.27.0"

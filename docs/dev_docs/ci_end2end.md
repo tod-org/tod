@@ -3,8 +3,8 @@
 Workflow file: `.github/workflows/e2e_todoist.yml`
 
 This workflow runs Tod end-to-end tests against the live Todoist API using the
-Rust `tests/e2e_todoist.rs` suite. It is intentionally serial and uses an
-explicit test list so only the approved Todoist E2E scenarios execute.
+Rust `crates/tod-e2e/tests/e2e_todoist.rs` suite. It is intentionally serial so
+the approved Todoist E2E scenarios execute in a stable order.
 
 ## Purpose
 
@@ -39,23 +39,50 @@ The workflow maps this secret to `TOD_E2E_TOKEN` before running tests.
 - Used for create/import/rename/delete lifecycle assertions
 - Deleted at test end
 
-## Groups covered by the CI E2E workflow
+## Test inventory (current suite)
 
-1. CLI-only sanity checks
-2. Config + auth update invariants
-3. Static read/filter/sort queries
-4. Dynamic task lifecycle and empty-state checks
-5. Disposable project lifecycle (create → rename → delete)
+### CLI-only sanity
+
+- `version_prints_semver`: checks `tod --version` output format.
+- `help_includes_expected_commands`: confirms key top-level commands appear in help.
+- `check_version_runs_without_config`: verifies version check works without config.
+- `config_reset_force_fails_when_file_absent`: verifies reset fails when config file is missing.
+- `config_reset_force_reports_deletion`: verifies reset deletes an existing config file.
+
+### Auth/config persistence
+
+- `auth_token_setup_saves_token_and_timezone`: saves token and timezone from API.
+- `auth_token_updates_existing_config_without_overwrite`: updates token while preserving other config.
+- `set_timezone_updates_existing_config_without_overwrite`: updates timezone while preserving other config.
+- `project_import_auto_includes_static_project`: imports projects and confirms static fixture is present.
+
+### Static fixture read/query (`TOD_DEV_CI_STATIC_READ`)
+
+- `list_view_sort_value_orders_by_priority`: validates priority sorting.
+- `list_view_sort_datetime_orders_by_date`: validates datetime sorting.
+- `filter_by_priority_returns_expected_tasks`: validates priority filter execution.
+- `filter_by_label_returns_expected_tasks`: validates label filter execution.
+- `filter_by_section_returns_expected_tasks`: validates section filter execution.
+- `recurring_vs_not_recurring_filters`: verifies recurring filter shows `[E2E-STATIC] Recurring task` and non-recurring shows `[E2E-STATIC] Oneoff Task`.
+
+### Dynamic project flow (`TOD_DEV_CI_DYNAMIC`, file-serialized)
+
+- `dynamic_task_lifecycle`: creates priority tasks, iterates `next`, and completes lifecycle.
+- `task_comment_create_is_visible_on_next`: adds comment to current task and verifies visibility in `task next`.
+- `empty_project_list_and_next_show_nothing_present`: verifies empty-state output for list and next.
+
+### Random project lifecycle (new project per run, file-serialized)
+
+- `dynamic_empty_project_create_query_delete`: creates random project, renames it, creates/checks task in renamed project, empties it, and deletes it.
 
 ## Execution details
 
 - Command shape:
-  - `cargo nextest run --features e2e --profile e2e --no-fail-fast <explicit-test-list>`
-- Serial behavior is controlled by `.config/nextest.toml` (`profile.e2e.test-threads = 1`).
+  - `cargo nextest run --manifest-path crates/tod-e2e/Cargo.toml --no-fail-fast`
+- Serial behavior is enforced in code with `serial_test` for the dynamic project group only.
 
 ## Notes
 
-- Code coverage workflow (`ci_codecov.yml`) explicitly excludes `tests/e2e_todoist.rs`
-  because coverage jobs do not provide `TOD_E2E_TOKEN`.
+- `tod-e2e` is an external sub-crate and is only run via its explicit manifest-path command.
 - If fixture data changes in Todoist, static assertion tests must be updated in
-  `tests/e2e_todoist.rs`.
+  `crates/tod-e2e/tests/e2e_todoist.rs`.

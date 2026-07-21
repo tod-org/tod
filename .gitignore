@@ -1,5 +1,7 @@
 # Already present in Repo
 /target
+/crates/tod-e2e/target
+/crates/tod-e2e/Cargo.lock
 /src/target
 tarpaulin-report.html
 lcov.info
