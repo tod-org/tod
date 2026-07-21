@@ -23,9 +23,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-
-      - uses: dtolnay/rust-toolchain@stable
-
+      - uses: taiki-e/install-action@nextest
+      - name: Install rust-toolchain
+        run: rustup toolchain install stable
       - uses: Swatinem/rust-cache@v2
         with:
           cache-all-crates: true
