@@ -35,4 +35,6 @@ jobs:
           TOD_E2E_TOKEN: ${{ secrets.TODOIST_DEV_API_TEST }}
         run: |
           test -n "${TOD_E2E_TOKEN}" || { echo "TODOIST_DEV_API_TEST secret is required"; exit 1; }
-          cargo nextest run --manifest-path crates/tod-e2e/Cargo.toml --no-fail-fast
+          cargo build --manifest-path Cargo.toml --bin tod
+          TOD_E2E_TOD_BIN="${GITHUB_WORKSPACE}/target/debug/tod" \
+            cargo nextest run --manifest-path crates/tod-e2e/Cargo.toml --no-fail-fast

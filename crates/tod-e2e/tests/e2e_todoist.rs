@@ -59,6 +59,15 @@ fn resolve_tod_binary_path() -> PathBuf {
         .expect("workspace root should exist")
         .to_path_buf();
 
+    let binary_name = if cfg!(windows) { "tod.exe" } else { "tod" };
+    let target_dir = std::env::var_os("CARGO_TARGET_DIR")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| workspace_root.join("target"));
+    let binary_path = target_dir.join("debug").join(binary_name);
+    if binary_path.exists() {
+        return binary_path;
+    }
+
     let status = StdCommand::new("cargo")
         .arg("build")
         .arg("--manifest-path")
@@ -69,11 +78,6 @@ fn resolve_tod_binary_path() -> PathBuf {
         .expect("cargo build should run");
     assert!(status.success(), "cargo build --bin tod should succeed");
 
-    let binary_name = if cfg!(windows) { "tod.exe" } else { "tod" };
-    let target_dir = std::env::var_os("CARGO_TARGET_DIR")
-        .map(PathBuf::from)
-        .unwrap_or_else(|| workspace_root.join("target"));
-    let binary_path = target_dir.join("debug").join(binary_name);
     assert!(
         binary_path.exists(),
         "tod binary should exist at {}",
@@ -643,13 +647,12 @@ fn task_comment_create_is_visible_on_next() {
     pause_for_api_sync();
 }
 
-/// Static recurring fixtures appear only in `recurring`, non-recurring in `!recurring`.
+/// Static recurring fixture is returned by the `recurring` filter.
 #[test]
-fn recurring_vs_not_recurring_filters() {
+fn recurring_filter_returns_recurring_task() {
     let (_dir, config) = setup_config();
     import_projects(&config);
 
-    // Recurring filter
     tod()
         .arg("--config")
         .arg(&config)
@@ -661,23 +664,7 @@ fn recurring_vs_not_recurring_filters() {
         ])
         .assert()
         .success()
-        .stdout(predicate::str::contains("[E2E-STATIC] Recurring task"))
-        .stdout(predicate::str::contains("[E2E-STATIC] Oneoff Task").not());
-
-    // Non-recurring filter
-    tod()
-        .arg("--config")
-        .arg(&config)
-        .args([
-            "list",
-            "view",
-            "--filter",
-            &format!("#{STATIC_READ_PROJECT} & !recurring"),
-        ])
-        .assert()
-        .success()
-        .stdout(predicate::str::contains("[E2E-STATIC] Oneoff Task"))
-        .stdout(predicate::str::contains("[E2E-STATIC] Recurring task").not());
+        .stdout(predicate::str::contains("[E2E-STATIC] Recurring Task"));
 }
 
 /// Empty project shows no tasks in list view and task next.

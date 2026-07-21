@@ -63,7 +63,7 @@ The workflow maps this secret to `TOD_E2E_TOKEN` before running tests.
 - `filter_by_priority_returns_expected_tasks`: validates priority filter execution.
 - `filter_by_label_returns_expected_tasks`: validates label filter execution.
 - `filter_by_section_returns_expected_tasks`: validates section filter execution.
-- `recurring_vs_not_recurring_filters`: verifies recurring filter shows `[E2E-STATIC] Recurring task` and non-recurring shows `[E2E-STATIC] Oneoff Task`.
+- `recurring_filter_returns_recurring_task`: verifies recurring filter shows `[E2E-STATIC] Recurring Task`.
 
 ### Dynamic project flow (`TOD_DEV_CI_DYNAMIC`, file-serialized)
 
@@ -78,7 +78,8 @@ The workflow maps this secret to `TOD_E2E_TOKEN` before running tests.
 ## Execution details
 
 - Command shape:
-  - `cargo nextest run --manifest-path crates/tod-e2e/Cargo.toml --no-fail-fast`
+  - `cargo build --manifest-path Cargo.toml --bin tod`
+  - `TOD_E2E_TOD_BIN=target/debug/tod cargo nextest run --manifest-path crates/tod-e2e/Cargo.toml --no-fail-fast`
 - Serial behavior is enforced in code with `serial_test` for the dynamic project group only.
 
 ## Notes
