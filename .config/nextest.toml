@@ -12,3 +12,4 @@ store-failure-output = true
 # Run with: TOD_E2E_TOKEN=xxx cargo nextest run --features e2e --profile e2e
 [profile.e2e]
 default-filter = "binary(e2e_todoist)"
+test-threads = 1
