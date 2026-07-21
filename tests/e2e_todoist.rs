@@ -1,11 +1,11 @@
 //! End-to-end tests against the live Todoist API.
 //!
-//! Requires three Todoist projects to be pre-configured:
+//! Requires two Todoist projects to be pre-existing:
 //! - `TOD_DEV_CI_STATIC_READ` — read-only, pre-populated with test data
 //! - `TOD_DEV_CI_DYNAMIC` — reused across tests, tasks cleaned between runs
-//! - `TOD_DEV_CI_PROJECTXXXX` — for project lifecycle tests (rename, delete, import)
+//! - A third `TOD_DEV_CI_PROJECTXXXX` — for project lifecycle tests (rename, delete, import) will be automatically created and deleted.
 //!
-//! The API token (`TOD_E2E_TOKEN`) is available to maintainers and in CI only.
+//! The API token (`TOD_E2E_TOKEN`) is available to maintainers, in Github Secrets, or in CI only.
 //!
 //! # Usage
 //!
