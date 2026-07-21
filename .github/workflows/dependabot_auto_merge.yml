@@ -31,32 +31,6 @@ jobs:
         with:
           github-token: ${{ steps.app-token.outputs.token }}
 
-      - id: assignee
-        name: Resolve assignee
-        env:
-          PACKAGE_ECOSYSTEM: ${{ steps.meta.outputs.package-ecosystem }}
-        run: |
-          case "${PACKAGE_ECOSYSTEM}" in
-            cargo)
-              echo "value=alanvardy" >> "$GITHUB_OUTPUT"
-              ;;
-            github-actions)
-              echo "value=stacksjb" >> "$GITHUB_OUTPUT"
-              ;;
-            *)
-              echo "value=" >> "$GITHUB_OUTPUT"
-              ;;
-          esac
-
-      - name: Assign major updates for review
-        if: steps.meta.outputs.update-type == 'version-update:semver-major' && steps.assignee.outputs.value != ''
-        env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
-        run: |
-          gh pr edit ${{ github.event.pull_request.number }} \
-            --repo "${{ github.repository }}" \
-            --add-assignee "${{ steps.assignee.outputs.value }}"
-
       - name: Approve Dependabot PR (minor/patch only)
         if: steps.meta.outputs.update-type == 'version-update:semver-minor' || steps.meta.outputs.update-type == 'version-update:semver-patch'
         uses: hmarr/auto-approve-action@v4
