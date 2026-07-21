@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.16.0](https://github.com/tod-org/tod/compare/v0.15.0...v0.16.0) (2026-07-21)
+
+
+### Features
+
+* **project:** add force delete and noninteractive rename flag ([c981bd4](https://github.com/tod-org/tod/commit/c981bd4eb855f42add4347df56bd3ea5bf85f90a))
+* **project:** add specific project import options ([306734b](https://github.com/tod-org/tod/commit/306734b71dcca580dbe598668a7b53967eec9f2a))
+
+
+### Bug Fixes
+
+* **auth:** unify login and timezone flows ([ee54ef1](https://github.com/tod-org/tod/commit/ee54ef1b0f099bd2d1429e50d3fdcd524cb91f60))
+* **config:** fail reset when config is missing ([a7f8141](https://github.com/tod-org/tod/commit/a7f8141802c9377cadf7edeadcd45402b0e6af9f))
+* **config:** handle missing config in check ([062341d](https://github.com/tod-org/tod/commit/062341d3e33302cee7c42cbed8a3b8cc0499b7d5))
+* **config:** require existing auth for commands ([30f8208](https://github.com/tod-org/tod/commit/30f820867061cf07b5e4a6d75dfb504ef7b5af6b))
+* **config:** stop creating config from open ([bcba139](https://github.com/tod-org/tod/commit/bcba139be08c293ed39cbfb24ff8b8b32ae73f60))
+* **project:** improve project import success and error messages ([9b1df33](https://github.com/tod-org/tod/commit/9b1df33f45ffbe2093ce021dfb1ca6f5ca847e5d))
+
 ## [0.15.0](https://github.com/tod-org/tod/compare/v0.14.0...v0.15.0) (2026-07-16)
 
 
