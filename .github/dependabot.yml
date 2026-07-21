@@ -6,8 +6,6 @@ updates:
     directory: "/"
     schedule:
       interval: "daily"
-    assignees:
-      - alanvardy
     commit-message:
       prefix: "chore"
       include: "scope"
@@ -21,8 +19,6 @@ updates:
     directory: "/"
     schedule:
       interval: "daily"
-    assignees:
-      - stacksjb
     commit-message:
       prefix: "chore"
       include: "scope"
