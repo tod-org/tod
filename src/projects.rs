@@ -155,8 +155,15 @@ pub async fn delete(config: &mut Config, project: &Project) -> Result<String, Er
 }
 
 /// Rename a project in config
-pub async fn rename(config: &mut Config, project: &Project) -> Result<String, Error> {
-    let new_name = input::string_with_default(input::NAME, &project.name)?;
+pub async fn rename(
+    config: &mut Config,
+    project: &Project,
+    new_name: Option<&str>,
+) -> Result<String, Error> {
+    let new_name = match new_name {
+        Some(name) => name.to_string(),
+        None => input::string_with_default(input::NAME, &project.name)?,
+    };
 
     let new_project = Project {
         name: new_name,

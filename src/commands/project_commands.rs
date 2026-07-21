@@ -92,6 +92,10 @@ pub struct Remove {
 
 #[derive(Parser, Debug, Clone)]
 pub struct Delete {
+    #[arg(short, long, default_value_t = false)]
+    /// Skip deletion confirmation when the project has tasks
+    force: bool,
+
     #[arg(short = 'r', long, default_value_t = false)]
     /// Keep repeating prompt to delete projects. Use Ctrl/CMD + c to exit.
     repeat: bool,
@@ -106,6 +110,10 @@ pub struct Rename {
     #[arg(short, long)]
     /// Project to rename
     project: Option<String>,
+
+    #[arg(short, long)]
+    /// New project name
+    name: Option<String>,
 }
 #[derive(Parser, Debug, Clone)]
 pub struct Empty {
@@ -156,7 +164,11 @@ pub async fn remove(config: &mut Config, args: &Remove) -> Result<String, Error>
 }
 
 pub async fn delete(config: &mut Config, args: &Delete) -> Result<String, Error> {
-    let Delete { project, repeat } = args;
+    let Delete {
+        force,
+        project,
+        repeat,
+    } = args;
     loop {
         let project = match super::fetch_project(project.as_deref(), config).await? {
             Flag::Project(project) => project,
@@ -164,7 +176,7 @@ pub async fn delete(config: &mut Config, args: &Delete) -> Result<String, Error>
         };
         let tasks = todoist::all_tasks_by_project(config, &project, None).await?;
 
-        if !tasks.is_empty() {
+        if !force && !tasks.is_empty() {
             println!();
             let options = vec![input::CANCEL, input::DELETE];
             let num_tasks = tasks.len();
@@ -184,7 +196,7 @@ pub async fn delete(config: &mut Config, args: &Delete) -> Result<String, Error>
 }
 
 pub async fn rename(config: &mut Config, args: &Rename) -> Result<String, Error> {
-    let Rename { project } = args;
+    let Rename { project, name } = args;
     let project = match super::fetch_project(project.as_deref(), config).await? {
         Flag::Project(project) => project,
         Flag::Filter(_) => unreachable!(),
@@ -193,7 +205,7 @@ pub async fn rename(config: &mut Config, args: &Rename) -> Result<String, Error>
         config,
         &format!("Calling projects::rename with project:\n{project}"),
     );
-    projects::rename(config, &project).await
+    projects::rename(config, &project, name.as_deref()).await
 }
 
 pub async fn import(config: &mut Config, args: &Import) -> Result<String, Error> {
@@ -214,6 +226,7 @@ pub async fn empty(config: &mut Config, args: &Empty) -> Result<String, Error> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test;
 
     #[tokio::test]
     async fn remove_rejects_conflicting_all_and_auto_flags() {
@@ -230,5 +243,48 @@ mod tests {
             .expect_err("conflicting flags should fail");
         assert_eq!(error.source, "project_remove");
         assert_eq!(error.message, "Incorrect flags provided");
+    }
+
+    #[test]
+    fn delete_force_flag_parses() {
+        let args =
+            Delete::try_parse_from(["tod", "--force"]).expect("delete arguments should parse");
+        assert!(args.force);
+    }
+
+    #[test]
+    fn rename_name_flag_parses() {
+        let args = Rename::try_parse_from(["tod", "-p", "myproject", "-n", "renamed"])
+            .expect("rename arguments should parse");
+        assert_eq!(args.project.as_deref(), Some("myproject"));
+        assert_eq!(args.name.as_deref(), Some("renamed"));
+    }
+
+    #[tokio::test]
+    async fn rename_uses_name_flag_without_prompt() {
+        let mut config = test::fixtures::config()
+            .await
+            .create()
+            .await
+            .expect("creating config should succeed");
+        let args = Rename {
+            project: Some("myproject".to_string()),
+            name: Some("renamed-project".to_string()),
+        };
+
+        let result = rename(&mut config, &args).await;
+        assert_eq!(result, Ok("✓".to_string()));
+
+        let projects = config
+            .projects()
+            .await
+            .expect("loading projects should succeed");
+        let project_names = projects
+            .iter()
+            .map(|project| project.name.as_str())
+            .collect::<Vec<&str>>();
+
+        assert!(project_names.contains(&"renamed-project"));
+        assert!(!project_names.contains(&"myproject"));
     }
 }
