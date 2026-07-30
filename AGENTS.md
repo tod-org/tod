@@ -11,7 +11,7 @@
 - Use the existing `Error` type (`src/errors.rs`) for error handling
 - `.unwrap()` and `.expect()` should only be used in test cases unless it is justified with code comments.
 - No `dbg!`, `TODO`, `FIXME`, `DEBUG:`, or `FIXTURE:` strings anywhere in `.rs` files — `scripts/test.sh` greps for these and fails the build
-- New business logic should have tests
+- New business logic should have tests covering both happy and sad paths
 
 ## Tests
 

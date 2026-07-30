@@ -986,6 +986,110 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_move_task_to_project_complete() {
+        let mut server = mockito::Server::new_async().await;
+        let task = test::fixtures::today_task().await;
+        let mock = server
+            .mock("POST", format!("/api/v1/tasks/{}/close", task.id).as_str())
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body("{}")
+            .create_async()
+            .await;
+
+        let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
+        let rx_handle = tokio::spawn(async move { while rx.recv().await.is_some() {} });
+
+        let mut config = test::fixtures::config()
+            .await
+            .with_mock_url(server.url())
+            .mock_select(1); // "Complete"
+        config.internal.tx = Some(tx);
+        let sections: Vec<Section> = Vec::new();
+
+        let handle = move_task_to_project(&mut config, task, &sections)
+            .await
+            .expect("complete should return a handle");
+        handle.await.expect("complete task should succeed");
+        rx_handle.abort();
+        mock.assert_async().await;
+    }
+
+    #[tokio::test]
+    async fn test_move_task_to_project_delete() {
+        let mut server = mockito::Server::new_async().await;
+        let task = test::fixtures::today_task().await;
+        let mock = server
+            .mock("DELETE", format!("/api/v1/tasks/{}", task.id).as_str())
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body("{}")
+            .create_async()
+            .await;
+
+        let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
+        let rx_handle = tokio::spawn(async move { while rx.recv().await.is_some() {} });
+
+        let mut config = test::fixtures::config()
+            .await
+            .with_mock_url(server.url())
+            .mock_select(3); // "Delete"
+        config.internal.tx = Some(tx);
+        let sections: Vec<Section> = Vec::new();
+
+        let handle = move_task_to_project(&mut config, task, &sections)
+            .await
+            .expect("delete should return a handle");
+        handle.await.expect("delete task should succeed");
+        rx_handle.abort();
+        mock.assert_async().await;
+    }
+
+    #[tokio::test]
+    async fn maybe_add_project_auto_adds() {
+        let mut config = test::fixtures::config()
+            .await
+            .create()
+            .await
+            .expect("config should be created");
+        let project = test::fixtures::project();
+        let result = maybe_add_project(&mut config, project, &true)
+            .await
+            .expect("auto add should succeed");
+        assert_eq!(result, "✓");
+    }
+
+    #[tokio::test]
+    async fn maybe_add_project_select_add() {
+        let mut config = test::fixtures::config()
+            .await
+            .mock_select(0) // "add"
+            .create()
+            .await
+            .expect("config should be created");
+        let project = test::fixtures::project();
+        let result = maybe_add_project(&mut config, project, &false)
+            .await
+            .expect("add via select should succeed");
+        assert_eq!(result, "✓");
+    }
+
+    #[tokio::test]
+    async fn maybe_add_project_select_skip() {
+        let mut config = test::fixtures::config()
+            .await
+            .mock_select(1) // "skip"
+            .create()
+            .await
+            .expect("config should be created");
+        let project = test::fixtures::project();
+        let result = maybe_add_project(&mut config, project, &false)
+            .await
+            .expect("skip via select should succeed");
+        assert_eq!(result, "Skipped");
+    }
+
+    #[tokio::test]
     async fn test_rename_task() {
         let mut server = mockito::Server::new_async().await;
         let mock = server

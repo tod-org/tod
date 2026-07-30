@@ -39,6 +39,7 @@ pub const CANCEL: &str = "Cancel";
 pub const QUIT: &str = "Quit";
 pub const SCHEDULE: &str = "Schedule";
 
+#[derive(Debug, PartialEq)]
 pub enum DateTimeInput {
     Skip,
     None,
@@ -258,5 +259,83 @@ mod tests {
         let result = select("type", vec!["there", "are", "words"], Some(1));
         let expected = Ok("are");
         assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn datetime_natural_language_only_returns_text() {
+        let result = datetime(
+            None,
+            Some("tomorrow at 3pm".into()),
+            Some(true),
+            false,
+            false,
+        );
+        assert_eq!(result, Ok(DateTimeInput::Text("tomorrow at 3pm".into())));
+    }
+
+    #[test]
+    fn datetime_no_natural_language_skip_complete_select_no_date() {
+        let result = datetime(Some(1), None, None, true, true);
+        assert_eq!(result, Ok(DateTimeInput::None));
+    }
+
+    #[test]
+    fn datetime_no_natural_language_skip_complete_select_skip() {
+        let result = datetime(Some(2), None, None, true, true);
+        assert_eq!(result, Ok(DateTimeInput::Skip));
+    }
+
+    #[test]
+    fn datetime_no_natural_language_skip_complete_select_complete() {
+        let result = datetime(Some(3), None, None, true, true);
+        assert_eq!(result, Ok(DateTimeInput::Complete));
+    }
+
+    #[test]
+    fn datetime_nat_lang_with_skip_complete_enter_none() {
+        let result = datetime(Some(1), Some("none".into()), None, false, true);
+        assert_eq!(result, Ok(DateTimeInput::None));
+    }
+
+    #[test]
+    fn datetime_nat_lang_with_skip_complete_enter_skip() {
+        let result = datetime(Some(1), Some("skip".into()), None, false, true);
+        assert_eq!(result, Ok(DateTimeInput::Skip));
+    }
+
+    #[test]
+    fn datetime_nat_lang_with_skip_complete_enter_complete() {
+        let result = datetime(Some(1), Some("complete".into()), None, false, true);
+        assert_eq!(result, Ok(DateTimeInput::Complete));
+    }
+
+    #[test]
+    fn datetime_nat_lang_with_skip_complete_enter_free_text() {
+        let result = datetime(Some(1), Some("next Monday".into()), None, false, true);
+        assert_eq!(result, Ok(DateTimeInput::Text("next Monday".into())));
+    }
+
+    #[test]
+    fn datetime_nat_lang_without_skip_complete_enter_none() {
+        let result = datetime(Some(1), Some("none".into()), None, false, false);
+        assert_eq!(result, Ok(DateTimeInput::None));
+    }
+
+    #[test]
+    fn datetime_nat_lang_without_skip_complete_enter_short_n() {
+        let result = datetime(Some(1), Some("n".into()), None, false, false);
+        assert_eq!(result, Ok(DateTimeInput::None));
+    }
+
+    #[test]
+    fn datetime_nat_lang_without_skip_complete_enter_free_text() {
+        let result = datetime(Some(1), Some("Friday".into()), None, false, false);
+        assert_eq!(result, Ok(DateTimeInput::Text("Friday".into())));
+    }
+
+    #[test]
+    fn datetime_select_no_date_from_default_options() {
+        let result = datetime(Some(2), None, None, false, false);
+        assert_eq!(result, Ok(DateTimeInput::None));
     }
 }

@@ -45,3 +45,6 @@ forge.yaml
 
 # pi
 .pi-subagents
+
+/mutants.out
+/mutants.out.old

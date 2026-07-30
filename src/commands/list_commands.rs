@@ -395,4 +395,121 @@ mod tests {
         let args = View::try_parse_from(["tod"]).expect("view arguments should be valid");
         assert_eq!(args.sort.to_string(), "datetime");
     }
+
+    #[test]
+    fn is_md_file_returns_true_for_markdown() {
+        let dir = tempfile::tempdir().expect("temp dir should be created");
+        std::fs::write(dir.path().join("readme.md"), "# Hello").expect("file should be created");
+        let entry = walkdir::WalkDir::new(dir.path())
+            .into_iter()
+            .filter_map(|e| e.ok())
+            .find(|e| e.file_name() == "readme.md")
+            .expect("readme.md should be found");
+        assert!(is_md_file(&entry));
+    }
+
+    #[test]
+    fn is_md_file_case_insensitive() {
+        let dir = tempfile::tempdir().expect("temp dir should be created");
+        std::fs::write(dir.path().join("NOTES.MD"), "# Notes").expect("file should be created");
+        let entry = walkdir::WalkDir::new(dir.path())
+            .into_iter()
+            .filter_map(|e| e.ok())
+            .find(|e| e.file_name() == "NOTES.MD")
+            .expect("NOTES.MD should be found");
+        assert!(is_md_file(&entry));
+    }
+
+    #[test]
+    fn is_md_file_returns_false_for_non_markdown() {
+        let dir = tempfile::tempdir().expect("temp dir should be created");
+        std::fs::write(dir.path().join("data.txt"), "hello").expect("file should be created");
+        let entry = walkdir::WalkDir::new(dir.path())
+            .into_iter()
+            .filter_map(|e| e.ok())
+            .find(|e| e.file_name() == "data.txt")
+            .expect("data.txt should be found");
+        assert!(!is_md_file(&entry));
+    }
+
+    #[test]
+    fn is_md_file_returns_false_for_no_extension() {
+        let dir = tempfile::tempdir().expect("temp dir should be created");
+        std::fs::write(dir.path().join("Makefile"), "all:").expect("file should be created");
+        let entry = walkdir::WalkDir::new(dir.path())
+            .into_iter()
+            .filter_map(|e| e.ok())
+            .find(|e| e.file_name() == "Makefile")
+            .expect("Makefile should be found");
+        assert!(!is_md_file(&entry));
+    }
+
+    #[tokio::test]
+    async fn select_file_returns_path_when_file_exists() {
+        let dir = tempfile::tempdir().expect("temp dir should be created");
+        let file_path = dir.path().join("tasks.md");
+        std::fs::write(&file_path, "# Tasks").expect("file should be created");
+        let config = crate::config::Config::new(None, dir.path().join("tod.cfg"))
+            .await
+            .expect("config should be created");
+        let result = select_file(
+            file_path
+                .to_str()
+                .expect("path should be valid")
+                .to_string(),
+            &config,
+        );
+        assert!(result.is_ok());
+        assert_eq!(
+            result.unwrap(),
+            file_path.to_str().expect("path should be valid")
+        );
+    }
+
+    #[tokio::test]
+    async fn select_file_returns_error_for_nonexistent_path() {
+        let dir = tempfile::tempdir().expect("temp dir should be created");
+        let config = crate::config::Config::new(None, dir.path().join("tod.cfg"))
+            .await
+            .expect("config should be created");
+        let result = select_file(
+            dir.path()
+                .join("nonexistent")
+                .to_str()
+                .expect("path should be valid")
+                .to_string(),
+            &config,
+        );
+        assert!(result.is_err());
+        assert!(
+            result
+                .unwrap_err()
+                .message
+                .contains("neither a file nor a directory")
+        );
+    }
+
+    #[tokio::test]
+    async fn select_file_picks_md_from_directory() {
+        let dir = tempfile::tempdir().expect("temp dir should be created");
+        std::fs::write(dir.path().join("a.md"), "A").expect("file should be created");
+        std::fs::write(dir.path().join("b.md"), "B").expect("file should be created");
+        std::fs::write(dir.path().join("c.txt"), "C").expect("file should be created");
+        let config = crate::config::Config::new(None, dir.path().join("tod.cfg"))
+            .await
+            .expect("config should be created")
+            .mock_select(0);
+        let result = select_file(
+            dir.path()
+                .to_str()
+                .expect("path should be valid")
+                .to_string(),
+            &config,
+        );
+        assert!(
+            result.is_ok(),
+            "selecting first .md file from dir should succeed"
+        );
+        assert!(result.unwrap().ends_with("a.md"));
+    }
 }
