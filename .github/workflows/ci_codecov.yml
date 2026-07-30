@@ -8,9 +8,9 @@ permissions:
 
 on:
   push:
-    # Trigger the workflow on push
-    branches-ignore:
-      - 'dependabot/**'
+    # Post-merge only; PR branch coverage is handled by ci-pr.yml
+    branches:
+      - main
     paths:
       - "**/*.rs" # Run if there are changes in Rust source files.
       - "**/*.json" # Run if there are changes in JSON files.
