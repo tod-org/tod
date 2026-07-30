@@ -3,7 +3,9 @@ permissions:
   contents: read
 
 on:
-  push:                # run on pushes to any branch
+  push:
+    branches:
+      - main # post-merge only; PR branches are covered by pull_request below
   pull_request:
   workflow_dispatch:
   schedule:

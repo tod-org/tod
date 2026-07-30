@@ -6,8 +6,8 @@ name: CI Push
 
 on:
   push:
-    branches-ignore:
-      - 'release-please--**' # release-please's PR branch is covered by ci-pr.yml / ci-release.yml
+    branches:
+      - main # post-merge only; PR branches are covered by ci-pr.yml
   workflow_dispatch:
 
 concurrency:
