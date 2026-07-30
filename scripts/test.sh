@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+echo "=== FORMAT ===" &&
+cargo fmt --all &&
 echo "=== CHECK ===" &&
 cargo check &&
 echo "=== CLIPPY ===" &&

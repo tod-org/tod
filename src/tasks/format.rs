@@ -213,6 +213,7 @@ fn byte_index_for_char_count(text: &str, char_count: usize) -> Option<usize> {
 #[cfg(test)]
 mod tests {
     use crate::format;
+    use crate::format::hyperlinks_disabled;
     use crate::tasks::DateInfo;
     use crate::test;
     use crate::test::responses::ResponseFromFile;
@@ -396,6 +397,47 @@ mod tests {
         };
         let not_found = project(&task_not_found, &config, "  ").await.unwrap();
         assert!(not_found.contains("Project not in config"));
+    }
+
+    #[test]
+    fn hyperlinks_disabled_when_config_set() {
+        let mut config = Config::default();
+        config.disable_links = true;
+        assert!(hyperlinks_disabled(&config));
+    }
+
+    #[test]
+    fn hyperlinks_disabled_when_terminal_lacks_support() {
+        let config = Config::default();
+        // In CI / non-terminal environments, supports_hyperlinks returns false,
+        // so hyperlinks_disabled should be true even when disable_links is false.
+        if !supports_hyperlinks::on(Stream::Stdout) {
+            assert!(hyperlinks_disabled(&config));
+        }
+    }
+
+    #[test]
+    fn hyperlinks_enabled_when_supported_and_not_disabled() {
+        let config = Config::default();
+        if supports_hyperlinks::on(Stream::Stdout) {
+            assert!(!hyperlinks_disabled(&config));
+        }
+    }
+
+    #[tokio::test]
+    async fn render_comments_truncates_long_content() {
+        let config = test::fixtures::config().await;
+        let long_comment = Comment {
+            content: "A".repeat(5000),
+            ..test::fixtures::comment()
+        };
+        // 20 comments × 5000 chars each = well over the default max_comment_length
+        let comments = vec![long_comment; 20];
+        let result = render_comments(&config, comments)
+            .await
+            .expect("render_comments should succeed");
+        // The result should be truncated (ends with ...)
+        assert!(result.ends_with("..."));
     }
 
     #[tokio::test]

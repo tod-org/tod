@@ -876,4 +876,78 @@ mod tests {
             "Expected missing config error, got: {err}"
         );
     }
+
+    #[tokio::test]
+    async fn load_propagates_non_not_found_io_error() {
+        let dir = tempdir().expect("temp dir should be created");
+        // Place a file at the base so that opening <file>/sub/tod.cfg yields ENOTDIR, not NotFound.
+        let block = dir.path().join("block");
+        tokio::fs::write(&block, b"x")
+            .await
+            .expect("blocking file should be created");
+        let config_path = block.join("sub").join("tod.cfg");
+
+        let result = Config::load(&config_path).await;
+        assert!(result.is_err(), "non-NotFound IO error should propagate");
+    }
+
+    #[tokio::test]
+    async fn save_preserves_verbose_from_disk() {
+        let (_temp_dir, path) = temp_config_path("save_preserves_verbose.cfg");
+        // Create a config on disk with verbose = true
+        let mut config = Config::new(None, path.clone())
+            .await
+            .expect("config should be created")
+            .with_token("t")
+            .with_timezone("UTC");
+        config.verbose = Some(true);
+        config.touch_file().await.expect("file should be touched");
+        config.save().await.expect("config should be saved");
+
+        // Load fresh and change verbose to None, then save
+        let mut loaded = Config::load(&path).await.expect("config should load");
+        assert_eq!(
+            loaded.verbose,
+            Some(true),
+            "verbose should be true from disk"
+        );
+        loaded.verbose = None;
+        loaded.save().await.expect("save should succeed");
+
+        // Reload — verbose should still be true (preserved from disk)
+        let reloaded = Config::load(&path).await.expect("config should reload");
+        assert_eq!(
+            reloaded.verbose,
+            Some(true),
+            "verbose should be preserved from on-disk value"
+        );
+    }
+
+    #[tokio::test]
+    async fn reload_preserves_internal_and_time_provider() {
+        let (_temp_dir, path) = temp_config_path("reload_preserves.cfg");
+        let (tx, _rx) = tokio::sync::mpsc::unbounded_channel();
+        let mut config = Config::new(Some(tx.clone()), path.clone())
+            .await
+            .expect("config should be created")
+            .with_token("t")
+            .with_timezone("UTC")
+            .with_time_provider(crate::time::TimeProviderEnum::Fixed(
+                crate::test_time::FixedTimeProvider,
+            ));
+        config.touch_file().await.expect("file should be touched");
+        config.save().await.expect("config should be saved");
+
+        let reloaded = config.reload().await.expect("reload should succeed");
+        // internal is preserved from the in-memory config, not from disk
+        assert!(
+            reloaded.internal.tx.is_some(),
+            "internal tx should be preserved across reload"
+        );
+        // time_provider is also preserved from the in-memory config (not reset to System default)
+        assert!(matches!(
+            reloaded.time_provider,
+            crate::time::TimeProviderEnum::Fixed(_)
+        ));
+    }
 }

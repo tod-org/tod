@@ -152,4 +152,24 @@ mod tests {
             "error message should explain empty/whitespace rejection"
         );
     }
+
+    #[tokio::test]
+    async fn load_or_create_config_propagates_non_not_found_error() {
+        let dir = tempdir().expect("temp dir should be created");
+        // Create a file at the base path so that joining a sub-path produces
+        // an ENOTDIR error (not a NotFound), which exercises the Err(e) => Err(e.into()) arm.
+        let file_path = dir.path().join("not-a-dir");
+        tokio::fs::write(&file_path, b"block")
+            .await
+            .expect("blocking file should be created");
+        let config_path = file_path.join("sub").join("tod.cfg");
+
+        let result = load_or_create_config(Some(config_path)).await;
+        let err = result.expect_err("non-NotFound IO error should propagate");
+        assert_eq!(
+            err.source, "io",
+            "error should be from the non-NotFound IO conversion, got source: {}",
+            err.source
+        );
+    }
 }

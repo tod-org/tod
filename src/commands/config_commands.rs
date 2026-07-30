@@ -583,7 +583,6 @@ mod tests {
         // Ensure the mock was actually called
         mock.assert();
     }
-
     #[tokio::test]
     async fn test_set_timezone_requires_auth() {
         let config = Config::default();
@@ -599,5 +598,42 @@ mod tests {
                 .contains("No auth present - run \"tod auth login\""),
             "error should guide user to auth login"
         );
+    }
+
+    #[test]
+    fn remove_key_recursive_from_array_of_objects() {
+        let mut value = serde_json::json!({
+            "items": [
+                {"keep": 1, "bad": "x"},
+                {"keep": 2, "bad": "y"},
+                {"keep": 3}
+            ]
+        });
+        let removed = remove_key_recursive(&mut value, "bad");
+        assert_eq!(removed, 2);
+        // Verify the key is gone from array elements
+        let items = value["items"].as_array().expect("items should be an array");
+        assert!(items[0]["bad"].is_null());
+        assert!(items[1]["bad"].is_null());
+        assert_eq!(items[0]["keep"], serde_json::json!(1));
+    }
+
+    #[test]
+    fn remove_key_recursive_from_nested_arrays() {
+        let mut value = serde_json::json!({
+            "outer": [
+                {"inner": [{"bad": 1}, {"ok": 2}]},
+                {"inner": [{"bad": 3}]}
+            ]
+        });
+        let removed = remove_key_recursive(&mut value, "bad");
+        assert_eq!(removed, 2);
+    }
+
+    #[test]
+    fn remove_key_recursive_no_match_returns_zero() {
+        let mut value = serde_json::json!({"a": 1, "b": [{"c": 2}]});
+        let removed = remove_key_recursive(&mut value, "nonexistent");
+        assert_eq!(removed, 0);
     }
 }
