@@ -133,6 +133,36 @@ fn import_projects(config: &Path) {
         .success();
 }
 
+/// Resets the dynamic project to a known-empty state by deleting it (which
+/// removes all tasks atomically via a single API call) and immediately
+/// recreating it. This is faster than the cleanup loop which must call
+/// `task next` repeatedly until empty.
+///
+/// After this call the project exists in both Todoist and the local config
+/// with a fresh ID; all subsequent `--project DYNAMIC_PROJECT` commands
+/// will target the new project.
+fn reset_dynamic_project(config: &Path) {
+    tod()
+        .arg("--config")
+        .arg(config)
+        .args([
+            "project",
+            "delete",
+            "--project",
+            DYNAMIC_PROJECT,
+            "--force",
+        ])
+        .assert()
+        .success();
+
+    tod()
+        .arg("--config")
+        .arg(config)
+        .args(["project", "create", "--name", DYNAMIC_PROJECT])
+        .assert()
+        .success();
+}
+
 /// Cleanup helper: repeatedly calls `task next --project` and completes tasks
 /// while the returned task contains `[E2E]`. Stops when no tasks remain.
 ///
@@ -587,8 +617,7 @@ fn dynamic_task_lifecycle() {
     let (_dir, config) = setup_config();
     import_projects(&config);
 
-    cleanup_project_tasks(&config, DYNAMIC_PROJECT);
-    pause_for_api_sync();
+    reset_dynamic_project(&config);
 
     // Create 4 tasks at different priorities
     for priority in [4, 3, 2, 1].iter() {
@@ -626,9 +655,6 @@ fn dynamic_task_lifecycle() {
         task_complete(&config);
         pause_for_api_sync();
     }
-
-    cleanup_project_tasks(&config, DYNAMIC_PROJECT);
-    pause_for_api_sync();
 }
 
 /// Create a task, add a comment, verify comment appears in task next output.
@@ -638,8 +664,7 @@ fn task_comment_create_is_visible_on_next() {
     let (_dir, config) = setup_config();
     import_projects(&config);
 
-    // Cleanup confirms empty (3 consecutive checks), so no extra pause needed.
-    cleanup_project_tasks(&config, DYNAMIC_PROJECT);
+    reset_dynamic_project(&config);
 
     let task_content = "[E2E] Comment Test";
     let comment_content = "e2e test comment";
@@ -708,8 +733,7 @@ fn empty_project_list_and_next_show_nothing_present() {
     let (_dir, config) = setup_config();
     import_projects(&config);
 
-    cleanup_project_tasks(&config, DYNAMIC_PROJECT);
-    pause_for_api_sync();
+    reset_dynamic_project(&config);
 
     tod()
         .arg("--config")
