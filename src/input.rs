@@ -338,4 +338,30 @@ mod tests {
         let result = datetime(Some(2), None, None, false, false);
         assert_eq!(result, Ok(DateTimeInput::None));
     }
+
+    #[test]
+    fn datetime_without_natural_language_and_without_skip_complete_matches_else_branch() {
+        // no_natural_language=false, skip_or_complete=false
+        // With the correct code, the else branch fires with options:
+        // [SELECT_DATE(0), NAT_LANG(1), NO_DATE(2)]
+        // mock_select=2 selects NO_DATE.
+        let result = datetime(Some(2), None, None, false, false);
+        assert_eq!(result, Ok(DateTimeInput::None));
+    }
+
+    #[test]
+    fn bool_select_returns_false_when_cursor_starts_on_true() {
+        // default_value=true → cursor starts on false (index 1)
+        // mock_select=0 overrides and picks the first option (true)
+        let result = bool("test", true, Some(0));
+        assert_eq!(result, Ok(true));
+    }
+
+    #[test]
+    fn bool_select_returns_true_when_cursor_starts_on_false() {
+        // default_value=false → cursor starts on true (index 0)
+        // mock_select=1 picks the second option (false)
+        let result = bool("test", false, Some(1));
+        assert_eq!(result, Ok(false));
+    }
 }

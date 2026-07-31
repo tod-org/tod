@@ -347,4 +347,12 @@ mod tests {
 
         assert!(is_no_sections(&args, &config));
     }
+
+    #[test]
+    fn is_no_sections_returns_false_when_both_are_disabled() {
+        let args = create_args();
+        let config = Config::default();
+
+        assert!(!is_no_sections(&args, &config));
+    }
 }
