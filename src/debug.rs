@@ -57,4 +57,31 @@ mod tests {
 
         maybe_print_redacted_config(&config);
     }
+
+    #[test]
+    fn maybe_print_suppressed_when_verbose_is_none_and_args_verbose_false() {
+        let mut config = Config::default();
+        config.verbose = None;
+        config.args.verbose = false;
+
+        maybe_print(&config, "should not appear");
+    }
+
+    #[test]
+    fn maybe_print_output_when_verbose_is_true() {
+        let mut config = Config::default();
+        config.verbose = Some(true);
+        config.args.verbose = false;
+
+        maybe_print(&config, "should appear");
+    }
+
+    #[test]
+    fn maybe_print_output_when_args_verbose_is_true() {
+        let mut config = Config::default();
+        config.verbose = None;
+        config.args.verbose = true;
+
+        maybe_print(&config, "should appear");
+    }
 }

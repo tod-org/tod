@@ -302,6 +302,59 @@ mod tests {
         assert_eq!(truncate_comment_text(text, 80, Some(10)), text);
     }
 
+    #[test]
+    fn test_truncate_comment_text_at_exact_max_length() {
+        let text = "1234567890";
+
+        assert_eq!(truncate_comment_text(text, 10, None), text);
+    }
+
+    #[test]
+    fn char_boundary_at_or_after_exact_boundary() {
+        assert_eq!(char_boundary_at_or_after("hello", 0), 0);
+        assert_eq!(char_boundary_at_or_after("hello", 5), 5);
+    }
+
+    #[test]
+    fn char_boundary_at_or_after_mid_unicode_char() {
+        let text = "a✓b";
+        let boundary = char_boundary_at_or_after(text, 1);
+        assert_eq!(&text[..boundary], "a");
+    }
+
+    #[test]
+    fn char_boundary_at_or_after_past_end() {
+        assert_eq!(char_boundary_at_or_after("hi", 100), 2);
+    }
+
+    #[test]
+    fn byte_index_for_char_count_zero() {
+        assert_eq!(byte_index_for_char_count("hello", 0), Some(0));
+    }
+
+    #[test]
+    fn byte_index_for_char_count_exact() {
+        assert_eq!(byte_index_for_char_count("abc", 2), Some(2));
+    }
+
+    #[test]
+    fn byte_index_for_char_count_beyond_end_returns_text_len() {
+        assert_eq!(byte_index_for_char_count("hi", 10), Some(2));
+    }
+
+    #[test]
+    fn comment_truncation_boundary_skips_width_zero() {
+        let text = "0123456789abcdef";
+        let boundary = comment_truncation_boundary(text, 5, Some(0));
+        assert_eq!(boundary, 5);
+    }
+
+    #[test]
+    fn comment_truncation_boundary_returns_text_len_when_within_limit() {
+        let text = "short";
+        assert_eq!(comment_truncation_boundary(text, 80, None), text.len());
+    }
+
     #[tokio::test]
     async fn test_content_priority_and_links() {
         let config = test::fixtures::config().await;

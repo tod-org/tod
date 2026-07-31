@@ -128,6 +128,15 @@ mod tests {
     }
 
     #[test]
+    fn detect_install_method_returns_from_source_in_debug_builds() {
+        // In debug/test builds, cfg!(debug_assertions) is true, so
+        // detect_install_method should return FromSource regardless of path.
+        // The test binary also runs from under target/, adding a second
+        // layer of confidence.
+        assert_eq!(detect_install_method(), InstallMethod::FromSource);
+    }
+
+    #[test]
     fn test_get_install_method_string() {
         assert_eq!(get_install_method_string(Some("cargo")), "cargo");
         assert_eq!(get_install_method_string(Some("scoop")), "scoop");

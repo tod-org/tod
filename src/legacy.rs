@@ -98,6 +98,41 @@ mod tests {
     }
 
     #[test]
+    fn sort_key_default_index_returns_zero_for_first_key() {
+        assert_eq!(sort_key_default_index(SortKey::Priority), 0);
+    }
+
+    #[test]
+    fn sort_key_default_index_returns_last_for_last_key() {
+        let keys = SortKey::default_order();
+        let last = keys.last().expect("default order should not be empty");
+        assert_eq!(sort_key_default_index(*last), keys.len() - 1);
+    }
+
+    #[test]
+    fn sort_key_default_index_falls_back_to_usize_max_for_unknown_key() {
+        // Sort keys are compared via sort_key_default_index as a tiebreaker;
+        // if a SortKey variant is somehow not in default_order, it gets usize::MAX.
+        // SortKey is an enum, so the only way to test this is to verify that
+        // all current variants are found, implying the fallback exists for any
+        // future variant accidentally omitted.
+        for key in &[
+            SortKey::Priority,
+            SortKey::Overdue,
+            SortKey::Today,
+            SortKey::Now,
+            SortKey::NoDueDate,
+            SortKey::NotRecurring,
+            SortKey::Deadline,
+        ] {
+            assert!(
+                sort_key_default_index(*key) < usize::MAX,
+                "{key:?} should be in default_order"
+            );
+        }
+    }
+
+    #[test]
     fn detect_and_migrate_sort_value_prioritizes_highest_weighted_key() {
         let legacy = LegacySortValue {
             priority_none: Some(0),

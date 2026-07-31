@@ -227,6 +227,8 @@ pub async fn empty(config: &mut Config, args: &Empty) -> Result<String, Error> {
 mod tests {
     use super::*;
     use crate::test;
+    use crate::test::responses::ResponseFromFile;
+    use mockito::Server;
 
     #[tokio::test]
     async fn remove_rejects_conflicting_all_and_auto_flags() {
@@ -243,6 +245,124 @@ mod tests {
             .expect_err("conflicting flags should fail");
         assert_eq!(error.source, "project_remove");
         assert_eq!(error.message, "Incorrect flags provided");
+    }
+
+    #[tokio::test]
+    async fn delete_force_skips_confirmation_prompt_for_non_empty_project() {
+        let mut server = mockito::Server::new_async().await;
+
+        let _tasks_mock = server
+            .mock("GET", "/api/v1/tasks/?project_id=123&limit=200")
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(ResponseFromFile::TodayTasks.read().await)
+            .create_async()
+            .await;
+
+        let delete_mock = server
+            .mock("DELETE", "/api/v1/projects/123")
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(ResponseFromFile::Project.read().await)
+            .create_async()
+            .await;
+
+        let mut config = test::fixtures::config()
+            .await
+            .with_mock_url(server.url())
+            .mock_select(0)
+            .create()
+            .await
+            .expect("config should be created");
+
+        let args = Delete {
+            force: true,
+            project: Some("myproject".into()),
+            repeat: false,
+        };
+
+        let result = delete(&mut config, &args)
+            .await
+            .expect("force delete should succeed");
+
+        assert!(!result.contains("Cancelled"));
+        delete_mock.assert_async().await;
+    }
+
+    #[tokio::test]
+    async fn delete_cancels_when_user_selects_cancel_for_non_empty_project() {
+        let mut server = mockito::Server::new_async().await;
+
+        let tasks_mock = server
+            .mock("GET", "/api/v1/tasks/?project_id=123&limit=200")
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(ResponseFromFile::TodayTasks.read().await)
+            .create_async()
+            .await;
+
+        let mut config = test::fixtures::config()
+            .await
+            .with_mock_url(server.url())
+            .mock_select(0) // selects CANCEL (first option) in confirmation prompt
+            .create()
+            .await
+            .expect("config should be created");
+
+        let args = Delete {
+            force: false,
+            project: Some("myproject".into()),
+            repeat: false,
+        };
+
+        let result = delete(&mut config, &args)
+            .await
+            .expect("cancel should not error");
+
+        assert_eq!(result, "Cancelled");
+        tasks_mock.assert_async().await;
+    }
+
+    #[tokio::test]
+    async fn delete_confirms_and_removes_project_when_user_selects_delete() {
+        let mut server = mockito::Server::new_async().await;
+
+        let tasks_mock = server
+            .mock("GET", "/api/v1/tasks/?project_id=123&limit=200")
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(ResponseFromFile::TodayTasks.read().await)
+            .create_async()
+            .await;
+
+        let delete_mock = server
+            .mock("DELETE", "/api/v1/projects/123")
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(ResponseFromFile::Project.read().await)
+            .create_async()
+            .await;
+
+        let mut config = test::fixtures::config()
+            .await
+            .with_mock_url(server.url())
+            .mock_select(1) // selects DELETE (second option) in confirmation prompt
+            .create()
+            .await
+            .expect("config should be created");
+
+        let args = Delete {
+            force: false,
+            project: Some("myproject".into()),
+            repeat: false,
+        };
+
+        let result = delete(&mut config, &args)
+            .await
+            .expect("delete should succeed");
+
+        assert!(!result.contains("Cancelled"));
+        delete_mock.assert_async().await;
     }
 
     #[test]
