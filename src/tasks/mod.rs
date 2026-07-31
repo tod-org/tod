@@ -2117,4 +2117,31 @@ mod tests {
         future_mock.assert();
         nodate_mock.assert();
     }
+
+    #[tokio::test]
+    async fn test_reject_parent_tasks_keeps_tasks_without_parent_id() {
+        // Tasks with no parent_id are kept (unless checked).
+        // No API calls should be made since there's no parent to look up.
+        let base = test::fixtures::today_task().await;
+        let orphan = Task {
+            id: "orphan".into(),
+            parent_id: None,
+            checked: false,
+            ..base.clone()
+        };
+        let checked_orphan = Task {
+            id: "checked-orphan".into(),
+            parent_id: None,
+            checked: true,
+            ..base
+        };
+        let tasks = vec![orphan.clone(), checked_orphan];
+
+        let config = test::fixtures::config().await;
+
+        let result = reject_parent_tasks(tasks, &config).await;
+        // The unchecked orphan is kept; the checked orphan is filtered out.
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].id, orphan.id);
+    }
 }
