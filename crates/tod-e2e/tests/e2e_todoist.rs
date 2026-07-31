@@ -469,11 +469,13 @@ fn list_view_sort_value_orders_by_priority() {
     );
 }
 
-/// `list view --sort datetime` orders tasks by due date (dated tasks first, then no-date).
+/// `list view --sort datetime` orders tasks by due date (no-date first, then ascending).
 ///
-/// Tasks with a date sort before tasks without one.  The overdue fixture task
-/// (`[E2E-STATIC] Overdue High Priority`) carries the earliest date, so it
-/// must appear before the no-date task (`[E2E-STATIC] No Date No Label`).
+/// `sort_by_datetime` uses `sort_by_key` on `Option<DateTime>`, and Rust's
+/// default `Option` ordering puts `None` before `Some(_)`, so tasks without a
+/// due date appear first.  The no-date fixture task
+/// (`[E2E-STATIC] No Date No Label`) must therefore appear before the overdue
+/// task (`[E2E-STATIC] Overdue High Priority`) which carries an explicit date.
 #[test]
 fn list_view_sort_datetime_orders_by_date() {
     let (_dir, config) = setup_config();
@@ -502,17 +504,17 @@ fn list_view_sort_datetime_orders_by_date() {
         tasks.len()
     );
 
-    let pos_overdue = tasks
-        .iter()
-        .position(|l| l.contains("[E2E-STATIC] Overdue High Priority"))
-        .expect("overdue fixture task should be in output");
     let pos_no_date = tasks
         .iter()
         .position(|l| l.contains("[E2E-STATIC] No Date No Label"))
         .expect("no-date fixture task should be in output");
+    let pos_overdue = tasks
+        .iter()
+        .position(|l| l.contains("[E2E-STATIC] Overdue High Priority"))
+        .expect("overdue fixture task should be in output");
     assert!(
-        pos_overdue < pos_no_date,
-        "overdue task (pos {pos_overdue}) should appear before no-date task (pos {pos_no_date})"
+        pos_no_date < pos_overdue,
+        "no-date task (pos {pos_no_date}) should appear before overdue task (pos {pos_overdue})"
     );
 }
 
