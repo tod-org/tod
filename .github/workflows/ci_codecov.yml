@@ -1,10 +1,12 @@
-# This workflow is designed to run tests and collect code coverage data using Codecov to ensure code quality.
+# Collects code coverage using LLVM source-based instrumentation and uploads to Codecov.
+# Uses cargo-llvm-cov + nextest so each test runs in its own process (required by
+# src/debug.rs tests which use gag::BufferRedirect to capture stdout).
 
 name: Codecov
 
 permissions:
-  contents: read # Allow the workflow to read repository contents
-  pull-requests: write # Allow the workflow to write to pull requests
+  contents: read
+  pull-requests: write
 
 on:
   push:
@@ -12,17 +14,19 @@ on:
     branches:
       - main
     paths:
-      - "**/*.rs" # Run if there are changes in Rust source files.
-      - "**/*.json" # Run if there are changes in JSON files.
-      - "**/*.lock" # Run if there are changes in lock files.
-      - "**/*.toml" # Run if there are changes in TOML files.
+      - "**/*.rs"
+      - "**/*.json"
+      - "**/*.lock"
+      - "**/*.toml"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
   CARGO_TERM_COLOR: always
   CARGO_INCREMENTAL: 0
   CARGO_PROFILE_TEST_DEBUG: 0
-  CARGO_PROFILE_RELEASE_LTO: true
-  CARGO_PROFILE_RELEASE_CODEGEN_UNITS: 1
 
 jobs:
   coverage:
@@ -31,15 +35,20 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: llvm-tools-preview
       - uses: Swatinem/rust-cache@v2
         with:
           cache-all-crates: true
+          prefix-key: "v1-coverage"
       - uses: taiki-e/install-action@v2
         with:
-          tool: cargo-tarpaulin
+          tool: cargo-llvm-cov,nextest
       - name: Run tests with coverage
-        run: cargo tarpaulin --out xml --frozen --skip-clean
-      - name: Upload to codecov.io
+        run: cargo llvm-cov nextest --profile ci --all-features --lcov --output-path lcov.info
+      - name: Upload coverage to codecov.io
         uses: codecov/codecov-action@v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
+          files: lcov.info
+          disable_search: true
