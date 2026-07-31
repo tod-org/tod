@@ -36,6 +36,7 @@ pub fn print(text: &str) {
 mod tests {
     use super::*;
     use crate::config::Config;
+    use std::io::Read;
 
     #[test]
     fn redact_token_keeps_first_four_chars() {
@@ -58,30 +59,87 @@ mod tests {
         maybe_print_redacted_config(&config);
     }
 
+    // These cases use gag::BufferRedirect which replaces the process-wide stdout fd.
+    // They cannot run in parallel with each other (or any other test that touches
+    // stdout). cargo test runs tests in threads and will fail; use cargo nextest
+    // instead, which runs each test in its own process.
     #[test]
-    fn maybe_print_suppressed_when_verbose_is_none_and_args_verbose_false() {
-        let mut config = Config::default();
-        config.verbose = None;
-        config.args.verbose = false;
+    fn buffer_redirect_tests_cannot_run_in_parallel() {
+        // maybe_print suppressed when verbose is None and args.verbose is false
+        {
+            let mut config = Config::default();
+            config.verbose = None;
+            config.args.verbose = false;
 
-        maybe_print(&config, "should not appear");
-    }
+            let mut buf = gag::BufferRedirect::stdout().expect("should buffer stdout");
+            maybe_print(&config, "should not appear");
+            let mut output = String::new();
+            buf.read_to_string(&mut output)
+                .expect("output should be readable");
 
-    #[test]
-    fn maybe_print_output_when_verbose_is_true() {
-        let mut config = Config::default();
-        config.verbose = Some(true);
-        config.args.verbose = false;
+            assert!(output.is_empty());
+        }
 
-        maybe_print(&config, "should appear");
-    }
+        // maybe_print output when verbose is true
+        {
+            let mut config = Config::default();
+            config.verbose = Some(true);
+            config.args.verbose = false;
 
-    #[test]
-    fn maybe_print_output_when_args_verbose_is_true() {
-        let mut config = Config::default();
-        config.verbose = None;
-        config.args.verbose = true;
+            let mut buf = gag::BufferRedirect::stdout().expect("should buffer stdout");
+            maybe_print(&config, "should appear");
+            let mut output = String::new();
+            buf.read_to_string(&mut output)
+                .expect("output should be readable");
 
-        maybe_print(&config, "should appear");
+            assert!(output.contains("should appear"));
+        }
+
+        // maybe_print output when args.verbose is true
+        {
+            let mut config = Config::default();
+            config.verbose = None;
+            config.args.verbose = true;
+
+            let mut buf = gag::BufferRedirect::stdout().expect("should buffer stdout");
+            maybe_print(&config, "should appear");
+            let mut output = String::new();
+            buf.read_to_string(&mut output)
+                .expect("output should be readable");
+
+            assert!(output.contains("should appear"));
+        }
+
+        // maybe_print_redacted_config suppressed when not verbose
+        {
+            let mut config = Config::default();
+            config.verbose = None;
+            config.args.verbose = false;
+            config.token = Some("abcd1234".to_string());
+
+            let mut buf = gag::BufferRedirect::stdout().expect("should buffer stdout");
+            maybe_print_redacted_config(&config);
+            let mut output = String::new();
+            buf.read_to_string(&mut output)
+                .expect("output should be readable");
+
+            assert!(output.is_empty());
+        }
+
+        // maybe_print_redacted_config output when verbose
+        {
+            let mut config = Config::default();
+            config.verbose = Some(true);
+            config.args.verbose = false;
+            config.token = Some("abcd1234".to_string());
+
+            let mut buf = gag::BufferRedirect::stdout().expect("should buffer stdout");
+            maybe_print_redacted_config(&config);
+            let mut output = String::new();
+            buf.read_to_string(&mut output)
+                .expect("output should be readable");
+
+            assert!(output.contains("abcdxxxx"));
+        }
     }
 }
