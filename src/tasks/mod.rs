@@ -271,8 +271,13 @@ impl Task {
             Ok(DateTimeInfo::Date { date, .. }) => {
                 let naive_datetime = date.and_hms_opt(23, 59, 00)?;
 
+                // Mirror datetimeinfo()'s per-task timezone resolution:
+                // use due.timezone if present, otherwise the config default.
                 let tz_string = config.get_timezone().ok()?;
-                let tz = time::timezone_from_str(&tz_string).ok()?;
+                let tz = match self.due.as_ref().and_then(|due| due.timezone.as_deref()) {
+                    None => time::timezone_from_str(&tz_string).ok()?,
+                    Some(other_timezone) => time::timezone_from_str(other_timezone).ok()?,
+                };
 
                 naive_datetime.and_local_timezone(tz).single()
             }
