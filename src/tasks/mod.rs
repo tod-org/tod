@@ -917,46 +917,46 @@ pub async fn reject_parent_tasks(tasks: Vec<Task>, config: &Config) -> Vec<Task>
         .map(|task| task.id.clone())
         .collect::<HashSet<String>>();
 
+    // Pre-fetch distinct parent tasks missing from the current set so siblings
+    // sharing the same absent parent don't each trigger a redundant API call.
+    let missing_parent_ids: HashSet<&String> = parent_ids
+        .iter()
+        .filter(|id| !task_ids.contains(*id))
+        .collect();
+    let mut future_parents = std::collections::HashMap::new();
+    for parent_id in &missing_parent_ids {
+        match todoist::get_task(config, parent_id).await {
+            Err(e) => {
+                config
+                    .clone()
+                    .tx()
+                    .send(e)
+                    .expect("expected value or result, got None or Err");
+            }
+            Ok(parent) => {
+                let is_future = !(parent.is_overdue(config).unwrap_or_default()
+                    || parent.has_no_date()
+                    || parent.is_today(config).unwrap_or_default());
+                future_parents.insert((*parent_id).clone(), is_future);
+            }
+        }
+    }
+
     let mut filtered_tasks = Vec::new();
     for task in tasks {
-        if !parent_ids.contains(&task.id)
-            && !task.checked
-            && !parent_in_future(&task, &task_ids, config).await
-        {
-            filtered_tasks.push(task);
+        if !parent_ids.contains(&task.id) && !task.checked {
+            let parent_is_future = task
+                .parent_id
+                .as_ref()
+                .and_then(|pid| future_parents.get(pid).copied())
+                .unwrap_or(false);
+            if !parent_is_future {
+                filtered_tasks.push(task);
+            }
         }
     }
 
     filtered_tasks
-}
-
-// Need to make sure that we are not completing a subtask for a parent task that is in the future
-async fn parent_in_future(task: &Task, task_ids: &HashSet<String>, config: &Config) -> bool {
-    match &task.parent_id {
-        None => false,
-        Some(parent_id) => {
-            if task_ids.contains(parent_id) {
-                false
-            } else {
-                // look up id and see if it is in the future
-                match todoist::get_task(config, parent_id).await {
-                    Err(e) => {
-                        config
-                            .clone()
-                            .tx()
-                            .send(e)
-                            .expect("expected value or result, got None or Err");
-                        false
-                    }
-                    Ok(task) => {
-                        !(task.is_overdue(config).unwrap_or_default()
-                            || task.has_no_date()
-                            || task.is_today(config).unwrap_or_default())
-                    }
-                }
-            }
-        }
-    }
 }
 
 pub async fn set_priority(
@@ -1866,5 +1866,288 @@ mod tests {
         let task = test::fixtures::today_task().await;
         let string = String::from("TEST");
         assert_eq!(string, task.to_string());
+    }
+
+    // ── reject_parent_tasks ──────────────────────────────────────────
+
+    #[tokio::test]
+    async fn test_reject_parent_tasks_siblings_share_single_api_call() {
+        // Two children with the same absent parent that is in the future.
+        // The memoization in reject_parent_tasks should call get_task
+        // exactly once, not once per child.
+        let mut server = mockito::Server::new_async().await;
+        let future_date = "2099-12-31T12:00:00Z";
+        let mock = server
+            .mock("GET", "/api/v1/tasks/parent-future")
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(format!(
+                r#"{{
+                    "id": "parent-future",
+                    "user_id": "910",
+                    "project_id": "p1",
+                    "content": "parent",
+                    "priority": 1,
+                    "child_order": 1,
+                    "day_order": -1,
+                    "checked": false,
+                    "is_deleted": false,
+                    "is_collapsed": false,
+                    "labels": [],
+                    "note_count": 0,
+                    "description": "",
+                    "due": {{
+                        "date": "{future_date}",
+                        "lang": "en",
+                        "is_recurring": false,
+                        "string": "2099-12-31 12:00",
+                        "timezone": null
+                    }}
+                }}"#
+            ))
+            .expect(1)
+            .create_async()
+            .await;
+
+        let base = test::fixtures::today_task().await;
+        let child1 = Task {
+            id: "child-1".into(),
+            parent_id: Some("parent-future".into()),
+            ..base.clone()
+        };
+        let child2 = Task {
+            id: "child-2".into(),
+            parent_id: Some("parent-future".into()),
+            ..base
+        };
+        let tasks = vec![child1, child2];
+
+        let config = test::fixtures::config().await.with_mock_url(server.url());
+
+        let result = reject_parent_tasks(tasks, &config).await;
+        assert!(result.is_empty());
+        mock.assert();
+    }
+
+    #[tokio::test]
+    async fn test_reject_parent_tasks_keeps_child_when_parent_has_no_date() {
+        // A child whose parent is not in the current set but the parent
+        // has no due date should be kept (parent is not in the future).
+        let mut server = mockito::Server::new_async().await;
+        let mock = server
+            .mock("GET", "/api/v1/tasks/parent-nodate")
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(ResponseFromFile::Task.read().await)
+            .expect(1)
+            .create_async()
+            .await;
+
+        let base = test::fixtures::today_task().await;
+        let child = Task {
+            id: "child".into(),
+            parent_id: Some("parent-nodate".into()),
+            ..base
+        };
+        let tasks = vec![child.clone()];
+
+        let config = test::fixtures::config().await.with_mock_url(server.url());
+
+        let result = reject_parent_tasks(tasks, &config).await;
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].id, child.id);
+        mock.assert();
+    }
+
+    #[tokio::test]
+    async fn test_reject_parent_tasks_keeps_child_when_parent_is_overdue() {
+        // A child whose parent is not in the current set but the parent
+        // is overdue should be kept.
+        let mut server = mockito::Server::new_async().await;
+        let mock = server
+            .mock("GET", "/api/v1/tasks/parent-overdue")
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(
+                r#"{
+                    "id": "parent-overdue",
+                    "user_id": "910",
+                    "project_id": "p1",
+                    "content": "overdue parent",
+                    "priority": 1,
+                    "child_order": 1,
+                    "day_order": -1,
+                    "checked": false,
+                    "is_deleted": false,
+                    "is_collapsed": false,
+                    "labels": [],
+                    "note_count": 0,
+                    "description": "",
+                    "due": {
+                        "date": "2020-01-01T12:00:00Z",
+                        "lang": "en",
+                        "is_recurring": false,
+                        "string": "2020-01-01 12:00",
+                        "timezone": null
+                    }
+                }"#,
+            )
+            .expect(1)
+            .create_async()
+            .await;
+
+        let base = test::fixtures::today_task().await;
+        let child = Task {
+            id: "child".into(),
+            parent_id: Some("parent-overdue".into()),
+            ..base
+        };
+        let tasks = vec![child.clone()];
+
+        let config = test::fixtures::config().await.with_mock_url(server.url());
+
+        let result = reject_parent_tasks(tasks, &config).await;
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].id, child.id);
+        mock.assert();
+    }
+
+    #[tokio::test]
+    async fn test_reject_parent_tasks_keeps_child_when_parent_in_set() {
+        // When the parent is present in the current task set, no API call
+        // is made and the child is kept.
+        let base = test::fixtures::today_task().await;
+        let parent = Task {
+            id: "parent-present".into(),
+            parent_id: None,
+            ..base.clone()
+        };
+        let child = Task {
+            id: "child".into(),
+            parent_id: Some("parent-present".into()),
+            ..base
+        };
+        let tasks = vec![parent, child.clone()];
+
+        let config = test::fixtures::config().await;
+
+        let result = reject_parent_tasks(tasks, &config).await;
+        // The parent is filtered out (it's a parent of another task),
+        // but the child is kept because its parent is in the task set.
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].id, child.id);
+    }
+
+    #[tokio::test]
+    async fn test_reject_parent_tasks_skips_checked_tasks() {
+        // Checked tasks are excluded regardless of parent status.
+        let base = test::fixtures::today_task().await;
+        let checked_child = Task {
+            id: "checked-child".into(),
+            parent_id: Some("parent-absent".into()),
+            checked: true,
+            ..base.clone()
+        };
+        let unchecked_child = Task {
+            id: "unchecked-child".into(),
+            parent_id: Some("parent-absent".into()),
+            checked: false,
+            ..base
+        };
+        let tasks = vec![checked_child.clone(), unchecked_child.clone()];
+
+        // Only the unchecked child has a parent_id not in the set, so only
+        // one API call. The checked child is skipped before any API lookup.
+        let mut server = mockito::Server::new_async().await;
+        let mock = server
+            .mock("GET", "/api/v1/tasks/parent-absent")
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(ResponseFromFile::Task.read().await)
+            .expect(1)
+            .create_async()
+            .await;
+
+        let config = test::fixtures::config().await.with_mock_url(server.url());
+
+        let result = reject_parent_tasks(tasks, &config).await;
+        // The checked child is excluded (checked tasks are always filtered
+        // out); the unchecked child is kept because the parent (no date) is
+        // not in the future.
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].id, unchecked_child.id);
+        mock.assert();
+    }
+
+    #[tokio::test]
+    async fn test_reject_parent_tasks_multiple_distinct_missing_parents() {
+        // Two children with different missing parents: one future, one
+        // no-date. Each distinct parent ID is fetched exactly once.
+        let mut server = mockito::Server::new_async().await;
+
+        let future_date = "2099-12-31T12:00:00Z";
+        let future_mock = server
+            .mock("GET", "/api/v1/tasks/parent-future")
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(format!(
+                r#"{{
+                    "id": "parent-future",
+                    "user_id": "910",
+                    "project_id": "p1",
+                    "content": "future",
+                    "priority": 1,
+                    "child_order": 1,
+                    "day_order": -1,
+                    "checked": false,
+                    "is_deleted": false,
+                    "is_collapsed": false,
+                    "labels": [],
+                    "note_count": 0,
+                    "description": "",
+                    "due": {{
+                        "date": "{future_date}",
+                        "lang": "en",
+                        "is_recurring": false,
+                        "string": "2099-12-31 12:00",
+                        "timezone": null
+                    }}
+                }}"#
+            ))
+            .expect(1)
+            .create_async()
+            .await;
+
+        let nodate_mock = server
+            .mock("GET", "/api/v1/tasks/parent-nodate")
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(ResponseFromFile::Task.read().await)
+            .expect(1)
+            .create_async()
+            .await;
+
+        let base = test::fixtures::today_task().await;
+        let future_child = Task {
+            id: "future-child".into(),
+            parent_id: Some("parent-future".into()),
+            ..base.clone()
+        };
+        let nodate_child = Task {
+            id: "nodate-child".into(),
+            parent_id: Some("parent-nodate".into()),
+            ..base
+        };
+        let tasks = vec![future_child, nodate_child.clone()];
+
+        let config = test::fixtures::config().await.with_mock_url(server.url());
+
+        let result = reject_parent_tasks(tasks, &config).await;
+        // future child is rejected (parent is in the future),
+        // nodate child is kept (parent has no date).
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].id, nodate_child.id);
+        future_mock.assert();
+        nodate_mock.assert();
     }
 }
