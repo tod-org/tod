@@ -638,8 +638,8 @@ fn task_comment_create_is_visible_on_next() {
     let (_dir, config) = setup_config();
     import_projects(&config);
 
+    // Cleanup confirms empty (3 consecutive checks), so no extra pause needed.
     cleanup_project_tasks(&config, DYNAMIC_PROJECT);
-    pause_for_api_sync();
 
     let task_content = "[E2E] Comment Test";
     let comment_content = "e2e test comment";
@@ -673,11 +673,12 @@ fn task_comment_create_is_visible_on_next() {
         .success();
     pause_for_api_sync();
 
-    // Verify comment appears in next
+    // Verify comment appears in next — task ID is already cached from the
+    // assert_next_task call above, so task_complete can follow immediately
+    // without re-fetching via the cleanup loop (which would be slow because
+    // every task next call on a comment-bearing task incurs an extra API round-trip).
     assert_next_task(&config, DYNAMIC_PROJECT, comment_content);
-
-    cleanup_project_tasks(&config, DYNAMIC_PROJECT);
-    pause_for_api_sync();
+    task_complete(&config);
 }
 
 /// Static recurring fixture is returned by the `recurring` filter.
