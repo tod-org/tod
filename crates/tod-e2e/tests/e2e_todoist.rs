@@ -5,7 +5,7 @@
 //! - `TOD_DEV_CI_DYNAMIC` — reused across tests, tasks cleaned between runs
 //! - A third `TOD_DEV_CI_PROJECTXXXX` — for project lifecycle tests (rename, delete, import) will be automatically created and deleted.
 //!
-//! The API token (`TOD_E2E_TOKEN`) is available to maintainers, in Github Secrets, or in CI only.
+//! The API token (`TOD_E2E_TOKEN`) is available to maintainers, in GitHub Secrets, or in CI only.
 //!
 //! # Usage
 //!
@@ -135,13 +135,10 @@ fn import_projects(config: &Path) {
 
 /// Cleanup helper: repeatedly calls `task next --project` and completes tasks
 /// while the returned task contains `[E2E]`. Stops when no tasks remain.
+///
+/// Only completes tasks prefixed with `[E2E]` so non-fixture tasks are never
+/// touched. Avoids `project empty` which is interactive and would hang in CI.
 fn cleanup_project_tasks(config: &Path, project: &str) {
-    let _ = tod()
-        .arg("--config")
-        .arg(config)
-        .args(["project", "empty", "--project", project])
-        .output();
-
     let mut consecutive_empty_checks = 0_u8;
     for _ in 0..80 {
         let output = tod()
@@ -426,6 +423,10 @@ fn project_import_auto_includes_static_project() {
 }
 
 /// `list view --sort value` orders tasks by priority (highest first).
+///
+/// The default sort order puts `Priority:desc` first, so the p1 fixture task
+/// (`[E2E-STATIC] Overdue High Priority`) must appear before the p4 task
+/// (`[E2E-STATIC] No Date No Label`).
 #[test]
 fn list_view_sort_value_orders_by_priority() {
     let (_dir, config) = setup_config();
@@ -453,9 +454,26 @@ fn list_view_sort_value_orders_by_priority() {
         "expected at least 6 tasks, got {}",
         tasks.len()
     );
+
+    let pos_high = tasks
+        .iter()
+        .position(|l| l.contains("[E2E-STATIC] Overdue High Priority"))
+        .expect("high-priority fixture task should be in output");
+    let pos_none = tasks
+        .iter()
+        .position(|l| l.contains("[E2E-STATIC] No Date No Label"))
+        .expect("no-priority fixture task should be in output");
+    assert!(
+        pos_high < pos_none,
+        "high-priority task (pos {pos_high}) should appear before no-priority task (pos {pos_none})"
+    );
 }
 
-/// `list view --sort datetime` orders tasks by due date (no-date first, then ascending).
+/// `list view --sort datetime` orders tasks by due date (dated tasks first, then no-date).
+///
+/// Tasks with a date sort before tasks without one.  The overdue fixture task
+/// (`[E2E-STATIC] Overdue High Priority`) carries the earliest date, so it
+/// must appear before the no-date task (`[E2E-STATIC] No Date No Label`).
 #[test]
 fn list_view_sort_datetime_orders_by_date() {
     let (_dir, config) = setup_config();
@@ -482,6 +500,19 @@ fn list_view_sort_datetime_orders_by_date() {
         tasks.len() >= 6,
         "expected at least 6 tasks, got {}",
         tasks.len()
+    );
+
+    let pos_overdue = tasks
+        .iter()
+        .position(|l| l.contains("[E2E-STATIC] Overdue High Priority"))
+        .expect("overdue fixture task should be in output");
+    let pos_no_date = tasks
+        .iter()
+        .position(|l| l.contains("[E2E-STATIC] No Date No Label"))
+        .expect("no-date fixture task should be in output");
+    assert!(
+        pos_overdue < pos_no_date,
+        "overdue task (pos {pos_overdue}) should appear before no-date task (pos {pos_no_date})"
     );
 }
 
