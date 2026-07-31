@@ -304,6 +304,12 @@ pub async fn comment(config: Config, args: &Comment) -> Result<String, Error> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test;
+    use crate::test::responses::ResponseFromFile;
+    use crate::test_time::FixedTimeProvider;
+    use crate::time::TimeProviderEnum;
+    use mockito;
+    use pretty_assertions::assert_eq;
 
     fn create_args() -> Create {
         Create {
@@ -354,5 +360,93 @@ mod tests {
         let config = Config::default();
 
         assert!(!is_no_sections(&args, &config));
+    }
+
+    #[tokio::test]
+    async fn edit_routes_to_filter_and_edits_content() {
+        let tasks_body = ResponseFromFile::TodayTasks.read().await;
+        let first_task = crate::tasks::TaskResponse::from_json(&tasks_body)
+            .expect("should parse tasks")
+            .results
+            .into_iter()
+            .next()
+            .expect("should have at least one task");
+
+        let mut server = mockito::Server::new_async().await;
+        let mock = server
+            .mock(
+                "GET",
+                mockito::Matcher::Regex(r"^/api/v1/tasks/filter\?query=myfilter.*".to_string()),
+            )
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(&tasks_body)
+            .create_async()
+            .await;
+
+        let mut config = test::fixtures::config()
+            .await
+            .with_mock_url(server.url())
+            .with_time_provider(TimeProviderEnum::Fixed(FixedTimeProvider));
+        config.mock_select = Some(0);
+
+        let args = Edit {
+            project: None,
+            filter: Some("myfilter".to_string()),
+        };
+
+        let result = edit(config, &args).await;
+
+        assert!(result.is_ok(), "edit should succeed; got: {result:?}");
+        assert!(result.unwrap().contains("Finished editing"));
+        mock.assert();
+    }
+
+    #[tokio::test]
+    async fn next_routes_to_filter_and_finds_task() {
+        let tasks_body = ResponseFromFile::TodayTasks.read().await;
+
+        let mut server = mockito::Server::new_async().await;
+        let tasks_mock = server
+            .mock(
+                "GET",
+                mockito::Matcher::Regex(r"^/api/v1/tasks/filter\?query=myfilter.*".to_string()),
+            )
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(&tasks_body)
+            .create_async()
+            .await;
+        let comments_mock = server
+            .mock(
+                "GET",
+                mockito::Matcher::Regex(r"^/api/v1/comments/\?task_id=.*".to_string()),
+            )
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body("{\"results\":[],\"next_cursor\":null}")
+            .create_async()
+            .await;
+
+        let config = test::fixtures::config()
+            .await
+            .with_mock_url(server.url())
+            .with_time_provider(TimeProviderEnum::Fixed(FixedTimeProvider));
+        config
+            .touch_file()
+            .await
+            .expect("should create config file");
+
+        let args = Next {
+            project: None,
+            filter: Some("myfilter".to_string()),
+        };
+
+        let result = next(config, &args).await;
+
+        assert!(result.is_ok(), "next should succeed; got: {result:?}");
+        assert!(result.unwrap().contains("task(s) remaining"));
+        tasks_mock.assert();
+        comments_mock.assert();
     }
 }

@@ -537,6 +537,13 @@ async fn maybe_fetch_labels(config: &Config, labels: &[String]) -> Result<Vec<St
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::tasks::priority::Priority;
+    use crate::test;
+    use crate::test::responses::ResponseFromFile;
+    use crate::test_time::FixedTimeProvider;
+    use crate::time::TimeProviderEnum;
+    use mockito;
+    use tokio::sync::mpsc;
 
     #[test]
     fn build_command_result_uses_config_bell_settings() {
@@ -585,5 +592,123 @@ mod tests {
 
         let result = ensure_auth_present(&config, "test-source");
         assert!(result.is_ok());
+    }
+
+    #[test]
+    fn with_cli_context_sets_verbose_timeout_and_tx() {
+        let (tx, _rx) = mpsc::unbounded_channel::<Error>();
+        let cli = Cli {
+            verbose: true,
+            config: None,
+            timeout: Some(42),
+            command: Commands::Test(TestCommands::All(test_commands::All {})),
+        };
+        let config = Config::default();
+
+        let result = with_cli_context(config, &cli, &tx);
+
+        assert!(result.args.verbose);
+        assert_eq!(result.args.timeout, Some(42));
+        assert!(result.internal.tx.is_some());
+    }
+
+    #[test]
+    fn fetch_filter_returns_provided_value() {
+        let config = Config::default();
+
+        let result = fetch_filter(Some("myfilter"), &config);
+
+        let flag = result.expect("filter should be returned");
+        assert!(matches!(flag, Flag::Filter(f) if f == "myfilter"));
+    }
+
+    #[test]
+    fn fetch_filter_uses_mock_string_when_none() {
+        let mut config = Config::default();
+        config.mock_string = Some("prompted-filter".to_string());
+
+        let result = fetch_filter(None, &config);
+
+        let flag = result.expect("filter should be prompted");
+        assert!(matches!(flag, Flag::Filter(f) if f == "prompted-filter"));
+    }
+
+    #[test]
+    fn fetch_priority_returns_from_valid_integer() {
+        let config = Config::default();
+
+        let result = fetch_priority(Some(4), &config);
+
+        let priority = result.expect("priority 4 should be High");
+        assert_eq!(priority, Priority::High);
+    }
+
+    #[test]
+    fn fetch_priority_uses_mock_select_when_none() {
+        let mut config = Config::default();
+        config.mock_select = Some(1);
+
+        let result = fetch_priority(None, &config);
+
+        let priority = result.expect("should select priority from list");
+        assert_eq!(priority, Priority::Low);
+    }
+
+    #[test]
+    fn fetch_string_returns_provided_value() {
+        let config = Config::default();
+
+        let result = fetch_string(Some("hello"), &config, "test prompt");
+
+        assert_eq!(result.expect("should return provided string"), "hello");
+    }
+
+    #[test]
+    fn fetch_string_uses_mock_string_when_none() {
+        let mut config = Config::default();
+        config.mock_string = Some("mocked input".to_string());
+
+        let result = fetch_string(None, &config, "test prompt");
+
+        assert_eq!(result.expect("should return mocked string"), "mocked input");
+    }
+
+    #[tokio::test]
+    async fn maybe_fetch_labels_returns_provided_labels() {
+        let config = Config::default();
+        let labels = vec!["label1".to_string(), "label2".to_string()];
+
+        let result = maybe_fetch_labels(&config, &labels).await;
+
+        assert_eq!(
+            result.expect("should return provided labels"),
+            vec!["label1", "label2"]
+        );
+    }
+
+    #[tokio::test]
+    async fn maybe_fetch_labels_fetches_from_api_when_empty() {
+        let mut server = mockito::Server::new_async().await;
+        let mock = server
+            .mock("GET", "/api/v1/labels?limit=200")
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(ResponseFromFile::Labels.read().await)
+            .create_async()
+            .await;
+
+        let config = test::fixtures::config()
+            .await
+            .with_mock_url(server.url())
+            .with_time_provider(TimeProviderEnum::Fixed(FixedTimeProvider));
+
+        let result = maybe_fetch_labels(&config, &[]).await;
+
+        assert!(
+            result.is_ok(),
+            "should fetch labels from API when none provided"
+        );
+        assert!(!result.unwrap().is_empty());
+        mock.assert();
     }
 }
