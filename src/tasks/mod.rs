@@ -483,10 +483,7 @@ pub async fn label_task(
     Ok(tokio::spawn(async move {
         if label.as_str() == input::SKIP {
         } else if let Err(e) = todoist::add_task_label(&config, &task, label, false).await {
-            config
-                .tx()
-                .send(e)
-                .expect("Failed to send error on task channel");
+            let _ = config.tx().send(e);
         }
     }))
 }
@@ -520,7 +517,9 @@ pub async fn process_task(
     let selection = input::select(input::OPTION, options, config.mock_select)?;
     match selection.as_str() {
         input::COMPLETE => {
-            reloaded_config.save().await.expect("Could not save config");
+            if let Err(e) = reloaded_config.save().await {
+                eprintln!("Could not save config: {e}");
+            }
             Ok(Some(spawn_complete_task(reloaded_config, task.id)))
         }
         input::DELETE => Ok(Some(spawn_delete_task(config.clone(), task.id))),
@@ -707,10 +706,7 @@ pub async fn spawn_deadline_task(
 pub fn spawn_complete_task(config: Config, task_id: String) -> JoinHandle<()> {
     tokio::spawn(async move {
         if let Err(e) = todoist::complete_task(&config, &task_id, false).await {
-            config
-                .tx()
-                .send(e)
-                .expect("Failed to send error on task channel");
+            let _ = config.tx().send(e);
         }
     })
 }
@@ -719,10 +715,7 @@ pub fn spawn_complete_task(config: Config, task_id: String) -> JoinHandle<()> {
 pub fn spawn_delete_task(config: Config, task_id: String) -> JoinHandle<()> {
     tokio::spawn(async move {
         if let Err(e) = todoist::delete_task(&config, &task_id, false).await {
-            config
-                .tx()
-                .send(e)
-                .expect("Failed to send error on task channel");
+            let _ = config.tx().send(e);
         }
     })
 }
@@ -739,10 +732,7 @@ pub fn spawn_update_task_due(
             todoist::update_task_due_natural_language(&config, &task, due_string, duration, false)
                 .await
         {
-            config
-                .tx()
-                .send(e)
-                .expect("Failed to send error on task channel");
+            let _ = config.tx().send(e);
         }
     })
 }
@@ -751,10 +741,7 @@ pub fn spawn_update_task_due(
 pub fn spawn_create_reminder(config: Config, task: Task, due_string: String) -> JoinHandle<()> {
     tokio::spawn(async move {
         if let Err(e) = todoist::create_reminder(&config, &task, &due_string, false).await {
-            config
-                .tx()
-                .send(e)
-                .expect("Failed to send error on task channel");
+            let _ = config.tx().send(e);
         }
     })
 }
@@ -767,10 +754,7 @@ pub fn spawn_update_task_deadline(
 ) -> JoinHandle<()> {
     tokio::spawn(async move {
         if let Err(e) = todoist::update_task_deadline(&config, &task_id, date, false).await {
-            config
-                .tx()
-                .send(e)
-                .expect("Failed to send error on task channel");
+            let _ = config.tx().send(e);
         }
     })
 }
@@ -779,10 +763,7 @@ pub fn spawn_update_task_deadline(
 pub fn spawn_comment_task(config: Config, task_id: String, task_comment: String) -> JoinHandle<()> {
     tokio::spawn(async move {
         if let Err(e) = todoist::create_comment(&config, &task_id, &task_comment, false).await {
-            config
-                .tx()
-                .send(e)
-                .expect("Failed to send error on task channel");
+            let _ = config.tx().send(e);
         }
     })
 }
@@ -795,10 +776,7 @@ pub fn spawn_update_task_content(
 ) -> JoinHandle<()> {
     tokio::spawn(async move {
         if let Err(e) = todoist::update_task_content(&config, &task_id, &content, false).await {
-            config
-                .tx()
-                .send(e)
-                .expect("Failed to send error on task channel");
+            let _ = config.tx().send(e);
         }
     })
 }
@@ -813,10 +791,7 @@ pub fn spawn_update_task_description(
         if let Err(e) =
             todoist::update_task_description(&config, &task_id, &description, false).await
         {
-            config
-                .tx()
-                .send(e)
-                .expect("Failed to send error on task channel");
+            let _ = config.tx().send(e);
         }
     })
 }
@@ -829,10 +804,7 @@ pub fn spawn_update_task_labels(
 ) -> JoinHandle<()> {
     tokio::spawn(async move {
         if let Err(e) = todoist::update_task_labels(&config, &task_id, labels, false).await {
-            config
-                .tx()
-                .send(e)
-                .expect("Failed to send error on task channel");
+            let _ = config.tx().send(e);
         }
     })
 }
@@ -845,10 +817,7 @@ pub fn spawn_update_task_priority(
 ) -> JoinHandle<()> {
     tokio::spawn(async move {
         if let Err(e) = todoist::update_task_priority(&config, &task_id, &priority, false).await {
-            config
-                .tx()
-                .send(e)
-                .expect("Failed to send error on task channel");
+            let _ = config.tx().send(e);
         }
     })
 }
@@ -932,11 +901,7 @@ pub async fn reject_parent_tasks(tasks: Vec<Task>, config: &Config) -> Vec<Task>
     for parent_id in &missing_parent_ids {
         match todoist::get_task(config, parent_id).await {
             Err(e) => {
-                config
-                    .clone()
-                    .tx()
-                    .send(e)
-                    .expect("expected value or result, got None or Err");
+                let _ = config.clone().tx().send(e);
             }
             Ok(parent) => {
                 let is_future = !(parent.is_overdue(config).unwrap_or_default()
@@ -986,10 +951,7 @@ pub async fn set_priority(
     let config = config.clone();
     Ok(tokio::spawn(async move {
         if let Err(e) = todoist::update_task_priority(&config, &task.id, &priority, false).await {
-            config
-                .tx()
-                .send(e)
-                .expect("Failed to send error on task channel");
+            let _ = config.tx().send(e);
         }
     }))
 }
