@@ -10,9 +10,14 @@ permissions:
 
 on:
   push:
-    # Post-merge only; PR branch coverage is handled by ci-pr.yml
     branches:
       - main
+    paths:
+      - "**/*.rs"
+      - "**/*.json"
+      - "**/*.lock"
+      - "**/*.toml"
+  pull_request:
     paths:
       - "**/*.rs"
       - "**/*.json"
