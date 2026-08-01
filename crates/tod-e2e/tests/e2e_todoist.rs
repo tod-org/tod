@@ -217,7 +217,7 @@ fn assert_next_task(config: &Path, project: &str, expected: &str) {
 }
 
 fn pause_for_api_sync() {
-    sleep(Duration::from_secs(2));
+    sleep(Duration::from_millis(750));
 }
 
 /// Calls `task complete` (completes the last task returned by `task next`).
