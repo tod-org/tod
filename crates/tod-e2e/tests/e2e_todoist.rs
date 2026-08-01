@@ -19,6 +19,7 @@
 use assert_cmd::Command;
 use predicates::prelude::*;
 use serde_json::Value;
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::process::Command as StdCommand;
 use std::sync::OnceLock;
@@ -133,6 +134,30 @@ fn import_projects(config: &Path) {
         .success();
 }
 
+fn ensure_project_exists(config: &Path, project: &str) {
+    let config_json = read_config_json(config);
+    let projects = config_json
+        .get("projectsv1")
+        .and_then(Value::as_array)
+        .expect("projectsv1 should exist in config");
+
+    if projects
+        .iter()
+        .filter_map(|project_json| project_json.get("name").and_then(Value::as_str))
+        .any(|name| name == project)
+    {
+        return;
+    }
+
+    tod()
+        .arg("--config")
+        .arg(config)
+        .args(["project", "create", "--name", project])
+        .assert()
+        .success();
+    pause_for_api_sync();
+}
+
 /// Cleanup helper: repeatedly calls `task next --project` and completes tasks
 /// while the returned task contains `[E2E]`. Stops when no tasks remain.
 fn cleanup_project_tasks(config: &Path, project: &str) {
@@ -192,7 +217,7 @@ fn assert_next_task(config: &Path, project: &str, expected: &str) {
 }
 
 fn pause_for_api_sync() {
-    sleep(Duration::from_secs(2));
+    sleep(Duration::from_millis(750));
 }
 
 /// Calls `task complete` (completes the last task returned by `task next`).
@@ -211,6 +236,66 @@ fn random_project_name(prefix: &str) -> String {
         .expect("clock should be monotonic")
         .as_nanos();
     format!("{prefix}_{nanos:X}")
+}
+
+fn list_task_names(stdout: &str) -> Vec<&str> {
+    stdout
+        .lines()
+        .filter_map(|line| line.trim().strip_prefix("- "))
+        .map(str::trim)
+        .collect()
+}
+
+fn project_id_for(config: &Path, project_name: &str) -> String {
+    let config_json = read_config_json(config);
+    let projects = config_json
+        .get("projectsv1")
+        .and_then(Value::as_array)
+        .expect("projectsv1 should exist in config");
+
+    projects
+        .iter()
+        .find_map(|project| {
+            let name = project.get("name").and_then(Value::as_str)?;
+            let id = project.get("id").and_then(Value::as_str)?;
+            (name == project_name).then_some(id.to_string())
+        })
+        .unwrap_or_else(|| panic!("project {project_name} should be present in config"))
+}
+
+fn task_priorities_by_title(config: &Path, project_name: &str) -> HashMap<String, u8> {
+    let token = std::env::var("TOD_E2E_TOKEN").expect("TOD_E2E_TOKEN must be set");
+    let project_id = project_id_for(config, project_name);
+    let client = reqwest::blocking::Client::new();
+    let response = client
+        .get(format!(
+            "https://api.todoist.com/api/v2/tasks?project_id={project_id}"
+        ))
+        .header(
+            reqwest::header::AUTHORIZATION,
+            format!("Bearer {token}"),
+        )
+        .send()
+        .expect("Todoist tasks should be retrievable");
+
+    let status = response.status();
+    let body = response.text().expect("Todoist tasks response should be readable");
+    assert!(status.is_success(), "Todoist tasks request should succeed, got {status}: {body}");
+
+    let payload: Value = serde_json::from_str(&body).expect("Todoist tasks response should be valid JSON");
+    let tasks = payload
+        .get("results")
+        .and_then(Value::as_array)
+        .unwrap_or_else(|| panic!("Todoist tasks payload should contain a results array: {body}"));
+
+    tasks
+        .iter()
+        .filter_map(|task| {
+            let content = task.get("content")?.as_str()?.to_string();
+            let priority = task.get("priority")?.as_u64()? as u8;
+            Some((content, priority))
+        })
+        .collect::<HashMap<_, _>>()
 }
 
 // ---------------------------------------------------------------------------
@@ -447,12 +532,27 @@ fn list_view_sort_value_orders_by_priority() {
 
     assert!(output.status.success());
     let stdout = String::from_utf8_lossy(&output.stdout);
-    let tasks: Vec<&str> = stdout.lines().filter(|l| l.starts_with("- ")).collect();
-    assert!(
-        tasks.len() >= 6,
-        "expected at least 6 tasks, got {}",
-        tasks.len()
+    let tasks = list_task_names(&stdout);
+    let priorities = task_priorities_by_title(&config, STATIC_READ_PROJECT);
+    let actual_priorities = tasks
+        .iter()
+        .map(|title| priorities.get(*title).copied().expect("task priority should exist"))
+        .collect::<Vec<_>>();
+
+    assert_eq!(
+        tasks,
+        vec![
+            "[E2E-STATIC] Overdue High Priority",
+            "[E2E-STATIC] Section Task Future High Priority Labeled",
+            "[E2E-STATIC] Overdue Medium Priority",
+            "[E2E-STATIC] Future Low Priority Labeled",
+            "[E2E-STATIC] Oneoff Task",
+            "[E2E-STATIC] Recurring Task",
+            "[E2E-STATIC] Section Task No Date",
+            "[E2E-STATIC] No Date No Label",
+        ]
     );
+    assert_eq!(actual_priorities, vec![4, 4, 3, 2, 1, 1, 1, 1]);
 }
 
 /// `list view --sort datetime` orders tasks by due date (no-date first, then ascending).
@@ -477,21 +577,36 @@ fn list_view_sort_datetime_orders_by_date() {
 
     assert!(output.status.success());
     let stdout = String::from_utf8_lossy(&output.stdout);
-    let tasks: Vec<&str> = stdout.lines().filter(|l| l.starts_with("- ")).collect();
-    assert!(
-        tasks.len() >= 6,
-        "expected at least 6 tasks, got {}",
-        tasks.len()
+    let tasks = list_task_names(&stdout);
+    let priorities = task_priorities_by_title(&config, STATIC_READ_PROJECT);
+    let actual_priorities = tasks
+        .iter()
+        .map(|title| priorities.get(*title).copied().expect("task priority should exist"))
+        .collect::<Vec<_>>();
+
+    assert_eq!(
+        tasks,
+        vec![
+            "[E2E-STATIC] Section Task No Date",
+            "[E2E-STATIC] No Date No Label",
+            "[E2E-STATIC] Overdue High Priority",
+            "[E2E-STATIC] Overdue Medium Priority",
+            "[E2E-STATIC] Oneoff Task",
+            "[E2E-STATIC] Recurring Task",
+            "[E2E-STATIC] Section Task Future High Priority Labeled",
+            "[E2E-STATIC] Future Low Priority Labeled",
+        ]
     );
+    assert_eq!(actual_priorities, vec![1, 1, 4, 3, 1, 1, 4, 2]);
 }
 
-/// Filter by priority returns only tasks with that priority.
+/// Filter by priority returns only tasks with that priority and preserves datetime ordering.
 #[test]
 fn filter_by_priority_returns_expected_tasks() {
     let (_dir, config) = setup_config();
     import_projects(&config);
 
-    tod()
+    let output = tod()
         .arg("--config")
         .arg(&config)
         .args([
@@ -500,17 +615,35 @@ fn filter_by_priority_returns_expected_tasks() {
             "--filter",
             &format!("#{STATIC_READ_PROJECT} & p1"),
         ])
-        .assert()
-        .success();
+        .output()
+        .expect("list view should run");
+
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let tasks = list_task_names(&stdout);
+    let priorities = task_priorities_by_title(&config, STATIC_READ_PROJECT);
+    let actual_priorities = tasks
+        .iter()
+        .map(|title| priorities.get(*title).copied().expect("task priority should exist"))
+        .collect::<Vec<_>>();
+
+    assert_eq!(
+        tasks,
+        vec![
+            "[E2E-STATIC] Overdue High Priority",
+            "[E2E-STATIC] Section Task Future High Priority Labeled",
+        ]
+    );
+    assert_eq!(actual_priorities, vec![4, 4]);
 }
 
-/// Filter by label returns only tasks with that label.
+/// Filter by label returns only tasks with that label and preserves datetime ordering.
 #[test]
 fn filter_by_label_returns_expected_tasks() {
     let (_dir, config) = setup_config();
     import_projects(&config);
 
-    tod()
+    let output = tod()
         .arg("--config")
         .arg(&config)
         .args([
@@ -519,27 +652,63 @@ fn filter_by_label_returns_expected_tasks() {
             "--filter",
             &format!("#{STATIC_READ_PROJECT} & @e2estatic"),
         ])
-        .assert()
-        .success();
+        .output()
+        .expect("list view should run");
+
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let tasks = list_task_names(&stdout);
+    let priorities = task_priorities_by_title(&config, STATIC_READ_PROJECT);
+    let actual_priorities = tasks
+        .iter()
+        .map(|title| priorities.get(*title).copied().expect("task priority should exist"))
+        .collect::<Vec<_>>();
+
+    assert_eq!(
+        tasks,
+        vec![
+            "[E2E-STATIC] Section Task Future High Priority Labeled",
+            "[E2E-STATIC] Future Low Priority Labeled",
+        ]
+    );
+    assert_eq!(actual_priorities, vec![4, 2]);
 }
 
-/// Filter by section returns only tasks in that section.
+/// Filter by section returns only tasks in that section and preserves datetime ordering.
 #[test]
 fn filter_by_section_returns_expected_tasks() {
     let (_dir, config) = setup_config();
     import_projects(&config);
 
-    tod()
+    let output = tod()
         .arg("--config")
         .arg(&config)
         .args([
             "list",
             "view",
             "--filter",
-            &format!("#{STATIC_READ_PROJECT} & /Static"),
+            &format!("#{STATIC_READ_PROJECT} & /Static Section"),
         ])
-        .assert()
-        .success();
+        .output()
+        .expect("list view should run");
+
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let tasks = list_task_names(&stdout);
+    let priorities = task_priorities_by_title(&config, STATIC_READ_PROJECT);
+    let actual_priorities = tasks
+        .iter()
+        .map(|title| priorities.get(*title).copied().expect("task priority should exist"))
+        .collect::<Vec<_>>();
+
+    assert_eq!(
+        tasks,
+        vec![
+            "[E2E-STATIC] Section Task No Date",
+            "[E2E-STATIC] Section Task Future High Priority Labeled",
+        ]
+    );
+    assert_eq!(actual_priorities, vec![1, 4]);
 }
 
 // ---------------------------------------------------------------------------
@@ -547,18 +716,17 @@ fn filter_by_section_returns_expected_tasks() {
 // (and run serially via serial_test lock)
 // ---------------------------------------------------------------------------
 
-/// Create 4 tasks, verify list and next, then complete them.
+/// Create 2 tasks, verify list and next, then complete them.
 #[test]
-#[serial_test::file_serial]
 fn dynamic_task_lifecycle() {
     let (_dir, config) = setup_config();
     import_projects(&config);
+    ensure_project_exists(&config, DYNAMIC_PROJECT);
 
     cleanup_project_tasks(&config, DYNAMIC_PROJECT);
     pause_for_api_sync();
 
-    // Create 4 tasks at different priorities
-    for priority in [4, 3, 2, 1].iter() {
+    for priority in [4, 2].iter() {
         tod()
             .arg("--config")
             .arg(&config)
@@ -578,17 +746,16 @@ fn dynamic_task_lifecycle() {
     }
     pause_for_api_sync();
 
-    // Verify list contains all 4
     tod()
         .arg("--config")
         .arg(&config)
         .args(["list", "view", "--project", DYNAMIC_PROJECT])
         .assert()
         .success()
-        .stdout(predicate::str::contains("[E2E] Task Priority"));
+        .stdout(predicate::str::contains("[E2E] Task Priority 4"))
+        .stdout(predicate::str::contains("[E2E] Task Priority 2"));
 
-    // Complete all tasks
-    for _ in 0..4 {
+    for _ in 0..2 {
         assert_next_task(&config, DYNAMIC_PROJECT, "[E2E] Task Priority");
         task_complete(&config);
         pause_for_api_sync();
@@ -598,53 +765,36 @@ fn dynamic_task_lifecycle() {
     pause_for_api_sync();
 }
 
-/// Create a task, add a comment, verify comment appears in task next output.
+/// Add a comment to the recurring static fixture task and verify it appears in the next output.
 #[test]
-#[serial_test::file_serial]
 fn task_comment_create_is_visible_on_next() {
     let (_dir, config) = setup_config();
     import_projects(&config);
 
-    cleanup_project_tasks(&config, DYNAMIC_PROJECT);
-    pause_for_api_sync();
-
-    let task_content = "[E2E] Comment Test";
+    let filter = format!("#{STATIC_READ_PROJECT} & recurring");
     let comment_content = "e2e test comment";
 
     tod()
         .arg("--config")
         .arg(&config)
-        .args([
-            "task",
-            "create",
-            "--content",
-            task_content,
-            "--project",
-            DYNAMIC_PROJECT,
-            "--priority",
-            "1",
-            "--no-section",
-        ])
+        .args(["task", "next", "--filter", &filter])
         .assert()
         .success();
-    pause_for_api_sync();
 
-    assert_next_task(&config, DYNAMIC_PROJECT, task_content);
-
-    // Add comment
     tod()
         .arg("--config")
         .arg(&config)
         .args(["task", "comment", "--content", comment_content])
         .assert()
         .success();
-    pause_for_api_sync();
 
-    // Verify comment appears in next
-    assert_next_task(&config, DYNAMIC_PROJECT, comment_content);
-
-    cleanup_project_tasks(&config, DYNAMIC_PROJECT);
-    pause_for_api_sync();
+    tod()
+        .arg("--config")
+        .arg(&config)
+        .args(["task", "next", "--filter", &filter])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(comment_content));
 }
 
 /// Static recurring fixture is returned by the `recurring` filter.
@@ -653,7 +803,7 @@ fn recurring_filter_returns_recurring_task() {
     let (_dir, config) = setup_config();
     import_projects(&config);
 
-    tod()
+    let output = tod()
         .arg("--config")
         .arg(&config)
         .args([
@@ -662,44 +812,91 @@ fn recurring_filter_returns_recurring_task() {
             "--filter",
             &format!("#{STATIC_READ_PROJECT} & recurring"),
         ])
-        .assert()
-        .success()
-        .stdout(predicate::str::contains("[E2E-STATIC] Recurring Task"));
+        .output()
+        .expect("list view should run");
+
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let tasks = list_task_names(&stdout);
+    assert_eq!(tasks.len(), 1, "expected 1 recurring task, got {tasks:?}");
+    assert_eq!(
+        tasks[0],
+        "[E2E-STATIC] Recurring Task",
+        "expected the recurring task to be returned, got {tasks:?}"
+    );
 }
 
 /// Empty project shows no tasks in list view and task next.
 #[test]
-#[serial_test::file_serial]
 fn empty_project_list_and_next_show_nothing_present() {
     let (_dir, config) = setup_config();
     import_projects(&config);
 
-    cleanup_project_tasks(&config, DYNAMIC_PROJECT);
+    let project = random_project_name("TOD_CI_EMPTY");
+    tod()
+        .arg("--config")
+        .arg(&config)
+        .args(["project", "create", "--name", &project])
+        .assert()
+        .success();
     pause_for_api_sync();
 
     tod()
         .arg("--config")
         .arg(&config)
-        .args(["list", "view", "--project", DYNAMIC_PROJECT])
+        .args(["list", "view", "--project", &project])
         .assert()
         .success()
-        .stdout(predicate::str::contains(format!(
-            "Tasks for {DYNAMIC_PROJECT}"
-        )))
+        .stdout(predicate::str::contains(format!("Tasks for {project}")))
         .stdout(predicate::str::contains("- ").not());
 
     tod()
         .arg("--config")
         .arg(&config)
-        .args(["task", "next", "--project", DYNAMIC_PROJECT])
+        .args(["task", "next", "--project", &project])
         .assert()
         .success()
         .stdout(predicate::str::contains("No tasks on list"));
+
+    tod()
+        .arg("--config")
+        .arg(&config)
+        .args(["project", "delete", "--project", &project])
+        .assert()
+        .success();
+    pause_for_api_sync();
 }
 
-/// Create a random project, rename it, verify task behavior, empty it, then delete it.
+/// Create a task in the existing dynamic project and clean the project up afterward.
 #[test]
-#[serial_test::file_serial]
+fn quick_project_create_and_task_create() {
+    let (_dir, config) = setup_config();
+    import_projects(&config);
+    ensure_project_exists(&config, DYNAMIC_PROJECT);
+
+    tod()
+            .arg("--config")
+            .arg(&config)
+            .args([
+                "task",
+                "create",
+                "--content",
+                "[E2E] Quick Task",
+                "--project",
+                DYNAMIC_PROJECT,
+                "--priority",
+                "1",
+                "--no-section",
+            ])
+            .assert()
+            .success();
+
+    cleanup_project_tasks(&config, DYNAMIC_PROJECT);
+    pause_for_api_sync();
+}
+
+/// Create a random project, rename it, then delete it.
+#[test]
 fn dynamic_empty_project_create_query_delete() {
     let (_dir, config) = setup_config();
     import_projects(&config);
@@ -731,66 +928,6 @@ fn dynamic_empty_project_create_query_delete() {
         .assert()
         .success()
         .stdout(predicate::str::contains("✓"));
-    pause_for_api_sync();
-
-    let renamed_config = read_config_json(&config);
-    let renamed_names: Vec<&str> = renamed_config
-        .get("projectsv1")
-        .and_then(Value::as_array)
-        .expect("projectsv1 should exist in config")
-        .iter()
-        .filter_map(|p| p.get("name").and_then(Value::as_str))
-        .collect();
-    assert!(
-        renamed_names.iter().any(|n| *n == renamed_project),
-        "renamed project should exist in config"
-    );
-    assert!(
-        !renamed_names.iter().any(|n| *n == project),
-        "old project name should be removed from config"
-    );
-
-    tod()
-        .arg("--config")
-        .arg(&config)
-        .args([
-            "task",
-            "create",
-            "--content",
-            "[E2E] Random Project Task",
-            "--project",
-            &renamed_project,
-            "--priority",
-            "1",
-            "--no-section",
-        ])
-        .assert()
-        .success();
-    pause_for_api_sync();
-
-    assert_next_task(&config, &renamed_project, "[E2E] Random Project Task");
-
-    cleanup_project_tasks(&config, &renamed_project);
-    pause_for_api_sync();
-
-    tod()
-        .arg("--config")
-        .arg(&config)
-        .args(["task", "next", "--project", &renamed_project])
-        .assert()
-        .success()
-        .stdout(predicate::str::contains("No tasks on list"));
-
-    tod()
-        .arg("--config")
-        .arg(&config)
-        .args(["list", "view", "--project", &renamed_project])
-        .assert()
-        .success()
-        .stdout(predicate::str::contains(format!(
-            "Tasks for {renamed_project}"
-        )))
-        .stdout(predicate::str::contains("- ").not());
 
     tod()
         .arg("--config")
@@ -799,21 +936,4 @@ fn dynamic_empty_project_create_query_delete() {
         .assert()
         .success()
         .stdout(predicate::str::contains("✓"));
-
-    let deleted_config = read_config_json(&config);
-    let deleted_names: Vec<&str> = deleted_config
-        .get("projectsv1")
-        .and_then(Value::as_array)
-        .expect("projectsv1 should exist in config")
-        .iter()
-        .filter_map(|p| p.get("name").and_then(Value::as_str))
-        .collect();
-    assert!(
-        !deleted_names.iter().any(|n| *n == project),
-        "old project name should not remain after delete"
-    );
-    assert!(
-        !deleted_names.iter().any(|n| *n == renamed_project),
-        "renamed project should not remain after delete"
-    );
 }

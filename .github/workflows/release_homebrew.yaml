@@ -8,10 +8,12 @@ on:
         description: "Tag to update to (e.g., v1.2.3 or 1.2.3). If blank, use latest release."
         required: false
         type: string
-
-  workflow_run:
-    workflows: ["macOS Build & Release", "Linux Build & Release"]
-    types: [completed]
+  workflow_call:
+    inputs:
+      tag:
+        description: "Tag to update to (e.g., v1.2.3 or 1.2.3). If blank, use latest release."
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -22,7 +24,6 @@ concurrency:
 
 jobs:
   update-homebrew:
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
 
     steps:
@@ -35,40 +36,6 @@ jobs:
           owner: tod-org
           repositories: homebrew-tod
 
-      # Avoid double-runs: only continue automatically when BOTH platform workflows have succeeded for the same head_sha.
-      - name: Ensure both macOS & Linux release workflows succeeded (skip on manual)
-        if: ${{ github.event_name == 'workflow_run' }}
-        env:
-          GH_TOKEN: ${{ github.token }}
-          REPO: ${{ github.repository }}
-          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
-        run: |
-          set -euo pipefail
-          need=("macOS Build & Release" "Linux Build & Release")
-          for w in "${need[@]}"; do
-            # Find the most recent run for this workflow name & head_sha
-            run_json=$(gh api \
-              -H "Accept: application/vnd.github+json" \
-              "/repos/$REPO/actions/workflows" | jq -r --arg name "$w" '.workflows[] | select(.name==$name) | .id' | head -n1)
-            if [[ -z "${run_json:-}" ]]; then
-              echo "Could not find workflow id for '$w'"; exit 1
-            fi
-            run_id=$(gh api \
-              -H "Accept: application/vnd.github+json" \
-              "/repos/$REPO/actions/workflows/$run_json/runs?per_page=50&head_sha=$HEAD_SHA" \
-              | jq -r '.workflow_runs | map(select(.head_sha=="'"$HEAD_SHA"'")) | first | .id // empty')
-            if [[ -z "${run_id:-}" ]]; then
-              echo "No run of '$w' found for head_sha=$HEAD_SHA yet"; exit 1
-            fi
-            conclusion=$(gh api \
-              -H "Accept: application/vnd.github+json" \
-              "/repos/$REPO/actions/runs/$run_id" | jq -r '.conclusion')
-            if [[ "$conclusion" != "success" ]]; then
-              echo "'$w' is not successful yet (conclusion=$conclusion)"; exit 1
-            fi
-          done
-          echo "Both platform workflows succeeded for $HEAD_SHA."
-
       - name: Checkout homebrew-tod
         uses: actions/checkout@v7
         with:
@@ -78,12 +45,11 @@ jobs:
           token: ${{ steps.app-token.outputs.token }}
           persist-credentials: false
 
-      # Resolve version (manual input or latest release)
       - name: Resolve version
         id: resolve_version
         env:
           GH_TOKEN: ${{ github.token }}
-          INPUT_TAG: ${{ github.event.inputs.tag }}
+          INPUT_TAG: ${{ github.event.inputs.tag || inputs.tag }}
         run: |
           set -euo pipefail
           if [[ -n "${INPUT_TAG:-}" ]]; then
@@ -109,12 +75,13 @@ jobs:
 
       - name: Run formula updater (from tap repo)
         run: |
-          ruby scripts/update_formula.rb "${{ steps.resolve_version.outputs.version }}"
+          set -euo pipefail
           if [ ! -f scripts/update_formula.rb ]; then
-            echo "Error: scripts/update_formula.rb not found!" >&2
+            echo "Error: scripts/update_formula.rb not found in the tap repository." >&2
             exit 1
           fi
           ruby scripts/update_formula.rb "${{ steps.resolve_version.outputs.version }}"
+
       - name: Show diff
         run: git --no-pager diff --stat || true
 

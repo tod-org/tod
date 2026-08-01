@@ -1,8 +1,7 @@
 name: Publish to crates.io
 on:
-  push:
-    tags:
-      - 'v*'   # triggers when pushing tags starting with 'v'
+  workflow_dispatch:
+  workflow_call:
 
 jobs:
   publish:

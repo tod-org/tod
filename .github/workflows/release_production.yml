@@ -1,0 +1,38 @@
+name: Release Production
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  id-token: write
+
+concurrency:
+  group: release-production-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  cargo-publish:
+    uses: ./.github/workflows/cargo-publish.yml
+    secrets: inherit
+
+  release-linux:
+    uses: ./.github/workflows/release_linux.yml
+    secrets: inherit
+
+  release-windows:
+    uses: ./.github/workflows/release_windows.yml
+    secrets: inherit
+
+  release-macos:
+    uses: ./.github/workflows/release_macos.yml
+    secrets: inherit
+
+  update-homebrew:
+    needs: [release-linux, release-macos]
+    uses: ./.github/workflows/release_homebrew.yaml
+    secrets: inherit
