@@ -32,18 +32,12 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v7
 
-      - uses: taiki-e/install-action@nextest
-
       - uses: Swatinem/rust-cache@v2
         with:
           cache-all-crates: true
 
       - name: Install Rust Toolchain
         run: rustup toolchain install
-
-      - name: Run tests using cargo-nextest
-        run: cargo nextest run --all-features
-        continue-on-error: false
 
       - name: Install Rust target for Windows
         run: rustup target add x86_64-pc-windows-msvc

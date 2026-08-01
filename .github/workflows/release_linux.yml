@@ -1,8 +1,8 @@
 
 # This GitHub Actions workflow builds the tod application for Linux x86_64 and ARM64,
 # packages the binaries, uploads them to a GitHub release.
-# It also runs tests using nextest to ensure code quality before the release.
 # It is triggered by a push with a version tag (e.g., v1.0.0), typically from a release-please release.
+# Tests already run in the CI release workflow, so this job focuses on building and publishing.
 
 name: Linux Build & Release
 on:
@@ -41,13 +41,6 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           cache-all-crates: true
-
-      - uses: taiki-e/install-action@v2
-        with:
-          tool: nextest
-
-      - name: Run platform tests
-        run: cargo nextest run --all-features
 
       - name: Install Cargo Get
         id: cargo-get
@@ -99,14 +92,9 @@ jobs:
       - name: Install Rust Toolchain
         run: rustup toolchain install
 
-      - uses: taiki-e/install-action@nextest
-
       - uses: Swatinem/rust-cache@v2
         with:
           cache-all-crates: true
-
-      - name: Run platform tests
-        run: cargo nextest run --all-features
 
       - name: Install Cargo Get
         id: cargo-get
