@@ -1,5 +1,38 @@
 # Changelog
 
+## [0.17.0](https://github.com/tod-org/tod/compare/v0.16.0...v0.17.0) (2026-08-01)
+
+
+### Features
+
+* add Rust e2e test suite with assert_cmd feature flag ([d9b3b9f](https://github.com/tod-org/tod/commit/d9b3b9fc3c1f178ed654b95d7e9e167a142b8c59))
+
+
+### Bug Fixes
+
+* **ci:** add parent release workflow for production releases ([184ae5d](https://github.com/tod-org/tod/commit/184ae5d6511ee5b07a8ec658bb623e56b8ddd965))
+* **ci:** gate homebrew updates behind release orchestrator ([0181c95](https://github.com/tod-org/tod/commit/0181c95ff1f6b5e1e6e7def9c319f234d6d173a6))
+* **ci:** let cargo publish run independently in release parent ([1dee6ee](https://github.com/tod-org/tod/commit/1dee6ee8376971fd1c46a7e39a080cac169da316))
+* **ci:** orchestrate homebrew updates via reusable workflows ([bd6b6e7](https://github.com/tod-org/tod/commit/bd6b6e7462d4c7e81c73a9be1596ff28fc53c26e))
+* **ci:** switch codecov from tarpaulin to llvm-cov with nextest ([6b4da10](https://github.com/tod-org/tod/commit/6b4da10277000f8b93775909045bee653e61edec))
+* **ci:** wait for release assets before updating homebrew ([da12df2](https://github.com/tod-org/tod/commit/da12df2c398605e8e45891ddf692151623526046))
+* cleanup dynamic project before quick task create test ([cdfc50f](https://github.com/tod-org/tod/commit/cdfc50fd4d43e3e88d6f977a16532a729a3eb591))
+* **e2e:** add settle sleeps to todoist tests ([490756e](https://github.com/tod-org/tod/commit/490756e9f8ede2edfa9e902a88f6faf9dc3c82f0))
+* **e2e:** clean up quick task after creation ([ac59c99](https://github.com/tod-org/tod/commit/ac59c99678091e0e17b33974202b7e416fa7397e))
+* **e2e:** force non-interactive project cleanup ([9fb5873](https://github.com/tod-org/tod/commit/9fb5873046d3b24e3e433594ad3576f20b978023))
+* **e2e:** isolate dynamic todoist projects per test ([c3f47b6](https://github.com/tod-org/tod/commit/c3f47b6066c3c22cf81b6477b781d1369ef1205d))
+* **e2e:** reduce todoist api sync wait ([2bc1845](https://github.com/tod-org/tod/commit/2bc18455065e6f5c130947671b0f2771eb5d1d86))
+* **e2e:** remove stale manifest pin and update docs ([edec160](https://github.com/tod-org/tod/commit/edec160605e6e504eb24e354a7dac03e6e54836d))
+* **e2e:** stabilize shared todoist e2e tests ([bad4206](https://github.com/tod-org/tod/commit/bad4206a71e347096f438017cfc5b1284b06647d))
+* **e2e:** tune todoist timing and docs ([b21bdc3](https://github.com/tod-org/tod/commit/b21bdc37f0f6d10a69d299f52cca44ae1daa3db3))
+* remove unjustified .expect() calls in tasks/mod.rs ([0602fb6](https://github.com/tod-org/tod/commit/0602fb6871bdaa321e340a11e4b755316af11a21)), closes [#1660](https://github.com/tod-org/tod/issues/1660)
+* **tasks:** respect per-task due.timezone in datetime() for date-only tasks ([e3a794e](https://github.com/tod-org/tod/commit/e3a794ef9ba7237b76d2595bfd4bafe48f335cd4)), closes [#1659](https://github.com/tod-org/tod/issues/1659)
+
+
+### Performance Improvements
+
+* memoize parent task lookups in reject_parent_tasks ([79977ca](https://github.com/tod-org/tod/commit/79977cac68f0cd5d1c26e3b9f54e6e88046a17d0)), closes [#1662](https://github.com/tod-org/tod/issues/1662)
+
 ## [0.16.0](https://github.com/tod-org/tod/compare/v0.15.0...v0.16.0) (2026-07-21)
 
 
