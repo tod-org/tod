@@ -3,6 +3,10 @@ name: E2E Purge Dynamic Tasks
 on:
   workflow_dispatch:
 
+concurrency:
+  group: e2e-todoist-clean
+  cancel-in-progress: false
+
 permissions:
   contents: read
 
