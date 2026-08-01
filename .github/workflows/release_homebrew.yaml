@@ -8,10 +8,12 @@ on:
         description: "Tag to update to (e.g., v1.2.3 or 1.2.3). If blank, use latest release."
         required: false
         type: string
-
-  workflow_run:
-    workflows: ["macOS Build & Release", "Linux Build & Release"]
-    types: [completed]
+  workflow_call:
+    inputs:
+      tag:
+        description: "Tag to update to (e.g., v1.2.3 or 1.2.3). If blank, use latest release."
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -22,7 +24,6 @@ concurrency:
 
 jobs:
   update-homebrew:
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
 
     steps:
@@ -35,66 +36,6 @@ jobs:
           owner: tod-org
           repositories: homebrew-tod
 
-      # Avoid double-runs: only continue automatically when BOTH platform workflows have succeeded for the same head_sha.
-      - name: Ensure release assets are ready before updating Homebrew (skip on manual)
-        if: ${{ github.event_name == 'workflow_run' }}
-        env:
-          GH_TOKEN: ${{ github.token }}
-          REPO: ${{ github.repository }}
-          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
-        run: |
-          set -euo pipefail
-          workflow_name="${{ github.event.workflow_run.name }}"
-          if [[ "$workflow_name" != "macOS Build & Release" && "$workflow_name" != "Linux Build & Release" ]]; then
-            echo "Unexpected workflow trigger: $workflow_name"; exit 1
-          fi
-
-          echo "Triggered by $workflow_name for $HEAD_SHA"
-
-          for w in "macOS Build & Release" "Linux Build & Release"; do
-            if [[ "$w" == "$workflow_name" ]]; then
-              continue
-            fi
-
-            for attempt in $(seq 1 30); do
-              workflow_id=$(gh api \
-                -H "Accept: application/vnd.github+json" \
-                "/repos/$REPO/actions/workflows" | jq -r --arg name "$w" '.workflows[] | select(.name==$name) | .id' | head -n1)
-              if [[ -z "${workflow_id:-}" ]]; then
-                echo "Could not find workflow id for '$w'"; exit 1
-              fi
-
-              run_id=$(gh api \
-                -H "Accept: application/vnd.github+json" \
-                "/repos/$REPO/actions/workflows/$workflow_id/runs?per_page=10&head_sha=$HEAD_SHA" \
-                | jq -r '.workflow_runs | map(select(.head_sha=="'"$HEAD_SHA"'")) | .[0].id // empty')
-              if [[ -z "${run_id:-}" ]]; then
-                echo "$w not yet seen for head_sha=$HEAD_SHA (attempt $attempt/30)."
-                sleep 30
-                continue
-              fi
-
-              run_json=$(gh api \
-                -H "Accept: application/vnd.github+json" \
-                "/repos/$REPO/actions/runs/$run_id")
-              status=$(echo "$run_json" | jq -r '.status')
-              conclusion=$(echo "$run_json" | jq -r '.conclusion')
-
-              if [[ "$status" != "completed" ]]; then
-                echo "$w is still running (status=$status). Waiting..."
-                sleep 30
-                continue
-              fi
-
-              if [[ "$conclusion" != "success" ]]; then
-                echo "$w completed with conclusion=$conclusion"; exit 1
-              fi
-
-              break
-            done
-          done
-          echo "Release assets are ready for $HEAD_SHA."
-
       - name: Checkout homebrew-tod
         uses: actions/checkout@v7
         with:
@@ -104,12 +45,11 @@ jobs:
           token: ${{ steps.app-token.outputs.token }}
           persist-credentials: false
 
-      # Resolve version (manual input or latest release)
       - name: Resolve version
         id: resolve_version
         env:
           GH_TOKEN: ${{ github.token }}
-          INPUT_TAG: ${{ github.event.inputs.tag }}
+          INPUT_TAG: ${{ github.event.inputs.tag || inputs.tag }}
         run: |
           set -euo pipefail
           if [[ -n "${INPUT_TAG:-}" ]]; then
@@ -141,6 +81,7 @@ jobs:
             exit 1
           fi
           ruby scripts/update_formula.rb "${{ steps.resolve_version.outputs.version }}"
+
       - name: Show diff
         run: git --no-pager diff --stat || true
 

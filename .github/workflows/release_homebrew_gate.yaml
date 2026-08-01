@@ -1,0 +1,99 @@
+# This workflow is the upstream gate for Homebrew updates. It waits for both
+# release workflows to complete successfully for the same commit and then
+# dispatches the Homebrew formula update workflow.
+name: Homebrew Release Gate
+
+on:
+  workflow_run:
+    workflows: ["macOS Build & Release", "Linux Build & Release"]
+    types: [completed]
+
+permissions:
+  actions: write
+  contents: read
+
+concurrency:
+  group: homebrew-release-gate-${{ github.event.workflow_run.head_sha }}
+  cancel-in-progress: true
+
+jobs:
+  gate-and-dispatch:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Wait for the other release workflow
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          TRIGGERING_WORKFLOW: ${{ github.event.workflow_run.name }}
+        run: |
+          set -euo pipefail
+
+          if [[ "$TRIGGERING_WORKFLOW" == "macOS Build & Release" ]]; then
+            other_workflow="Linux Build & Release"
+          else
+            other_workflow="macOS Build & Release"
+          fi
+
+          echo "Triggered by $TRIGGERING_WORKFLOW for $HEAD_SHA; waiting for $other_workflow"
+
+          for attempt in $(seq 1 60); do
+            workflow_id=$(gh api \
+              -H "Accept: application/vnd.github+json" \
+              "/repos/$REPO/actions/workflows" | jq -r --arg name "$other_workflow" '.workflows[] | select(.name==$name) | .id' | head -n1)
+
+            if [[ -z "${workflow_id:-}" ]]; then
+              echo "Could not find workflow id for '$other_workflow'"; exit 1
+            fi
+
+            run_id=$(gh api \
+              -H "Accept: application/vnd.github+json" \
+              "/repos/$REPO/actions/workflows/$workflow_id/runs?per_page=10&head_sha=$HEAD_SHA" \
+              | jq -r '.workflow_runs | map(select(.head_sha=="'"$HEAD_SHA"'")) | .[0].id // empty')
+
+            if [[ -z "${run_id:-}" ]]; then
+              echo "$other_workflow has not started yet for $HEAD_SHA (attempt $attempt/60)."
+              sleep 30
+              continue
+            fi
+
+            run_json=$(gh api \
+              -H "Accept: application/vnd.github+json" \
+              "/repos/$REPO/actions/runs/$run_id")
+            status=$(echo "$run_json" | jq -r '.status')
+            conclusion=$(echo "$run_json" | jq -r '.conclusion')
+
+            if [[ "$status" != "completed" ]]; then
+              echo "$other_workflow is still running (status=$status)."
+              sleep 30
+              continue
+            fi
+
+            if [[ "$conclusion" != "success" ]]; then
+              echo "$other_workflow completed with conclusion=$conclusion"; exit 1
+            fi
+
+            break
+          done
+
+      - name: Resolve latest release tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          tag=$(gh api "/repos/$REPO/releases/latest" --jq .tag_name)
+          if [[ -z "${tag:-}" || "$tag" == "null" ]]; then
+            echo "No release was found for $REPO"; exit 1
+          fi
+          echo "tag=$tag" >> "$GITHUB_ENV"
+
+      - name: Trigger Homebrew update workflow
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          gh workflow run release_homebrew.yaml --repo "$REPO" -f tag="$tag"
