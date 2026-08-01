@@ -402,7 +402,7 @@ mod tests {
         std::fs::write(dir.path().join("readme.md"), "# Hello").expect("file should be created");
         let entry = walkdir::WalkDir::new(dir.path())
             .into_iter()
-            .filter_map(|e| e.ok())
+            .filter_map(std::result::Result::ok)
             .find(|e| e.file_name() == "readme.md")
             .expect("readme.md should be found");
         assert!(is_md_file(&entry));
@@ -414,7 +414,7 @@ mod tests {
         std::fs::write(dir.path().join("NOTES.MD"), "# Notes").expect("file should be created");
         let entry = walkdir::WalkDir::new(dir.path())
             .into_iter()
-            .filter_map(|e| e.ok())
+            .filter_map(std::result::Result::ok)
             .find(|e| e.file_name() == "NOTES.MD")
             .expect("NOTES.MD should be found");
         assert!(is_md_file(&entry));
@@ -426,7 +426,7 @@ mod tests {
         std::fs::write(dir.path().join("data.txt"), "hello").expect("file should be created");
         let entry = walkdir::WalkDir::new(dir.path())
             .into_iter()
-            .filter_map(|e| e.ok())
+            .filter_map(std::result::Result::ok)
             .find(|e| e.file_name() == "data.txt")
             .expect("data.txt should be found");
         assert!(!is_md_file(&entry));
@@ -438,7 +438,7 @@ mod tests {
         std::fs::write(dir.path().join("Makefile"), "all:").expect("file should be created");
         let entry = walkdir::WalkDir::new(dir.path())
             .into_iter()
-            .filter_map(|e| e.ok())
+            .filter_map(std::result::Result::ok)
             .find(|e| e.file_name() == "Makefile")
             .expect("Makefile should be found");
         assert!(!is_md_file(&entry));
