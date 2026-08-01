@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.17.1](https://github.com/tod-org/tod/compare/v0.17.0...v0.17.1) (2026-08-01)
+
+
+### Bug Fixes
+
+* **ci:** allow cargo publish on manual runs ([9cab890](https://github.com/tod-org/tod/commit/9cab8907fa85c663a981a61c18d2d199c8543ee0))
+* **ci:** grant packages permission to release workflow ([8796a17](https://github.com/tod-org/tod/commit/8796a17f008fdb784795537d79da3eae8c40f570))
+* **ci:** simplify release workflows ([2c0f513](https://github.com/tod-org/tod/commit/2c0f51377b0f10d36e8e87e54b698ee54cabf2d0))
+* **ci:** skip redundant release tests ([e952b97](https://github.com/tod-org/tod/commit/e952b9705ff47101ae6a6a55c935ed60d9d4f380))
+
 ## [0.17.0](https://github.com/tod-org/tod/compare/v0.16.0...v0.17.0) (2026-08-01)
 
 
