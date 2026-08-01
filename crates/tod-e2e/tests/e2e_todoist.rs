@@ -30,6 +30,8 @@ use tempfile::{TempDir, tempdir};
 
 const STATIC_READ_PROJECT: &str = "TOD_DEV_CI_STATIC_READ";
 const DYNAMIC_PROJECT: &str = "TOD_DEV_CI_DYNAMIC";
+const DYNAMIC_PROJECT_1: &str = "TOD_DEV_CI_DYNAMIC_1";
+const DYNAMIC_PROJECT_2: &str = "TOD_DEV_CI_DYNAMIC_2";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -788,15 +790,10 @@ fn filter_by_section_returns_expected_tasks() {
 
 /// Create 2 tasks, verify list and next, then complete them.
 #[test]
-#[serial]
 fn dynamic_task_lifecycle() {
     let (_dir, config) = setup_config();
     import_projects(&config);
-    sleep(Duration::from_millis(500));
-    ensure_project_exists(&config, DYNAMIC_PROJECT);
-    sleep(Duration::from_millis(500));
-    cleanup_project_tasks(&config, DYNAMIC_PROJECT);
-    pause_for_api_sync();
+    ensure_project_exists(&config, DYNAMIC_PROJECT_1);
 
     for priority in [4, 2].iter() {
         tod()
@@ -808,7 +805,7 @@ fn dynamic_task_lifecycle() {
                 "--content",
                 &format!("[E2E] Task Priority {}", priority),
                 "--project",
-                DYNAMIC_PROJECT,
+                DYNAMIC_PROJECT_1,
                 "--priority",
                 &priority.to_string(),
                 "--no-section",
@@ -820,18 +817,15 @@ fn dynamic_task_lifecycle() {
 
     assert_list_view_contains(
         &config,
-        DYNAMIC_PROJECT,
+        DYNAMIC_PROJECT_1,
         &["[E2E] Task Priority 4", "[E2E] Task Priority 2"],
     );
 
     for _ in 0..2 {
-        assert_next_task(&config, DYNAMIC_PROJECT, "[E2E] Task Priority");
+        assert_next_task(&config, DYNAMIC_PROJECT_1, "[E2E] Task Priority");
         task_complete(&config);
         pause_for_api_sync();
     }
-
-    cleanup_project_tasks(&config, DYNAMIC_PROJECT);
-    pause_for_api_sync();
 }
 
 /// Add a comment to the recurring static fixture task and verify it appears in the next output.
@@ -937,14 +931,10 @@ fn empty_project_list_and_next_show_nothing_present() {
 
 /// Create a task in the existing dynamic project and clean the project up afterward.
 #[test]
-#[serial]
 fn quick_project_create_and_task_create() {
     let (_dir, config) = setup_config();
     import_projects(&config);
-    ensure_project_exists(&config, DYNAMIC_PROJECT);
-
-    cleanup_project_tasks(&config, DYNAMIC_PROJECT);
-    pause_for_api_sync();
+    ensure_project_exists(&config, DYNAMIC_PROJECT_2);
 
     tod()
         .arg("--config")
@@ -955,7 +945,7 @@ fn quick_project_create_and_task_create() {
             "--content",
             "[E2E] Quick Task",
             "--project",
-            DYNAMIC_PROJECT,
+            DYNAMIC_PROJECT_2,
             "--priority",
             "1",
             "--no-section",
@@ -963,14 +953,10 @@ fn quick_project_create_and_task_create() {
         .assert()
         .success();
 
-    assert_next_task(&config, DYNAMIC_PROJECT, "[E2E] Quick Task");
+    assert_next_task(&config, DYNAMIC_PROJECT_2, "[E2E] Quick Task");
     task_complete(&config);
     pause_for_api_sync();
-
-    cleanup_project_tasks(&config, DYNAMIC_PROJECT);
-    pause_for_api_sync();
 }
-
 /// Create a random project, rename it, then delete it.
 #[test]
 fn dynamic_empty_project_create_query_delete() {
