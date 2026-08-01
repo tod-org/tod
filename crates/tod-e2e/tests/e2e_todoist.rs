@@ -737,12 +737,8 @@ fn filter_by_section_returns_expected_tasks() {
     assert_eq!(actual_priorities, vec![1, 4]);
 }
 
-// ---------------------------------------------------------------------------
-// Dynamic tests — reuse TOD_DEV_CI_DYNAMIC, cleanup between tests
-// (and run serially via serial_test lock)
-// ---------------------------------------------------------------------------
-
-/// Create 2 tasks, verify list and next, then complete them.
+// Dynamic tests — use TOD_DEV_CI_DYNAMIC_1 & TOD_DEV_CI_DYNAMIC_2, cleanup after tests
+// Create 2 tasks, verify list and next, then complete them.
 #[test]
 fn dynamic_task_lifecycle() {
     let (_dir, config) = setup_config();
@@ -882,7 +878,7 @@ fn empty_project_list_and_next_show_nothing_present() {
     pause_for_api_sync();
 }
 
-/// Create a task in the existing dynamic project and clean the project up afterward.
+/// Create a task in the existing dynamic project and complete it.
 #[test]
 fn quick_project_create_and_task_create() {
     let (_dir, config) = setup_config();
