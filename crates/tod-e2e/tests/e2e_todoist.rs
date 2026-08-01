@@ -164,7 +164,7 @@ fn cleanup_project_tasks(config: &Path, project: &str) {
     let _ = tod()
         .arg("--config")
         .arg(config)
-        .args(["project", "empty", "--force", "--project", project])
+        .args(["project", "empty", "--project", project])
         .output();
 
     let mut consecutive_empty_checks = 0_u8;
@@ -875,21 +875,25 @@ fn quick_project_create_and_task_create() {
     ensure_project_exists(&config, DYNAMIC_PROJECT);
 
     tod()
-            .arg("--config")
-            .arg(&config)
-            .args([
-                "task",
-                "create",
-                "--content",
-                "[E2E] Quick Task",
-                "--project",
-                DYNAMIC_PROJECT,
-                "--priority",
-                "1",
-                "--no-section",
-            ])
-            .assert()
-            .success();
+        .arg("--config")
+        .arg(&config)
+        .args([
+            "task",
+            "create",
+            "--content",
+            "[E2E] Quick Task",
+            "--project",
+            DYNAMIC_PROJECT,
+            "--priority",
+            "1",
+            "--no-section",
+        ])
+        .assert()
+        .success();
+
+    assert_next_task(&config, DYNAMIC_PROJECT, "[E2E] Quick Task");
+    task_complete(&config);
+    pause_for_api_sync();
 
     cleanup_project_tasks(&config, DYNAMIC_PROJECT);
     pause_for_api_sync();
