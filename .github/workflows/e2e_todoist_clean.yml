@@ -30,7 +30,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          python - <<'PY'
+          python3 - <<'PY'
           import json
           import os
           import sys
