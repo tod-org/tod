@@ -164,7 +164,7 @@ fn cleanup_project_tasks(config: &Path, project: &str) {
     let _ = tod()
         .arg("--config")
         .arg(config)
-        .args(["project", "empty", "--project", project])
+        .args(["project", "empty", "--force", "--project", project])
         .output();
 
     let mut consecutive_empty_checks = 0_u8;
