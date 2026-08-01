@@ -252,7 +252,10 @@ fn assert_list_view_contains(config: &Path, project: &str, expected: &[&str]) {
         sleep(Duration::from_millis(750));
     }
 
-    panic!("expected list view output to contain {:?}, last output was {:?}", expected, last_stdout);
+    panic!(
+        "expected list view output to contain {:?}, last output was {:?}",
+        expected, last_stdout
+    );
 }
 
 fn pause_for_api_sync() {
@@ -789,8 +792,9 @@ fn filter_by_section_returns_expected_tasks() {
 fn dynamic_task_lifecycle() {
     let (_dir, config) = setup_config();
     import_projects(&config);
+    sleep(Duration::from_millis(500));
     ensure_project_exists(&config, DYNAMIC_PROJECT);
-
+    sleep(Duration::from_millis(500));
     cleanup_project_tasks(&config, DYNAMIC_PROJECT);
     pause_for_api_sync();
 
@@ -892,7 +896,6 @@ fn recurring_filter_returns_recurring_task() {
 
 /// Empty project shows no tasks in list view and task next.
 #[test]
-#[serial]
 fn empty_project_list_and_next_show_nothing_present() {
     let (_dir, config) = setup_config();
     import_projects(&config);
@@ -970,12 +973,11 @@ fn quick_project_create_and_task_create() {
 
 /// Create a random project, rename it, then delete it.
 #[test]
-#[serial]
 fn dynamic_empty_project_create_query_delete() {
     let (_dir, config) = setup_config();
     import_projects(&config);
 
-    let project = random_project_name("TOD_CI_PRJ");
+    let project = random_project_name("TOD_CI_RND_PRJ");
     let renamed_project = format!("{project}_REN");
 
     tod()
