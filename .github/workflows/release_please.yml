@@ -49,21 +49,3 @@ jobs:
           git tag -f v${{ needs.release-please.outputs.major }}.${{ needs.release-please.outputs.minor }}
           git push origin -f v${{ needs.release-please.outputs.major }}
           git push origin -f v${{ needs.release-please.outputs.major }}.${{ needs.release-please.outputs.minor }}
-
-  release-linux:
-    needs: release-please
-    if: needs.release-please.outputs.release_created == 'true'
-    uses: ./.github/workflows/release_linux.yml
-    secrets: inherit
-
-  release-macos:
-    needs: release-please
-    if: needs.release-please.outputs.release_created == 'true'
-    uses: ./.github/workflows/release_macos.yml
-    secrets: inherit
-
-  update-homebrew:
-    needs: [release-linux, release-macos]
-    if: needs.release-please.outputs.release_created == 'true'
-    uses: ./.github/workflows/release_homebrew.yaml
-    secrets: inherit
