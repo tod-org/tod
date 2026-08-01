@@ -19,7 +19,6 @@
 use assert_cmd::Command;
 use predicates::prelude::*;
 use serde_json::Value;
-use serial_test::serial;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::process::Command as StdCommand;
