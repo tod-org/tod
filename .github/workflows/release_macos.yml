@@ -11,6 +11,7 @@ on:
     tags:
       - 'v*.*.*'
   workflow_dispatch:
+  workflow_call:
 
 env:
   CARGO_TERM_COLOR: always
