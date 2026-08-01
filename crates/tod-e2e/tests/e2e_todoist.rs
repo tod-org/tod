@@ -28,7 +28,6 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tempfile::{TempDir, tempdir};
 
 const STATIC_READ_PROJECT: &str = "TOD_DEV_CI_STATIC_READ";
-const DYNAMIC_PROJECT: &str = "TOD_DEV_CI_DYNAMIC";
 const DYNAMIC_PROJECT_1: &str = "TOD_DEV_CI_DYNAMIC_1";
 const DYNAMIC_PROJECT_2: &str = "TOD_DEV_CI_DYNAMIC_2";
 
@@ -224,7 +223,7 @@ fn assert_next_task(config: &Path, project: &str, expected: &str) {
             }
         }
 
-        sleep(Duration::from_millis(750));
+        pause_for_api_sync();
     }
 
     panic!("expected task next output to contain {expected:?}, last output was {last_stdout:?}");
@@ -250,7 +249,7 @@ fn assert_list_view_contains(config: &Path, project: &str, expected: &[&str]) {
             }
         }
 
-        sleep(Duration::from_millis(750));
+        pause_for_api_sync();
     }
 
     panic!(
@@ -260,7 +259,7 @@ fn assert_list_view_contains(config: &Path, project: &str, expected: &[&str]) {
 }
 
 fn pause_for_api_sync() {
-    sleep(Duration::from_millis(1000));
+    sleep(Duration::from_millis(750));
 }
 
 /// Calls `task complete` (completes the last task returned by `task next`).
