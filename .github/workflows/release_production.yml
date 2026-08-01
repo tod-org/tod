@@ -16,6 +16,10 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  cargo-publish:
+    uses: ./.github/workflows/cargo-publish.yml
+    secrets: inherit
+
   release-linux:
     uses: ./.github/workflows/release_linux.yml
     secrets: inherit
@@ -26,11 +30,6 @@ jobs:
 
   release-macos:
     uses: ./.github/workflows/release_macos.yml
-    secrets: inherit
-
-  cargo-publish:
-    needs: [release-linux, release-windows, release-macos]
-    uses: ./.github/workflows/cargo-publish.yml
     secrets: inherit
 
   update-homebrew:
