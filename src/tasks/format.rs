@@ -409,7 +409,7 @@ mod tests {
         let mut task = test::fixtures::today_task().await;
         task.labels = vec!["foo".to_string(), "bar".to_string()];
         let result = labels(&task);
-        assert!(result.contains("@"));
+        assert!(result.contains('@'));
         assert!(result.contains("foo"));
         assert!(result.contains("bar"));
     }
@@ -510,7 +510,7 @@ mod tests {
             ..base_task.clone()
         };
         let out = due(&task_date, &config, "");
-        assert!(out.contains("!"));
+        assert!(out.contains('!'));
 
         // Datetime due with duration and recurring flag (→ DateTimeInfo::DateTime)
         let task_datetime = Task {
