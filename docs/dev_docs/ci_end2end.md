@@ -20,6 +20,8 @@ The workflow maps this secret to `TOD_E2E_TOKEN` before running tests.
 
 The required projects can be imported from 'e2e_todoist_fixtures'
 
+If the dynamic projects are in an unclean state, manually run "E2E purge Dynamic Tasks" workflow
+
 ## Test model
 
 ### Static fixture project
@@ -31,7 +33,8 @@ The required projects can be imported from 'e2e_todoist_fixtures'
 
 ### Dynamic mutable project
 
-- `TOD_DEV_CI_DYNAMIC`
+- `TOD_DEV_CI_DYNAMIC_1` and `TOD_DEV_CI_DYNAMIC_2`
+- Two blank projects in which tasks are created/deleted
 - Used for create/complete/comment/empty-state flows
 - Must return to empty state after dynamic tests
 
