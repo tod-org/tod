@@ -874,6 +874,9 @@ fn quick_project_create_and_task_create() {
     import_projects(&config);
     ensure_project_exists(&config, DYNAMIC_PROJECT);
 
+    cleanup_project_tasks(&config, DYNAMIC_PROJECT);
+    pause_for_api_sync();
+
     tod()
         .arg("--config")
         .arg(&config)
