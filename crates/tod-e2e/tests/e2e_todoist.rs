@@ -215,7 +215,7 @@ fn assert_list_view_contains(config: &Path, project: &str, expected: &[&str]) {
 }
 
 fn pause_for_api_sync() {
-    sleep(Duration::from_millis(750));
+    sleep(Duration::from_millis(500));
 }
 
 /// Calls `task complete` (completes the last task returned by `task next`).
@@ -767,7 +767,6 @@ fn dynamic_task_lifecycle() {
             .assert()
             .success();
     }
-    pause_for_api_sync();
 
     assert_list_view_contains(
         &config,

@@ -542,7 +542,6 @@ mod tests {
     use crate::test::responses::ResponseFromFile;
     use crate::test_time::FixedTimeProvider;
     use crate::time::TimeProviderEnum;
-    use mockito;
     use tokio::sync::mpsc;
 
     #[test]
