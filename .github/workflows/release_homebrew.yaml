@@ -36,7 +36,7 @@ jobs:
           repositories: homebrew-tod
 
       # Avoid double-runs: only continue automatically when BOTH platform workflows have succeeded for the same head_sha.
-      - name: Ensure both macOS & Linux release workflows succeeded (skip on manual)
+      - name: Ensure release assets are ready before updating Homebrew (skip on manual)
         if: ${{ github.event_name == 'workflow_run' }}
         env:
           GH_TOKEN: ${{ github.token }}
@@ -44,30 +44,56 @@ jobs:
           HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
           set -euo pipefail
-          need=("macOS Build & Release" "Linux Build & Release")
-          for w in "${need[@]}"; do
-            # Find the most recent run for this workflow name & head_sha
-            run_json=$(gh api \
-              -H "Accept: application/vnd.github+json" \
-              "/repos/$REPO/actions/workflows" | jq -r --arg name "$w" '.workflows[] | select(.name==$name) | .id' | head -n1)
-            if [[ -z "${run_json:-}" ]]; then
-              echo "Could not find workflow id for '$w'"; exit 1
+          workflow_name="${{ github.event.workflow_run.name }}"
+          if [[ "$workflow_name" != "macOS Build & Release" && "$workflow_name" != "Linux Build & Release" ]]; then
+            echo "Unexpected workflow trigger: $workflow_name"; exit 1
+          fi
+
+          echo "Triggered by $workflow_name for $HEAD_SHA"
+
+          for w in "macOS Build & Release" "Linux Build & Release"; do
+            if [[ "$w" == "$workflow_name" ]]; then
+              continue
             fi
-            run_id=$(gh api \
-              -H "Accept: application/vnd.github+json" \
-              "/repos/$REPO/actions/workflows/$run_json/runs?per_page=50&head_sha=$HEAD_SHA" \
-              | jq -r '.workflow_runs | map(select(.head_sha=="'"$HEAD_SHA"'")) | first | .id // empty')
-            if [[ -z "${run_id:-}" ]]; then
-              echo "No run of '$w' found for head_sha=$HEAD_SHA yet"; exit 1
-            fi
-            conclusion=$(gh api \
-              -H "Accept: application/vnd.github+json" \
-              "/repos/$REPO/actions/runs/$run_id" | jq -r '.conclusion')
-            if [[ "$conclusion" != "success" ]]; then
-              echo "'$w' is not successful yet (conclusion=$conclusion)"; exit 1
-            fi
+
+            for attempt in $(seq 1 30); do
+              workflow_id=$(gh api \
+                -H "Accept: application/vnd.github+json" \
+                "/repos/$REPO/actions/workflows" | jq -r --arg name "$w" '.workflows[] | select(.name==$name) | .id' | head -n1)
+              if [[ -z "${workflow_id:-}" ]]; then
+                echo "Could not find workflow id for '$w'"; exit 1
+              fi
+
+              run_id=$(gh api \
+                -H "Accept: application/vnd.github+json" \
+                "/repos/$REPO/actions/workflows/$workflow_id/runs?per_page=10&head_sha=$HEAD_SHA" \
+                | jq -r '.workflow_runs | map(select(.head_sha=="'"$HEAD_SHA"'")) | .[0].id // empty')
+              if [[ -z "${run_id:-}" ]]; then
+                echo "$w not yet seen for head_sha=$HEAD_SHA (attempt $attempt/30)."
+                sleep 30
+                continue
+              fi
+
+              run_json=$(gh api \
+                -H "Accept: application/vnd.github+json" \
+                "/repos/$REPO/actions/runs/$run_id")
+              status=$(echo "$run_json" | jq -r '.status')
+              conclusion=$(echo "$run_json" | jq -r '.conclusion')
+
+              if [[ "$status" != "completed" ]]; then
+                echo "$w is still running (status=$status). Waiting..."
+                sleep 30
+                continue
+              fi
+
+              if [[ "$conclusion" != "success" ]]; then
+                echo "$w completed with conclusion=$conclusion"; exit 1
+              fi
+
+              break
+            done
           done
-          echo "Both platform workflows succeeded for $HEAD_SHA."
+          echo "Release assets are ready for $HEAD_SHA."
 
       - name: Checkout homebrew-tod
         uses: actions/checkout@v7
@@ -109,9 +135,9 @@ jobs:
 
       - name: Run formula updater (from tap repo)
         run: |
-          ruby scripts/update_formula.rb "${{ steps.resolve_version.outputs.version }}"
+          set -euo pipefail
           if [ ! -f scripts/update_formula.rb ]; then
-            echo "Error: scripts/update_formula.rb not found!" >&2
+            echo "Error: scripts/update_formula.rb not found in the tap repository." >&2
             exit 1
           fi
           ruby scripts/update_formula.rb "${{ steps.resolve_version.outputs.version }}"
