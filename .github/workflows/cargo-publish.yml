@@ -5,8 +5,8 @@ on:
 
 jobs:
   publish:
-    # only run if the tag is created on main
-    if: github.ref_type == 'tag' && startsWith(github.ref_name, 'v') && github.event.base_ref == 'refs/heads/main'
+    # allow direct/manual runs and reusable workflow calls, while keeping tag-only release behavior for normal pushes
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_call' || (github.ref_type == 'tag' && startsWith(github.ref_name, 'v') && github.event.base_ref == 'refs/heads/main')
     runs-on: ubuntu-latest
     environment: release  # optional: gives you env protection rules
     permissions:
