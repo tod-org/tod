@@ -530,7 +530,7 @@ mod tests {
             path: temp_path.clone(),
             token: Some("abc".to_string()),
             timezone: Some("UTC".to_string()),
-            ..Config::default()
+            ..Config::default_test()
         };
         // Ensure parent directory exists and file is created
         config = config.create().await.expect("Should create config file");

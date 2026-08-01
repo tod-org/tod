@@ -55,7 +55,7 @@ mod tests {
 
     #[test]
     fn add_project_when_projects_is_none_initializes_vec() {
-        let mut config = Config::default();
+        let mut config = Config::default_test();
         config.projects = None;
         assert!(config.projects.is_none());
 
@@ -89,7 +89,7 @@ mod tests {
 
     #[test]
     fn remove_project_when_projects_is_none_does_not_panic() {
-        let mut config = Config::default();
+        let mut config = Config::default_test();
         config.projects = None;
         assert!(config.projects.is_none());
 

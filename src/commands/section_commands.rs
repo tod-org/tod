@@ -38,7 +38,7 @@ mod tests {
 
     #[tokio::test]
     async fn create_fails_when_no_projects_exist_in_config() {
-        let config = Config::default();
+        let config = Config::default_test();
         let args = Create {
             name: Some("new-section".to_string()),
             project: None,

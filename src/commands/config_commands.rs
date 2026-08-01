@@ -585,7 +585,8 @@ mod tests {
     }
     #[tokio::test]
     async fn test_set_timezone_requires_auth() {
-        let config = Config::default();
+        let mut config = Config::default_test();
+        config.token = None;
 
         let error = set_timezone(config, &SetTimezone { timezone: None })
             .await

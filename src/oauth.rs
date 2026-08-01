@@ -344,7 +344,7 @@ mod tests {
     #[test]
     fn test_print_oauth_url_returns_csrf_token() {
         // In test mode, new_uuid() returns FAKE_UUID
-        let csrf_token = print_oauth_url(&Config::default());
+        let csrf_token = print_oauth_url(&Config::default_test());
         assert_eq!(csrf_token, FAKE_UUID);
 
         // Optionally, check that the formatted URL contains the CSRF token
@@ -352,7 +352,7 @@ mod tests {
         let url = format!(
             "https://todoist.com{OAUTH_URL}?client_id={CLIENT_ID}&scope={SCOPE}&state={FAKE_UUID}"
         );
-        let formatted_url = maybe_format_url(&url, &Config::default());
+        let formatted_url = maybe_format_url(&url, &Config::default_test());
         assert!(formatted_url.contains(&expected_url_part));
     }
 }

@@ -308,8 +308,6 @@ mod tests {
     use crate::test::responses::ResponseFromFile;
     use crate::test_time::FixedTimeProvider;
     use crate::time::TimeProviderEnum;
-    use mockito;
-    use pretty_assertions::assert_eq;
 
     fn create_args() -> Create {
         Create {
@@ -341,14 +339,14 @@ mod tests {
         let mut args = create_args();
         args.no_section = true;
 
-        let config = Config::default();
+        let config = Config::default_test();
         assert!(is_no_sections(&args, &config));
     }
 
     #[test]
     fn is_no_sections_respects_config_setting() {
         let args = create_args();
-        let mut config = Config::default();
+        let mut config = Config::default_test();
         config.no_sections = Some(true);
 
         assert!(is_no_sections(&args, &config));
@@ -357,7 +355,7 @@ mod tests {
     #[test]
     fn is_no_sections_returns_false_when_both_are_disabled() {
         let args = create_args();
-        let config = Config::default();
+        let config = Config::default_test();
 
         assert!(!is_no_sections(&args, &config));
     }
@@ -365,7 +363,7 @@ mod tests {
     #[tokio::test]
     async fn edit_routes_to_filter_and_edits_content() {
         let tasks_body = ResponseFromFile::TodayTasks.read().await;
-        let first_task = crate::tasks::TaskResponse::from_json(&tasks_body)
+        let _first_task = crate::tasks::TaskResponse::from_json(&tasks_body)
             .expect("should parse tasks")
             .results
             .into_iter()

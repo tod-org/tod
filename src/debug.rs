@@ -52,7 +52,7 @@ mod tests {
 
     #[test]
     fn maybe_print_redacted_config_with_token_does_not_panic() {
-        let mut config = Config::default();
+        let mut config = Config::default_test();
         config.verbose = Some(true);
         config.token = Some("abcd1234".to_string());
 
@@ -67,7 +67,7 @@ mod tests {
     fn buffer_redirect_tests_cannot_run_in_parallel() {
         // maybe_print suppressed when verbose is None and args.verbose is false
         {
-            let mut config = Config::default();
+            let mut config = Config::default_test();
             config.verbose = None;
             config.args.verbose = false;
 
@@ -82,7 +82,7 @@ mod tests {
 
         // maybe_print output when verbose is true
         {
-            let mut config = Config::default();
+            let mut config = Config::default_test();
             config.verbose = Some(true);
             config.args.verbose = false;
 
@@ -97,7 +97,7 @@ mod tests {
 
         // maybe_print output when args.verbose is true
         {
-            let mut config = Config::default();
+            let mut config = Config::default_test();
             config.verbose = None;
             config.args.verbose = true;
 
@@ -112,7 +112,7 @@ mod tests {
 
         // maybe_print_redacted_config suppressed when not verbose
         {
-            let mut config = Config::default();
+            let mut config = Config::default_test();
             config.verbose = None;
             config.args.verbose = false;
             config.token = Some("abcd1234".to_string());
@@ -128,7 +128,7 @@ mod tests {
 
         // maybe_print_redacted_config output when verbose
         {
-            let mut config = Config::default();
+            let mut config = Config::default_test();
             config.verbose = Some(true);
             config.args.verbose = false;
             config.token = Some("abcd1234".to_string());

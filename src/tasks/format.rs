@@ -224,7 +224,7 @@ mod tests {
 
     #[test]
     fn test_task_url_enabled() {
-        let config = Config::default();
+        let config = Config::default_test();
         // Skip the test if hyperlinks are not supported in this environment (otherwise test fails)
         if !supports_hyperlinks::on(Stream::Stdout) {
             eprintln!("Skipping test: hyperlinks not supported in this environment");
@@ -238,7 +238,7 @@ mod tests {
 
     #[test]
     fn test_task_url_disabled() {
-        let mut config = Config::default();
+        let mut config = Config::default_test();
         config.disable_links = true;
         assert_eq!(
             maybe_format_task_id("1", &config),
@@ -454,14 +454,14 @@ mod tests {
 
     #[test]
     fn hyperlinks_disabled_when_config_set() {
-        let mut config = Config::default();
+        let mut config = Config::default_test();
         config.disable_links = true;
         assert!(hyperlinks_disabled(&config));
     }
 
     #[test]
     fn hyperlinks_disabled_when_terminal_lacks_support() {
-        let config = Config::default();
+        let config = Config::default_test();
         // In CI / non-terminal environments, supports_hyperlinks returns false,
         // so hyperlinks_disabled should be true even when disable_links is false.
         if !supports_hyperlinks::on(Stream::Stdout) {
@@ -471,7 +471,7 @@ mod tests {
 
     #[test]
     fn hyperlinks_enabled_when_supported_and_not_disabled() {
-        let config = Config::default();
+        let config = Config::default_test();
         if supports_hyperlinks::on(Stream::Stdout) {
             assert!(!hyperlinks_disabled(&config));
         }

@@ -246,14 +246,14 @@ mod tests {
         }
 
         assert_eq!(
-            maybe_format_url("https://www.rust-lang.org/", &Config::default()),
+            maybe_format_url("https://www.rust-lang.org/", &Config::default_test()),
             "\x1B]8;;https://www.rust-lang.org/\x07https://www.rust-lang.org/\x1B]8;;\x07"
         );
     }
 
     #[test]
     fn test_format_url_hyperlinks_disabled() {
-        let mut config = Config::default();
+        let mut config = Config::default_test();
         config.disable_links = true;
         let url = "https://www.rust-lang.org/";
 

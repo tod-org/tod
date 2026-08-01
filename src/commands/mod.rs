@@ -547,7 +547,7 @@ mod tests {
 
     #[test]
     fn build_command_result_uses_config_bell_settings() {
-        let mut config = Config::default();
+        let mut config = Config::default_test();
         config.bell_on_success = true;
         config.bell_on_failure = false;
 
@@ -567,7 +567,7 @@ mod tests {
 
     #[test]
     fn ensure_auth_present_errors_when_token_missing() {
-        let mut config = Config::default();
+        let mut config = Config::default_test();
         config.token = None;
 
         let result = ensure_auth_present(&config, "test-source");
@@ -577,7 +577,7 @@ mod tests {
 
     #[test]
     fn ensure_auth_present_errors_when_token_whitespace() {
-        let mut config = Config::default();
+        let mut config = Config::default_test();
         config.token = Some("   ".to_string());
 
         let result = ensure_auth_present(&config, "test-source");
@@ -587,7 +587,7 @@ mod tests {
 
     #[test]
     fn ensure_auth_present_succeeds_with_token() {
-        let mut config = Config::default();
+        let mut config = Config::default_test();
         config.token = Some("token".to_string());
 
         let result = ensure_auth_present(&config, "test-source");
@@ -603,7 +603,7 @@ mod tests {
             timeout: Some(42),
             command: Commands::Test(TestCommands::All(test_commands::All {})),
         };
-        let config = Config::default();
+        let config = Config::default_test();
 
         let result = with_cli_context(config, &cli, &tx);
 
@@ -614,7 +614,7 @@ mod tests {
 
     #[test]
     fn fetch_filter_returns_provided_value() {
-        let config = Config::default();
+        let config = Config::default_test();
 
         let result = fetch_filter(Some("myfilter"), &config);
 
@@ -624,7 +624,7 @@ mod tests {
 
     #[test]
     fn fetch_filter_uses_mock_string_when_none() {
-        let mut config = Config::default();
+        let mut config = Config::default_test();
         config.mock_string = Some("prompted-filter".to_string());
 
         let result = fetch_filter(None, &config);
@@ -635,7 +635,7 @@ mod tests {
 
     #[test]
     fn fetch_priority_returns_from_valid_integer() {
-        let config = Config::default();
+        let config = Config::default_test();
 
         let result = fetch_priority(Some(4), &config);
 
@@ -645,7 +645,7 @@ mod tests {
 
     #[test]
     fn fetch_priority_uses_mock_select_when_none() {
-        let mut config = Config::default();
+        let mut config = Config::default_test();
         config.mock_select = Some(1);
 
         let result = fetch_priority(None, &config);
@@ -656,7 +656,7 @@ mod tests {
 
     #[test]
     fn fetch_string_returns_provided_value() {
-        let config = Config::default();
+        let config = Config::default_test();
 
         let result = fetch_string(Some("hello"), &config, "test prompt");
 
@@ -665,7 +665,7 @@ mod tests {
 
     #[test]
     fn fetch_string_uses_mock_string_when_none() {
-        let mut config = Config::default();
+        let mut config = Config::default_test();
         config.mock_string = Some("mocked input".to_string());
 
         let result = fetch_string(None, &config, "test prompt");
@@ -675,7 +675,7 @@ mod tests {
 
     #[tokio::test]
     async fn maybe_fetch_labels_returns_provided_labels() {
-        let config = Config::default();
+        let config = Config::default_test();
         let labels = vec!["label1".to_string(), "label2".to_string()];
 
         let result = maybe_fetch_labels(&config, &labels).await;

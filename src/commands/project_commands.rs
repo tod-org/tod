@@ -228,11 +228,10 @@ mod tests {
     use super::*;
     use crate::test;
     use crate::test::responses::ResponseFromFile;
-    use mockito::Server;
 
     #[tokio::test]
     async fn remove_rejects_conflicting_all_and_auto_flags() {
-        let mut config = Config::default();
+        let mut config = Config::default_test();
         let args = Remove {
             auto: true,
             repeat: false,
@@ -327,7 +326,7 @@ mod tests {
     async fn delete_confirms_and_removes_project_when_user_selects_delete() {
         let mut server = mockito::Server::new_async().await;
 
-        let tasks_mock = server
+        let _tasks_mock = server
             .mock("GET", "/api/v1/tasks/?project_id=123&limit=200")
             .with_status(200)
             .with_header("content-type", "application/json")
