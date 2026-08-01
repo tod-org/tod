@@ -14,6 +14,18 @@ updates:
         patterns: ["*"]                 # include all crates
         update-types: ["major","minor","patch"]  # = all updates
 
+  - package-ecosystem: "cargo"
+    directory: "/crates/tod-e2e"
+    schedule:
+      interval: "daily"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    groups:
+      cargo-all:
+        patterns: ["*"]                 # include all crates
+        update-types: ["major","minor","patch"]  # = all updates
+
   # ---- GitHub Actions ----
   - package-ecosystem: "github-actions"
     directory: "/"
