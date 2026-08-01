@@ -1,0 +1,74 @@
+name: E2E Purge Dynamic Tasks
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  purge:
+    name: Purge Todoist dynamic test projects
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate Todoist token
+        env:
+          TODOIST_TOKEN: ${{ secrets.TODOIST_DEV_API_TEST }}
+        run: |
+          test -n "${TODOIST_TOKEN}" || {
+            echo "TODOIST_DEV_API_TEST secret is required";
+            exit 1;
+          }
+
+      - name: Delete tasks from dynamic projects
+        env:
+          TODOIST_TOKEN: ${{ secrets.TODOIST_DEV_API_TEST }}
+        run: |
+          set -euo pipefail
+
+          python - <<'PY'
+          import json
+          import os
+          import sys
+          import urllib.error
+          import urllib.request
+
+          token = os.environ["TODOIST_TOKEN"]
+          project_names = ["TOD_DEV_CI_DYNAMIC_1", "TOD_DEV_CI_DYNAMIC_2"]
+          api_base = "https://api.todoist.com/rest/v2"
+
+          def request(path: str, method: str = "GET"):
+              req = urllib.request.Request(
+                  f"{api_base}{path}",
+                  method=method,
+                  headers={"Authorization": f"Bearer {token}"},
+              )
+              with urllib.request.urlopen(req) as response:
+                  if response.status == 204:
+                      return None
+                  return response.read().decode("utf-8")
+
+          projects_payload = request("/projects")
+          projects = json.loads(projects_payload)
+          project_ids = {project["name"]: project["id"] for project in projects if project["name"] in project_names}
+
+          missing = [name for name in project_names if name not in project_ids]
+          if missing:
+              raise SystemExit(f"Missing projects: {', '.join(missing)}")
+
+          for name in project_names:
+              project_id = project_ids[name]
+              tasks_payload = request(f"/tasks?project_id={project_id}")
+              tasks = json.loads(tasks_payload)
+              print(f"Found {len(tasks)} task(s) in {name}")
+
+              for task in tasks:
+                  try:
+                      request(f"/tasks/{task['id']}", method="DELETE")
+                  except urllib.error.HTTPError as exc:
+                      if exc.code != 404:
+                          raise
+                  print(f"Deleted task {task['id']} from {name}")
+
+          print("Purge complete")
+          PY
