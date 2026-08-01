@@ -117,6 +117,10 @@ pub struct Rename {
 }
 #[derive(Parser, Debug, Clone)]
 pub struct Empty {
+    #[arg(short, long, default_value_t = false)]
+    /// Skip confirmation prompts and complete tasks non-interactively
+    force: bool,
+
     #[arg(short, long)]
     /// Project to remove
     project: Option<String>,
@@ -214,11 +218,15 @@ pub async fn import(config: &mut Config, args: &Import) -> Result<String, Error>
 }
 
 pub async fn empty(config: &mut Config, args: &Empty) -> Result<String, Error> {
-    let Empty { project } = args;
+    let Empty { force, project } = args;
     let project = match super::fetch_project(project.as_deref(), config).await? {
         Flag::Project(project) => project,
         Flag::Filter(_) => unreachable!(),
     };
+
+    if *force {
+        config.mock_select = Some(1);
+    }
 
     projects::empty(config, &project).await
 }
