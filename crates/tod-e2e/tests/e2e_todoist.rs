@@ -159,50 +159,6 @@ fn ensure_project_exists(config: &Path, project: &str) {
     pause_for_api_sync();
 }
 
-/// Cleanup helper: repeatedly calls `task next --project` and completes any
-/// returned task until the project is empty.
-fn cleanup_project_tasks(config: &Path, project: &str) {
-    let _ = tod()
-        .arg("--config")
-        .arg(config)
-        .args(["project", "empty", "--project", project])
-        .output();
-
-    let mut consecutive_empty_checks = 0_u8;
-    for _ in 0..80 {
-        let output = tod()
-            .arg("--config")
-            .arg(config)
-            .args(["task", "next", "--project", project])
-            .output()
-            .expect("task next should run");
-
-        if !output.status.success() {
-            sleep(Duration::from_millis(350));
-            continue;
-        }
-
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        if stdout.contains("No tasks on list") {
-            consecutive_empty_checks += 1;
-            if consecutive_empty_checks >= 3 {
-                break;
-            }
-            sleep(Duration::from_millis(350));
-            continue;
-        }
-        consecutive_empty_checks = 0;
-
-        tod()
-            .arg("--config")
-            .arg(config)
-            .args(["task", "complete"])
-            .assert()
-            .success();
-        sleep(Duration::from_millis(350));
-    }
-}
-
 /// Calls `task next --project <project>` and waits until the output contains `expected`.
 fn assert_next_task(config: &Path, project: &str, expected: &str) {
     let mut last_stdout = String::new();
