@@ -20,7 +20,7 @@ The workflow maps this secret to `TOD_E2E_TOKEN` before running tests.
 
 The required projects can be imported from 'e2e_todoist_fixtures'
 
-If the dynamic projects are in an unclean state, manually run "E2E purge Dynamic Tasks" workflow
+If the dynamic projects are in an unclean state, manually run "E2E Purge Dynamic Tasks" workflow
 
 ## Test model
 
