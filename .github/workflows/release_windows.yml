@@ -32,8 +32,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v7
 
-      - uses: taiki-e/install-action@nextest
-
       - uses: Swatinem/rust-cache@v2
         with:
           cache-all-crates: true
@@ -41,25 +39,30 @@ jobs:
       - name: Install Rust Toolchain
         run: rustup toolchain install
 
-      - name: Run tests using cargo-nextest
-        run: cargo nextest run --all-features
-        continue-on-error: false
-
       - name: Install Rust target for Windows
         run: rustup target add x86_64-pc-windows-msvc
 
-      - name: get VERSION and tag from Cargo.toml
-        id: cargo-get
-        uses: nicolaiunrein/cargo-get@master
-        with:
-          subcommand: package.version
-
-      - name: Set version and tag variable
-        id: version
+      - name: Read version from Cargo.toml
         shell: bash
         run: |
-          echo "VERSION=$(cargo get package.version)" >> $GITHUB_ENV
-          echo "TAG=$(cargo get package.version --pretty)" >> $GITHUB_ENV
+          python - <<'PY'
+          import os
+          import re
+          from pathlib import Path
+
+          content = Path('Cargo.toml').read_text(encoding='utf-8')
+          match = re.search(r'^version\s*=\s*"([^"]+)"', content, re.MULTILINE)
+          if not match:
+              raise SystemExit('Could not determine package version from Cargo.toml')
+
+          version = match.group(1)
+          with open(os.environ['GITHUB_ENV'], 'a', encoding='utf-8') as fh:
+              fh.write(f'VERSION={version}\n')
+              fh.write(f'TAG=v{version}\n')
+
+          print(f'VERSION={version}')
+          print(f'TAG=v{version}')
+          PY
 
       - name: Build release binary
         run: cargo build --release --target x86_64-pc-windows-msvc
@@ -107,18 +110,28 @@ jobs:
       - name: Install jq
         run: sudo apt-get update && sudo apt-get install -y jq
 
-      - name: Get VERSION from Cargo.toml
-        id: cargo-get
-        uses: nicolaiunrein/cargo-get@master
-        with:
-          subcommand: package.version
-
-      - name: Set version variable
+      - name: Read version from Cargo.toml
         id: set_version
+        shell: bash
         run: |
-          VERSION=$(cargo get package.version)
-          echo "VERSION=$VERSION" >> $GITHUB_ENV
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          python - <<'PY'
+          import os
+          import re
+          from pathlib import Path
+
+          content = Path('Cargo.toml').read_text(encoding='utf-8')
+          match = re.search(r'^version\s*=\s*"([^"]+)"', content, re.MULTILINE)
+          if not match:
+              raise SystemExit('Could not determine package version from Cargo.toml')
+
+          version = match.group(1)
+          with open(os.environ['GITHUB_ENV'], 'a', encoding='utf-8') as fh:
+              fh.write(f'VERSION={version}\n')
+          with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as fh:
+              fh.write(f'version={version}\n')
+
+          print(f'VERSION={version}')
+          PY
 
       - name: Compute SHA256 of release zip
         run: |

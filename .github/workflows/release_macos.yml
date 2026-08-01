@@ -1,5 +1,6 @@
-# This runs an OS-specific test, then builds and releases binaries for macOS (ARM and Intel) and publishes them to GitHub.
-# It is triggered by push with a version tag is present (generally from a release-please release)
+# This builds and releases binaries for macOS (ARM and Intel) and publishes them to GitHub.
+# It is triggered by push with a version tag is present (generally from a release-please release).
+# Tests already run in the CI release workflow, so this job focuses on packaging and publishing.
 
 name: macOS Build & Release
 permissions:
@@ -35,8 +36,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v7
 
-      - uses: taiki-e/install-action@nextest
-
       - name: Install Rust Toolchain
         run: rustup toolchain install
 
@@ -44,21 +43,27 @@ jobs:
         with:
           cache-all-crates: true
 
-      - name: Run tests using cargo-nextest
-        run: cargo nextest run --all-features
-        continue-on-error: false
-
-      - name: Set VERSION and TAG from Cargo.toml
-        id: cargo-get
-        uses: nicolaiunrein/cargo-get@master
-        with:
-          subcommand: package.version
-
-      - name: Set version output
-        id: package-version
+      - name: Read version from Cargo.toml
+        shell: bash
         run: |
-          echo "VERSION=$(cargo get package.version)" >> $GITHUB_ENV
-          echo "TAG=$(cargo get package.version --pretty)" >> $GITHUB_ENV
+          python - <<'PY'
+          import os
+          import re
+          from pathlib import Path
+
+          content = Path('Cargo.toml').read_text(encoding='utf-8')
+          match = re.search(r'^version\s*=\s*"([^"]+)"', content, re.MULTILINE)
+          if not match:
+              raise SystemExit('Could not determine package version from Cargo.toml')
+
+          version = match.group(1)
+          with open(os.environ['GITHUB_ENV'], 'a', encoding='utf-8') as fh:
+              fh.write(f'VERSION={version}\n')
+              fh.write(f'TAG=v{version}\n')
+
+          print(f'VERSION={version}')
+          print(f'TAG=v{version}')
+          PY
 
       - name: Add x86_64 target for cross-compilation
         run: rustup target add x86_64-apple-darwin

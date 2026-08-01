@@ -1,8 +1,8 @@
 
 # This GitHub Actions workflow builds the tod application for Linux x86_64 and ARM64,
 # packages the binaries, uploads them to a GitHub release.
-# It also runs tests using nextest to ensure code quality before the release.
 # It is triggered by a push with a version tag (e.g., v1.0.0), typically from a release-please release.
+# Tests already run in the CI release workflow, so this job focuses on building and publishing.
 
 name: Linux Build & Release
 on:
@@ -42,24 +42,27 @@ jobs:
         with:
           cache-all-crates: true
 
-      - uses: taiki-e/install-action@v2
-        with:
-          tool: nextest
-
-      - name: Run platform tests
-        run: cargo nextest run --all-features
-
-      - name: Install Cargo Get
-        id: cargo-get
-        uses: nicolaiunrein/cargo-get@master
-        with:
-          subcommand: package.version
-
-      - name: Get version and tag
-        id: version
+      - name: Read version from Cargo.toml
+        shell: bash
         run: |
-          echo "VERSION=$(cargo get package.version)" >> $GITHUB_ENV
-          echo "TAG=$(cargo get package.version --pretty)" >> $GITHUB_ENV
+          python - <<'PY'
+          import os
+          import re
+          from pathlib import Path
+
+          content = Path('Cargo.toml').read_text(encoding='utf-8')
+          match = re.search(r'^version\s*=\s*"([^"]+)"', content, re.MULTILINE)
+          if not match:
+              raise SystemExit('Could not determine package version from Cargo.toml')
+
+          version = match.group(1)
+          with open(os.environ['GITHUB_ENV'], 'a', encoding='utf-8') as fh:
+              fh.write(f'VERSION={version}\n')
+              fh.write(f'TAG=v{version}\n')
+
+          print(f'VERSION={version}')
+          print(f'TAG=v{version}')
+          PY
 
       - name: Build
         run: cargo build --release --target x86_64-unknown-linux-gnu
@@ -99,26 +102,31 @@ jobs:
       - name: Install Rust Toolchain
         run: rustup toolchain install
 
-      - uses: taiki-e/install-action@nextest
-
       - uses: Swatinem/rust-cache@v2
         with:
           cache-all-crates: true
 
-      - name: Run platform tests
-        run: cargo nextest run --all-features
-
-      - name: Install Cargo Get
-        id: cargo-get
-        uses: nicolaiunrein/cargo-get@master
-        with:
-          subcommand: package.version
-
-      - name: Get version and tag
-        id: version
+      - name: Read version from Cargo.toml
+        shell: bash
         run: |
-          echo "VERSION=$(cargo get package.version)" >> $GITHUB_ENV
-          echo "TAG=$(cargo get package.version --pretty)" >> $GITHUB_ENV
+          python - <<'PY'
+          import os
+          import re
+          from pathlib import Path
+
+          content = Path('Cargo.toml').read_text(encoding='utf-8')
+          match = re.search(r'^version\s*=\s*"([^"]+)"', content, re.MULTILINE)
+          if not match:
+              raise SystemExit('Could not determine package version from Cargo.toml')
+
+          version = match.group(1)
+          with open(os.environ['GITHUB_ENV'], 'a', encoding='utf-8') as fh:
+              fh.write(f'VERSION={version}\n')
+              fh.write(f'TAG=v{version}\n')
+
+          print(f'VERSION={version}')
+          print(f'TAG=v{version}')
+          PY
 
       - name: Build
         run: cargo build --release --target aarch64-unknown-linux-gnu
