@@ -443,9 +443,10 @@ pub async fn empty(config: &mut Config, project: &Project) -> Result<String, Err
             .filter(|task| task.parent_id.is_none())
             .collect::<Vec<Task>>();
 
+        let mut task_count = tasks.len();
         let mut handles = Vec::new();
         for task in tasks {
-            handles.push(move_task_to_project(config, task, &sections).await?);
+            handles.push(move_task_to_project(config, task, &sections, &mut task_count).await?);
         }
         future::join_all(handles).await;
         Ok(format::green_string(&format!(
@@ -540,12 +541,15 @@ pub async fn move_task_to_project(
     config: &mut Config,
     task: Task,
     sections: &[Section],
+    task_count: &mut usize,
 ) -> Result<JoinHandle<()>, Error> {
     let comments = Vec::new();
     let text = task
         .fmt(comments, config, FormatType::Single, false)
         .await?;
-    println!("{text}");
+    let noun = if *task_count == 1 { "task" } else { "tasks" };
+    println!("{text}\n{task_count} {noun} remaining");
+    *task_count -= 1;
 
     let options = ["Pick project", "Complete", "Skip", "Delete"]
         .iter()
@@ -978,11 +982,13 @@ mod tests {
         let task = test::fixtures::today_task().await;
         let sections: Vec<Section> = Vec::new();
 
-        move_task_to_project(&mut config, task, &sections)
+        let mut task_count = 1;
+        move_task_to_project(&mut config, task, &sections, &mut task_count)
             .await
             .expect("expected value or result, got None or Err")
             .await
             .expect("expected value or result, got None or Err");
+        assert_eq!(task_count, 0);
     }
 
     #[tokio::test]
@@ -1007,10 +1013,12 @@ mod tests {
         config.internal.tx = Some(tx);
         let sections: Vec<Section> = Vec::new();
 
-        let handle = move_task_to_project(&mut config, task, &sections)
+        let mut task_count = 1;
+        let handle = move_task_to_project(&mut config, task, &sections, &mut task_count)
             .await
             .expect("complete should return a handle");
         handle.await.expect("complete task should succeed");
+        assert_eq!(task_count, 0);
         rx_handle.abort();
         mock.assert_async().await;
     }
@@ -1037,10 +1045,12 @@ mod tests {
         config.internal.tx = Some(tx);
         let sections: Vec<Section> = Vec::new();
 
-        let handle = move_task_to_project(&mut config, task, &sections)
+        let mut task_count = 1;
+        let handle = move_task_to_project(&mut config, task, &sections, &mut task_count)
             .await
             .expect("delete should return a handle");
         handle.await.expect("delete task should succeed");
+        assert_eq!(task_count, 0);
         rx_handle.abort();
         mock.assert_async().await;
     }
