@@ -5,7 +5,7 @@ use crate::{
     cargo::{self, Version},
     config::{self, Config},
     errors::Error,
-    update,
+    update::{self, osc8_link},
 };
 use serde_json::Value;
 use std::path::PathBuf;
@@ -83,6 +83,15 @@ pub struct SetTimezone {
     /// Explicitly set a `TimeZone`, i.e. "Canada/Pacific")
     timezone: Option<String>,
 }
+/// Format the upgrade hint: shell commands get quoted, URLs get OSC8 hyperlinks.
+fn format_upgrade_hint(upgrade_cmd: &str) -> String {
+    if upgrade_cmd.starts_with("http") {
+        format!("\nTo update: {}", osc8_link(upgrade_cmd, upgrade_cmd))
+    } else {
+        format!(" To update manually: '{upgrade_cmd}'")
+    }
+}
+
 pub async fn check_version(args: &CheckVersion, mock_url: Option<String>) -> Result<String, Error> {
     let CheckVersion { force, repo } = args;
 
@@ -109,7 +118,8 @@ pub async fn check_version(args: &CheckVersion, mock_url: Option<String>) -> Res
                     Err(e) => {
                         let _ = write!(
                             result,
-                            "\nAuto-update failed: {e}. To update manually: '{upgrade_cmd}'"
+                            "\nAuto-update failed: {e}{}",
+                            format_upgrade_hint(&upgrade_cmd)
                         );
                         Ok(result)
                     }
@@ -134,11 +144,15 @@ pub async fn check_version(args: &CheckVersion, mock_url: Option<String>) -> Res
                     match update::perform_auto_update(repo.as_deref()) {
                         Ok(msg) => Ok(msg),
                         Err(e) => Ok(format!(
-                            "Auto-update failed: {e}. To update manually: '{upgrade_cmd}'"
+                            "Auto-update failed: {e}{}",
+                            format_upgrade_hint(&upgrade_cmd)
                         )),
                     }
                 } else {
-                    Ok(format!("Update skipped. To update: '{upgrade_cmd}'"))
+                    Ok(format!(
+                        "Update skipped.{}",
+                        format_upgrade_hint(&upgrade_cmd)
+                    ))
                 }
             }
         }
@@ -575,9 +589,10 @@ mod tests {
             response.contains("Auto-update failed:"),
             "Missing auto-update failure notice"
         );
+        // OSC8 hyperlink wraps the URL
         assert!(
-            response.contains("https://github.com/tod-org/tod#installation"),
-            "Missing manual update link"
+            response.contains("\x1b]8;;https://github.com/tod-org/tod#installation\x1b\\"),
+            "Missing OSC8 manual update link"
         );
 
         // Ensure the mock was actually called
