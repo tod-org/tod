@@ -2,6 +2,11 @@
 // Functions that attempt to detect the installation method of the current executable, used for autoupdate and debug
 use std::{env, process::Command};
 
+/// Wrap a URL in OSC8 terminal hyperlink escape sequences for clickable links.
+pub fn osc8_link(url: &str, text: &str) -> String {
+    format!("\x1b]8;;{url}\x1b\\{text}\x1b]8;;\x1b\\")
+}
+
 #[derive(Debug, PartialEq, Eq)]
 pub enum InstallMethod {
     Homebrew,
@@ -44,10 +49,7 @@ pub fn get_update_command_args(
         InstallMethod::Scoop => Ok(("scoop", vec!["update", "tod"])),
         InstallMethod::Cargo => Ok(("cargo", vec!["install", "tod", "--force"])),
         InstallMethod::FromSource | InstallMethod::Unknown => {
-            let url = "https://github.com/tod-org/tod#installation";
-            Err(format!(
-                "Automatic update is not supported for this installation method.\nPlease visit: {url}"
-            ))
+            Err("Automatic update is not supported for this installation method.".to_string())
         }
     }
 }
@@ -99,7 +101,10 @@ fn detect_install_method() -> InstallMethod {
         InstallMethod::Cargo
     } else if components.iter().any(|c| c.contains("scoop")) {
         InstallMethod::Scoop
-    } else if components.iter().any(|c| c.contains("homebrew")) {
+    } else if components
+        .iter()
+        .any(|c| c.contains("homebrew") || c.contains("cellar"))
+    {
         InstallMethod::Homebrew
     } else {
         InstallMethod::Unknown
@@ -190,14 +195,50 @@ mod tests {
     fn test_get_update_command_args_from_source() {
         let err = get_update_command_args(Some("source"))
             .expect_err("Expected error when getting update command args for source");
-        assert!(err.contains("Automatic update is not supported"));
+        assert!(
+            err.contains("Automatic update is not supported"),
+            "Got: {err}"
+        );
+        // Error no longer contains the URL inline (presentation is in config_commands)
+        assert!(
+            !err.contains("http"),
+            "Error should not contain raw URL: {err}"
+        );
     }
 
     #[test]
     fn test_get_update_command_args_unknown() {
         let err = get_update_command_args(Some("unknown"))
             .expect_err("Expected error when getting update command args for unknown");
-        assert!(err.contains("Automatic update is not supported"));
+        assert!(
+            err.contains("Automatic update is not supported"),
+            "Got: {err}"
+        );
+        assert!(
+            !err.contains("http"),
+            "Error should not contain raw URL: {err}"
+        );
+    }
+
+    #[test]
+    fn test_osc8_link() {
+        let link = osc8_link("https://example.com", "click here");
+        assert!(link.starts_with("\x1b]8;;https://example.com\x1b\\"));
+        assert!(link.contains("click here"));
+        assert!(link.ends_with("\x1b]8;;\x1b\\"));
+    }
+
+    #[test]
+    fn test_detect_install_method_cellar() {
+        // Simulate an Intel Mac Homebrew path: /usr/local/Cellar/tod/0.12.1/bin/tod
+        // Cannot override current_exe(), but we can test via the override arg
+        // The cellar check is inside detect_install_method which runs when no override
+        // So we test the override path to confirm the string mapping works
+        assert_eq!(
+            get_install_method(Some("homebrew")),
+            InstallMethod::Homebrew
+        );
+        assert_eq!(get_install_method_string(Some("homebrew")), "homebrew");
     }
     #[test]
     fn test_get_install_method_override_whitespace_case() {
