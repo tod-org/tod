@@ -1,5 +1,17 @@
-// This file contains the functions used for checking for updates and automatically updating the tod CLI tool.
-// Functions that attempt to detect the installation method of the current executable, used for autoupdate and debug
+// Auto-update architecture:
+//
+// Detection layer (how was tod installed?):
+//   get_install_method(override) → detect_install_method() falls back to
+//   inspecting current_exe() path components.
+//
+// Execution layer (run the right package manager):
+//   get_update_command_args() → perform_auto_update() spawns the command.
+//   Returns Err for FromSource/Unknown (no auto-update possible).
+//
+// Presentation layer (user-facing strings, called from config_commands):
+//   get_upgrade_command() — manual upgrade instruction string.
+//   get_install_method_string() — human-readable install method label.
+//   osc8_link() — OSC8 terminal hyperlink wrapper for clickable URLs.
 use std::{env, process::Command};
 
 /// Wrap a URL in OSC8 terminal hyperlink escape sequences for clickable links.
@@ -85,6 +97,19 @@ pub fn get_upgrade_command(override_arg: Option<&str>) -> String {
     }
 }
 
+/// Detect install method by inspecting path components of current_exe().
+///
+/// Checks are ordered by priority (first match wins).
+/// `cfg!(debug_assertions)` always returns FromSource — a debug binary is
+/// never a real install, regardless of path.
+///
+/// Path pattern per method:
+///   FromSource — "target" in any component (cargo build output dir)
+///   Cargo       — ".cargo" in any component (~/.cargo/bin/)
+///   Scoop       — "scoop" in any component
+///   Homebrew    — "homebrew" (Apple Silicon: /opt/homebrew/) or
+///                 "cellar" (Intel: /usr/local/Cellar/ … resolved symlink)
+///   Unknown     — fallback; auto-update not supported
 fn detect_install_method() -> InstallMethod {
     let Ok(path) = env::current_exe() else {
         return InstallMethod::Unknown;
@@ -95,6 +120,7 @@ fn detect_install_method() -> InstallMethod {
         .map(|c| c.as_os_str().to_string_lossy().to_lowercase())
         .collect();
 
+    // debug build or any path containing "target" → built from source
     if cfg!(debug_assertions) || components.iter().any(|c| c == "target") {
         InstallMethod::FromSource
     } else if components.iter().any(|c| c.contains(".cargo")) {
