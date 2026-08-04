@@ -5,10 +5,9 @@ use std::{
 
 use crate::format;
 use homedir::GetHomeError;
-use serde::Deserialize;
 use tokio::{sync::oneshot::error::RecvError, task::JoinError};
 
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Error {
     pub message: String,
     pub source: String,
@@ -47,7 +46,7 @@ impl From<regex::Error> for Error {
 impl From<RecvError> for Error {
     fn from(_value: RecvError) -> Self {
         Self {
-            source: String::from("RecvError"),
+            source: String::from("oneshot"),
             message: "Sender dropped without sending".to_string(),
         }
     }
@@ -56,7 +55,7 @@ impl From<RecvError> for Error {
 impl From<TryFromIntError> for Error {
     fn from(value: TryFromIntError) -> Self {
         Self {
-            source: "TryFromIntError".into(),
+            source: "int_convert".into(),
             message: format!("{value}"),
         }
     }
@@ -65,7 +64,7 @@ impl From<TryFromIntError> for Error {
 impl From<JoinError> for Error {
     fn from(value: JoinError) -> Self {
         Self {
-            source: "Join on future".into(),
+            source: "tokio".into(),
             message: format!("{value}"),
         }
     }
@@ -73,18 +72,30 @@ impl From<JoinError> for Error {
 
 impl From<chrono::LocalResult<chrono::DateTime<chrono_tz::Tz>>> for Error {
     fn from(value: chrono::LocalResult<chrono::DateTime<chrono_tz::Tz>>) -> Self {
+        let message = match &value {
+            chrono::LocalResult::None => {
+                "The specified time does not exist in this timezone".to_string()
+            }
+            chrono::LocalResult::Single(dt) => {
+                format!("Unexpected: time {dt} resolved unambiguously but was treated as an error")
+            }
+            chrono::LocalResult::Ambiguous(dt1, dt2) => format!(
+                "Ambiguous time due to daylight saving time transition: could be {dt1} or {dt2}"
+            ),
+        };
         Self {
-            source: "chrono".into(),
-            message: format!("{value:?}"),
+            source: "chrono_local".into(),
+            message,
         }
     }
 }
 
 impl From<tokio::sync::mpsc::error::SendError<Error>> for Error {
     fn from(value: tokio::sync::mpsc::error::SendError<Error>) -> Self {
+        let inner = value.0;
         Self {
             source: "tokio mpsc".into(),
-            message: format!("{value}"),
+            message: format!("channel send failed: {}", inner.message),
         }
     }
 }
@@ -101,7 +112,7 @@ impl From<chrono_tz::ParseError> for Error {
 impl From<ParseIntError> for Error {
     fn from(value: ParseIntError) -> Self {
         Self {
-            source: "ParseIntError".into(),
+            source: "int_parse".into(),
             message: format!("{value}"),
         }
     }
@@ -152,6 +163,8 @@ impl From<inquire::InquireError> for Error {
     }
 }
 
+impl std::error::Error for Error {}
+
 impl Error {
     pub fn new(source: &str, message: &str) -> Error {
         Error {
@@ -194,7 +207,7 @@ mod tests {
     fn test_from_parse_int_error() {
         let parse_err = "abc".parse::<i32>().unwrap_err();
         let e: Error = parse_err.into();
-        assert_eq!(e.source, "ParseIntError");
+        assert_eq!(e.source, "int_parse");
         assert!(!e.message.is_empty());
     }
 
