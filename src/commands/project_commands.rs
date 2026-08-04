@@ -134,8 +134,14 @@ pub async fn create(config: &mut Config, args: &Create) -> Result<String, Error>
     projects::create(config, name, description, *is_favorite).await
 }
 
-pub async fn list(config: &mut Config, _args: &List) -> Result<String, Error> {
-    projects::list(config).await
+pub async fn list(config: &mut Config, _args: &List, json: bool) -> Result<String, Error> {
+    if json {
+        config.reload_projects().await?;
+        let projects = config.projects().await?;
+        Ok(serde_json::to_string(&projects)?)
+    } else {
+        projects::list(config).await
+    }
 }
 
 pub async fn remove(config: &mut Config, args: &Remove) -> Result<String, Error> {
