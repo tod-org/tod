@@ -109,7 +109,7 @@ pub struct Comment {
     /// Content for comment
     content: Option<String>,
 }
-pub async fn quick_add(config: &Config, args: &QuickAdd) -> Result<String, Error> {
+pub async fn quick_add(config: &Config, args: &QuickAdd, json: bool) -> Result<String, Error> {
     let QuickAdd { content } = args;
     let maybe_string = content.as_ref().map(|c| c.join(" "));
     let content = super::fetch_string(maybe_string.as_deref(), config, input::CONTENT)?;
@@ -123,8 +123,12 @@ pub async fn quick_add(config: &Config, args: &QuickAdd) -> Result<String, Error
     } else {
         (content, None)
     };
-    todoist::quick_create_task(config, &content, reminder).await?;
-    Ok(format::green_string("✓"))
+    let task = todoist::quick_create_task(config, &content, reminder).await?;
+    if json {
+        Ok(serde_json::to_string(&task)?)
+    } else {
+        Ok(format::green_string("✓"))
+    }
 }
 
 /// User does not want to use sections
@@ -132,8 +136,8 @@ fn is_no_sections(args: &Create, config: &Config) -> bool {
     args.no_section || config.no_sections.unwrap_or_default()
 }
 
-pub async fn create(config: Config, args: &Create) -> Result<String, Error> {
-    if no_flags_used(args) {
+pub async fn create(config: Config, args: &Create, json: bool) -> Result<String, Error> {
+    let task = if no_flags_used(args) {
         let options = tasks::create_task_attributes();
         let selections = input::multi_select(input::ATTRIBUTES, options, config.mock_select)?;
 
@@ -199,7 +203,7 @@ pub async fn create(config: Config, args: &Create) -> Result<String, Error> {
             due.as_deref(),
             &labels,
         )
-        .await?;
+        .await?
     } else {
         let Create {
             project,
@@ -233,9 +237,13 @@ pub async fn create(config: Config, args: &Create) -> Result<String, Error> {
             due.as_deref(),
             labels,
         )
-        .await?;
+        .await?
+    };
+    if json {
+        Ok(serde_json::to_string(&task)?)
+    } else {
+        Ok(format::green_string("✓"))
     }
-    Ok(format::green_string("✓"))
 }
 
 fn no_flags_used(args: &Create) -> bool {
@@ -272,12 +280,16 @@ pub async fn next(config: Config, args: &Next) -> Result<String, Error> {
     }
 }
 
-pub async fn complete(config: Config, _args: &Complete) -> Result<String, Error> {
+pub async fn complete(config: Config, _args: &Complete, json: bool) -> Result<String, Error> {
     match config.next_task() {
         Some(task) => {
             todoist::complete_task(&config, &task.id, true).await?;
 
-            Ok(format::green_string("Task completed successfully"))
+            if json {
+                Ok(serde_json::to_string(&task)?)
+            } else {
+                Ok(format::green_string("Task completed successfully"))
+            }
         }
         None => Err(Error::new(
             "task_complete",
