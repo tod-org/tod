@@ -1,3 +1,39 @@
+//! Todoist REST API client.
+//!
+//! ## Tasks
+//! - [`quick_create_task`] — natural-language quick-add to inbox
+//! - [`create_task`] — full task creation with project, section, priority, labels
+//! - [`get_task`] — fetch a single task by ID
+//! - [`all_tasks_by_project`], [`all_tasks_by_filter`], [`all_tasks_by_ids`] — list tasks
+//! - [`complete_task`], [`delete_task`] — close or delete a task
+//! - [`update_task_content`], [`update_task_description`], [`update_task_priority`],
+//!   [`update_task_labels`], [`update_task_deadline`], [`update_task_due_natural_language`] —
+//!   in-place updates
+//! - [`add_task_label`] — append a single label
+//! - [`move_task_to_project`], [`move_task_to_section`] — move tasks
+//!
+//! ## Projects
+//! - [`all_projects`], [`create_project`], [`delete_project`]
+//!
+//! ## Sections
+//! - [`all_sections_by_project`], [`create_section`]
+//!
+//! ## Comments
+//! - [`all_comments`], [`create_comment`]
+//!
+//! ## Labels
+//! - [`all_labels`]
+//!
+//! ## Reminders
+//! - [`all_reminders`], [`create_reminder`]
+//!
+//! ## User & Auth
+//! - [`get_user_data`], [`get_access_token`]
+//!
+//! ## Misc
+//! - [`test_all_endpoints`] — sanity-check every endpoint
+//! - [`filter_tasks_by_title`] — exclude tasks by regex
+
 use futures::future;
 use serde_json::{Number, Value, json};
 use std::collections::HashMap;
