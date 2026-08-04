@@ -9,6 +9,7 @@ use crate::{
     lists::{self, Flag},
     projects,
     tasks::SortOrder,
+    todoist,
 };
 
 #[derive(Subcommand, Debug, Clone)]
@@ -236,7 +237,7 @@ pub struct Import {
     /// The file or directory to fuzzy find in
     path: Option<String>,
 }
-pub async fn view(config: &mut Config, args: &View) -> Result<String, Error> {
+pub async fn view(config: &mut Config, args: &View, json: bool) -> Result<String, Error> {
     let View {
         project,
         filter,
@@ -245,7 +246,22 @@ pub async fn view(config: &mut Config, args: &View) -> Result<String, Error> {
 
     let flag =
         super::fetch_project_or_filter(project.as_deref(), filter.as_deref(), config).await?;
-    lists::view(config, flag, sort).await
+
+    if json {
+        let tasks = match &flag {
+            Flag::Project(project) => todoist::all_tasks_by_project(config, project, None).await?,
+            Flag::Filter(filter) => todoist::all_tasks_by_filters(config, filter)
+                .await?
+                .into_iter()
+                .flat_map(|(_, tasks)| tasks)
+                .collect(),
+        };
+        let count = tasks.len();
+        let json = serde_json::json!({"tasks": tasks, "count": count});
+        Ok(json.to_string())
+    } else {
+        lists::view(config, flag, sort).await
+    }
 }
 
 pub async fn label(config: Config, args: &Label) -> Result<String, Error> {

@@ -198,7 +198,7 @@ async fn project_command(
         }
         ProjectCommands::List(args) => {
             let mut config = fetch_config(cli, tx).await?;
-            let result = project_commands::list(&mut config, args).await;
+            let result = project_commands::list(&mut config, args, cli.json).await;
             Ok(build_command_result(result, &config))
         }
         ProjectCommands::Remove(args) => {
@@ -276,7 +276,7 @@ async fn list_command(
     match command {
         ListCommands::View(args) => {
             let mut config = fetch_config(cli, tx).await?;
-            let result = list_commands::view(&mut config, args).await;
+            let result = list_commands::view(&mut config, args, cli.json).await;
             Ok(build_command_result(result, &config))
         }
         ListCommands::Process(args) => {

@@ -10,6 +10,8 @@
 
 - `src/todoist/mod.rs` — REST API client (~1,270L). Key exports: `all_tasks_by_*`, `quick_create_task`, `create_task`, `complete_task`, `update_task_*`, `all_projects`, `all_labels`, `all_comments`, `all_sections_by_project`
 - `src/todoist/request.rs` — HTTP layer (GET/POST/DELETE via reqwest)
+- `src/projects.rs` — Project struct, CRUD operations, task scheduling
+- `src/lists.rs` — Multi-task operations (view, process, label, timebox, etc.)
 - `src/commands/mod.rs` — CLI dispatch via clap `Subcommand` enum
 - `src/commands/task_commands.rs` — Task subcommand handlers
 - `src/commands/list_commands.rs` — List/view subcommand handlers
@@ -42,5 +44,6 @@
 
 - Never push directly to `main` — all changes go through pull requests and are merged into `main`
 - Branch naming: `type/short-description` (e.g. `fix/error-coloring`, `feat/add-foo`)
+- Push the branch to origin before creating a PR: `git push -u origin <branch>`
 - Create PRs with `gh pr create --title "type: description" --body "..." --base main`
 - Commit format follows Conventional Commits (lowercase, 250-char line limit). See `.commitlint.config.mjs` for enforced rules.
