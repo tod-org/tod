@@ -10,7 +10,7 @@ Copilot should follow these conventions when generating or completing code, comm
 - Keep naming precise and self-documenting; avoid abbreviations that obscure meaning.
 - Code must **compile cleanly** (no warnings) and pass tests and clippy.
 - Prefer `PathBuf` over `String` for filesystem paths.
-- Debug prints start with `DEBUG:` (e.g., `eprintln!("DEBUG: …")`).
+- Debug prints use `crate::debug::maybe_print()` or `eprintln!` — never prefix with `DEBUG:` as `scripts/test.sh` rejects that string.
 - Avoid unnecessary complexity; refactor deeply nested logic into small, pure functions.
 
 ---
