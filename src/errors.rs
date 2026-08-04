@@ -7,6 +7,18 @@ use crate::format;
 use homedir::GetHomeError;
 use tokio::{sync::oneshot::error::RecvError, task::JoinError};
 
+/// The project-wide error type.
+///
+/// # Source naming convention
+/// The `source` field uses lowercase crate or module names:
+/// `"io"`, `"serde_json"`, `"reqwest"`, `"chrono_tz"`, `"oneshot"`, etc.
+///
+/// # Display and coloring
+/// The `Display` impl applies [`format::red_string`] to `message` and
+/// [`format::yellow_string`] to `source`. Callers constructing error
+/// messages must **not** pre-apply [`format`] coloring — `Display` owns
+/// color output. The `colored` crate strips ANSI codes under `cfg!(test)`,
+/// so unit tests will not catch double-coloring bugs.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Error {
     pub message: String,
