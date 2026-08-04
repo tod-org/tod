@@ -348,7 +348,7 @@ async fn config_command(
             Ok(build_command_result_without_config(result, cli.json))
         }
         ConfigCommands::About(args) => {
-            let result = config_commands::about(args).await;
+            let result = config_commands::about(args, cli.json).await;
             Ok(build_command_result_without_config(result, cli.json))
         }
         ConfigCommands::Reset(args) => {

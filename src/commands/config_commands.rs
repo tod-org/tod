@@ -364,10 +364,19 @@ pub async fn edit(config: Config, _args: &Edit) -> Result<String, Error> {
 }
 
 #[allow(clippy::unused_async)]
-pub async fn about(_args: &About) -> Result<String, Error> {
-    Ok(format!(
-        "APP:             {NAME}\nVERSION:         {VERSION}\nBUILD_PROFILE:   {BUILD_PROFILE}\nBUILD_TARGET:    {BUILD_TARGET}\nBUILD_TIMESTAMP: {BUILD_TIMESTAMP}"
-    ))
+pub async fn about(_args: &About, json: bool) -> Result<String, Error> {
+    if json {
+        let json = serde_json::json!({
+            "version": VERSION,
+            "target": BUILD_TARGET,
+            "profile": BUILD_PROFILE,
+        });
+        Ok(json.to_string())
+    } else {
+        Ok(format!(
+            "APP:             {NAME}\nVERSION:         {VERSION}\nBUILD_PROFILE:   {BUILD_PROFILE}\nBUILD_TARGET:    {BUILD_TARGET}\nBUILD_TIMESTAMP: {BUILD_TIMESTAMP}"
+        ))
+    }
 }
 
 #[cfg(test)]
