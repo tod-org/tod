@@ -11,13 +11,7 @@
 // Presentation layer (user-facing strings, called from config_commands):
 //   get_upgrade_command() — manual upgrade instruction string.
 //   get_install_method_string() — human-readable install method label.
-//   osc8_link() — OSC8 terminal hyperlink wrapper for clickable URLs.
 use std::{env, process::Command};
-
-/// Wrap a URL in OSC8 terminal hyperlink escape sequences for clickable links.
-pub fn osc8_link(url: &str, text: &str) -> String {
-    format!("\x1b]8;;{url}\x1b\\{text}\x1b]8;;\x1b\\")
-}
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum InstallMethod {
@@ -120,8 +114,12 @@ fn detect_install_method() -> InstallMethod {
         .map(|c| c.as_os_str().to_string_lossy().to_lowercase())
         .collect();
 
-    // debug build or any path containing "target" → built from source
-    if cfg!(debug_assertions) || components.iter().any(|c| c == "target") {
+    detect_install_method_from_components(&components, cfg!(debug_assertions))
+}
+
+/// Extracted for testability — matches path components against known install patterns.
+fn detect_install_method_from_components(components: &[String], is_debug: bool) -> InstallMethod {
+    if is_debug || components.iter().any(|c| c == "target") {
         InstallMethod::FromSource
     } else if components.iter().any(|c| c.contains(".cargo")) {
         InstallMethod::Cargo
@@ -247,24 +245,68 @@ mod tests {
     }
 
     #[test]
-    fn test_osc8_link() {
-        let link = osc8_link("https://example.com", "click here");
-        assert!(link.starts_with("\x1b]8;;https://example.com\x1b\\"));
-        assert!(link.contains("click here"));
-        assert!(link.ends_with("\x1b]8;;\x1b\\"));
+    fn test_detect_install_method_from_components_cellar() {
+        // Simulate an Intel Mac Homebrew path: /usr/local/Cellar/tod/0.12.1/bin/tod
+        // Components come pre-lowered by detect_install_method()
+        let components: Vec<String> = ["usr", "local", "cellar", "tod", "0.12.1", "bin", "tod"]
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
+        assert_eq!(
+            detect_install_method_from_components(&components, false),
+            InstallMethod::Homebrew
+        );
     }
 
     #[test]
-    fn test_detect_install_method_cellar() {
-        // Simulate an Intel Mac Homebrew path: /usr/local/Cellar/tod/0.12.1/bin/tod
-        // Cannot override current_exe(), but we can test via the override arg
-        // The cellar check is inside detect_install_method which runs when no override
-        // So we test the override path to confirm the string mapping works
+    fn test_detect_install_method_from_components_homebrew() {
+        // Simulate an ARM Mac Homebrew path: /opt/homebrew/Cellar/tod/0.12.1/bin/tod
+        let components: Vec<String> = ["opt", "homebrew", "cellar", "tod", "0.12.1", "bin", "tod"]
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
         assert_eq!(
-            get_install_method(Some("homebrew")),
+            detect_install_method_from_components(&components, false),
             InstallMethod::Homebrew
         );
-        assert_eq!(get_install_method_string(Some("homebrew")), "homebrew");
+    }
+
+    #[test]
+    fn test_detect_install_method_from_components_cargo() {
+        let components: Vec<String> = ["home", "user", ".cargo", "bin", "tod"]
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
+        assert_eq!(
+            detect_install_method_from_components(&components, false),
+            InstallMethod::Cargo
+        );
+    }
+
+    #[test]
+    fn test_detect_install_method_from_components_scoop() {
+        let components: Vec<String> = [
+            "users", "user", "scoop", "apps", "tod", "current", "bin", "tod",
+        ]
+        .iter()
+        .map(|s| s.to_string())
+        .collect();
+        assert_eq!(
+            detect_install_method_from_components(&components, false),
+            InstallMethod::Scoop
+        );
+    }
+
+    #[test]
+    fn test_detect_install_method_from_components_unknown() {
+        let components: Vec<String> = ["usr", "local", "bin", "tod"]
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
+        assert_eq!(
+            detect_install_method_from_components(&components, false),
+            InstallMethod::Unknown
+        );
     }
     #[test]
     fn test_get_install_method_override_whitespace_case() {
