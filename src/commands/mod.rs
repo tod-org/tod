@@ -39,6 +39,8 @@ const LONG_VERSION: &str = concat!(
 const AUTHOR: &str = env!("CARGO_PKG_AUTHORS");
 const ABOUT: &str = env!("CARGO_PKG_DESCRIPTION");
 const NO_PROJECTS_ERR: &str = "No projects in config. Add projects with `tod project import`";
+const JSON_INTERACTIVE_ERROR: &str =
+    "Interactive input not available in JSON mode. Provide the required argument via CLI flags.";
 
 #[derive(Parser, Clone)]
 #[command(name = NAME)]
@@ -365,6 +367,12 @@ async fn config_command(
 async fn auth_command(command: &AuthCommands, cli: &Cli) -> Result<CommandResult, Error> {
     match command {
         AuthCommands::Login(args) => {
+            if cli.json {
+                return Ok(build_command_result_without_config(
+                    Err(Error::new("json_mode", JSON_INTERACTIVE_ERROR)),
+                    cli.json,
+                ));
+            }
             let mut config = auth_commands::load_or_create_config(cli.config.clone()).await?;
             let result = auth_commands::login(&mut config, args).await;
             Ok(build_command_result(result, &config))
@@ -460,7 +468,12 @@ fn fetch_string(
 ) -> Result<String, Error> {
     match maybe_string {
         Some(string) => Ok(string.to_owned()),
-        None => input::string(prompt, config.mock_string.clone()),
+        None => {
+            if config.args.json {
+                return Err(Error::new("json_mode", JSON_INTERACTIVE_ERROR));
+            }
+            input::string(prompt, config.mock_string.clone())
+        }
     }
 }
 async fn fetch_project(project_name: Option<&str>, config: &Config) -> Result<Flag, Error> {
@@ -482,7 +495,12 @@ async fn fetch_project(project_name: Option<&str>, config: &Config) -> Result<Fl
                 },
                 |p| Ok(Flag::Project(p.to_owned())),
             ),
-        None => input::select(input::PROJECT, projects, config.mock_select).map(Flag::Project),
+        None => {
+            if config.args.json {
+                return Err(Error::new("json_mode", JSON_INTERACTIVE_ERROR));
+            }
+            input::select(input::PROJECT, projects, config.mock_select).map(Flag::Project)
+        }
     }
 }
 
@@ -490,6 +508,9 @@ fn fetch_filter(filter: Option<&str>, config: &Config) -> Result<Flag, Error> {
     if let Some(string) = filter {
         Ok(Flag::Filter(string.to_owned()))
     } else {
+        if config.args.json {
+            return Err(Error::new("json_mode", JSON_INTERACTIVE_ERROR));
+        }
         let string = input::string(input::FILTER, config.mock_string.clone())?;
         Ok(Flag::Filter(string))
     }
@@ -508,6 +529,9 @@ async fn fetch_project_or_filter(
             "Must select project OR filter",
         )),
         (None, None) => {
+            if config.args.json {
+                return Err(Error::new("json_mode", JSON_INTERACTIVE_ERROR));
+            }
             let options = vec![FlagOptions::Project, FlagOptions::Filter];
             match input::select(input::OPTION, options, config.mock_select)? {
                 FlagOptions::Project => fetch_project(project, config).await,
@@ -521,6 +545,9 @@ fn fetch_priority(priority: Option<u8>, config: &Config) -> Result<Priority, Err
     if let Some(priority) = priority::from_integer(priority)? {
         Ok(priority)
     } else {
+        if config.args.json {
+            return Err(Error::new("json_mode", JSON_INTERACTIVE_ERROR));
+        }
         let options = vec![
             Priority::None,
             Priority::Low,
@@ -723,5 +750,145 @@ mod tests {
         );
         assert!(!result.unwrap().is_empty());
         mock.assert();
+    }
+
+    #[test]
+    fn fetch_string_json_mode_errors_when_no_input() {
+        let mut config = Config::default_test();
+        config.args.json = true;
+
+        let result = fetch_string(None, &config, "test prompt");
+        let error = result.expect_err("should error in JSON mode");
+        assert_eq!(error.source, "json_mode");
+        assert!(error.message.contains("JSON mode"));
+    }
+
+    #[test]
+    fn fetch_string_json_mode_ok_when_provided() {
+        let mut config = Config::default_test();
+        config.args.json = true;
+
+        let result = fetch_string(Some("hello"), &config, "test prompt");
+        assert_eq!(result.expect("should succeed"), "hello");
+    }
+
+    #[test]
+    fn fetch_filter_json_mode_errors_when_no_input() {
+        let mut config = Config::default_test();
+        config.args.json = true;
+
+        let result = fetch_filter(None, &config);
+        let error = result.expect_err("should error in JSON mode");
+        assert_eq!(error.source, "json_mode");
+        assert!(error.message.contains("JSON mode"));
+    }
+
+    #[test]
+    fn fetch_filter_json_mode_ok_when_provided() {
+        let mut config = Config::default_test();
+        config.args.json = true;
+
+        let result = fetch_filter(Some("myfilter"), &config);
+        let flag = result.expect("should succeed");
+        assert!(matches!(flag, Flag::Filter(f) if f == "myfilter"));
+    }
+
+    #[test]
+    fn fetch_priority_json_mode_errors_when_no_input() {
+        let mut config = Config::default_test();
+        config.args.json = true;
+
+        let result = fetch_priority(None, &config);
+        let error = result.expect_err("should error in JSON mode");
+        assert_eq!(error.source, "json_mode");
+        assert!(error.message.contains("JSON mode"));
+    }
+
+    #[test]
+    fn fetch_priority_json_mode_ok_when_provided() {
+        let mut config = Config::default_test();
+        config.args.json = true;
+
+        let result = fetch_priority(Some(4), &config);
+        assert_eq!(result.expect("should succeed"), Priority::High);
+    }
+
+    fn test_project() -> crate::projects::Project {
+        crate::projects::Project {
+            id: "123".to_string(),
+            name: "test-project".to_string(),
+            can_assign_tasks: false,
+            child_order: 0,
+            color: "red".to_string(),
+            created_at: None,
+            is_archived: false,
+            is_deleted: false,
+            is_favorite: false,
+            is_frozen: false,
+            updated_at: None,
+            view_style: "list".to_string(),
+            default_order: 0,
+            description: String::new(),
+            parent_id: None,
+            inbox_project: None,
+            is_collapsed: false,
+            is_shared: false,
+        }
+    }
+
+    #[tokio::test]
+    async fn fetch_project_json_mode_errors_when_no_project_name() {
+        let mut config = Config::default_test();
+        config.add_project(test_project());
+        config.args.json = true;
+
+        let result = fetch_project(None, &config).await;
+        let error = result.expect_err("should error in JSON mode");
+        assert_eq!(error.source, "json_mode");
+        assert!(error.message.contains("JSON mode"));
+    }
+
+    #[tokio::test]
+    async fn fetch_project_json_mode_ok_when_provided() {
+        let mut config = Config::default_test();
+        config.add_project(test_project());
+        config.args.json = true;
+
+        let result = fetch_project(Some("test-project"), &config).await;
+        let flag = result.expect("should succeed");
+        assert!(matches!(flag, Flag::Project(p) if p.name == "test-project"));
+    }
+
+    #[tokio::test]
+    async fn fetch_project_or_filter_json_mode_errors_when_both_none() {
+        let mut config = Config::default_test();
+        config.add_project(test_project());
+        config.args.json = true;
+
+        let result = fetch_project_or_filter(None, None, &config).await;
+        let error = result.expect_err("should error in JSON mode");
+        assert_eq!(error.source, "json_mode");
+        assert!(error.message.contains("JSON mode"));
+    }
+
+    #[tokio::test]
+    async fn fetch_project_or_filter_json_mode_ok_with_project() {
+        let mut config = Config::default_test();
+        config.add_project(test_project());
+        config.args.json = true;
+
+        let result = fetch_project_or_filter(Some("test-project"), None, &config).await;
+        let flag = result.expect("should succeed");
+        assert!(matches!(flag, Flag::Project(p) if p.name == "test-project"));
+    }
+
+    #[tokio::test]
+    async fn fetch_project_or_filter_json_mode_ok_with_filter() {
+        let mut config = Config::default_test();
+        config.args.json = true;
+
+        let result = fetch_project_or_filter(None, Some("myfilter"), &config).await;
+        let flag = result.expect("should succeed");
+        assert!(matches!(flag, Flag::Filter(f) if f == "myfilter"));
     }
 }

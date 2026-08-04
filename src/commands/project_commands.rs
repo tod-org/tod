@@ -183,6 +183,9 @@ pub async fn delete(config: &mut Config, args: &Delete) -> Result<String, Error>
         let tasks = todoist::all_tasks_by_project(config, &project, None).await?;
 
         if !force && !tasks.is_empty() {
+            if config.args.json {
+                return Err(Error::new("json_mode", super::JSON_INTERACTIVE_ERROR));
+            }
             println!();
             let options = vec![input::CANCEL, input::DELETE];
             let num_tasks = tasks.len();
@@ -216,11 +219,17 @@ pub async fn rename(config: &mut Config, args: &Rename) -> Result<String, Error>
 
 pub async fn import(config: &mut Config, args: &Import) -> Result<String, Error> {
     let Import { auto, project, id } = args;
+    if !*auto && config.args.json {
+        return Err(Error::new("json_mode", super::JSON_INTERACTIVE_ERROR));
+    }
     projects::import(config, auto, project.as_deref(), id.as_deref()).await
 }
 
 pub async fn empty(config: &mut Config, args: &Empty) -> Result<String, Error> {
     let Empty { project } = args;
+    if config.args.json {
+        return Err(Error::new("json_mode", super::JSON_INTERACTIVE_ERROR));
+    }
     let project = match super::fetch_project(project.as_deref(), config).await? {
         Flag::Project(project) => project,
         Flag::Filter(_) => unreachable!(),
