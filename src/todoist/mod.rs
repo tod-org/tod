@@ -1162,7 +1162,7 @@ mod tests {
         assert_eq!(
             error.message,
             String::from(
-                "Unauthorized or Forbidden response from Todoist\nRun tod auth login to reauthenticate"
+                "Unauthorized or Forbidden response from Todoist\nRun 'tod auth login' to reauthenticate"
             )
         );
     }
