@@ -138,6 +138,9 @@ fn is_no_sections(args: &Create, config: &Config) -> bool {
 
 pub async fn create(config: Config, args: &Create, json: bool) -> Result<String, Error> {
     let task = if no_flags_used(args) {
+        if config.args.json {
+            return Err(Error::new("json_mode", super::JSON_INTERACTIVE_ERROR));
+        }
         let options = tasks::create_task_attributes();
         let selections = input::multi_select(input::ATTRIBUTES, options, config.mock_select)?;
 

@@ -360,6 +360,12 @@ pub async fn set_timezone(config: Config, _args: &SetTimezone) -> Result<String,
 }
 
 pub async fn edit(config: Config, _args: &Edit) -> Result<String, Error> {
+    if config.args.json {
+        return Err(Error::new(
+            "json_mode",
+            "Interactive input not available in JSON mode. Provide the required argument via CLI flags.",
+        ));
+    }
     config.edit_interactive().await
 }
 

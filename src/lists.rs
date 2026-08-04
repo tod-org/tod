@@ -12,7 +12,7 @@ use std::collections::HashSet;
 use std::fmt::Display;
 use tokio::{fs, io::AsyncReadExt, task::JoinError};
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum Flag {
     Project(Project),
     Filter(String),
