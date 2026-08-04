@@ -17,11 +17,11 @@
 - `src/errors.rs` — Error type (`{message, source}`)
 - `src/tasks/mod.rs` — Task struct + formatting
 - `src/format.rs` — Terminal color utilities
-- Discovery shortcuts: `grep 'pub async fn' src/todoist/mod.rs` (API surface), `grep '#\[derive' src/` (trait impls)
-
-Note: `.github/copilot-instructions.md` contains GitHub Copilot-specific guidance. AGENTS.md takes precedence when they conflict.
+- `src/input.rs` — inquire-based terminal prompts with mock support (`config.mock_string`, `config.mock_select`). Guards for JSON/non-interactive modes belong at the `fetch_*` call sites in `src/commands/mod.rs`, not inside `input.rs`.
 
 ## GitHub conventions
+
+- Fetch issue/PR content with `gh issue view <N>` or `gh pr view <N>`. Use `--json` for labels and comments. Do not use web_search for repo issues — GitHub issue pages are not indexed for web search.
 
 - Issue templates live in `.github/ISSUE_TEMPLATE/` — use `feature_request.md` for features, `bug_report.md` for bugs
 - Labels: `feature` (new capabilities), `improvement` (changes to existing code), `bug` (something broken), `doc`, `dev-test`, `discuss`
