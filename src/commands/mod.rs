@@ -237,12 +237,12 @@ async fn task_command(
     match command {
         TaskCommands::QuickAdd(args) => {
             let config = fetch_config(cli, tx).await?;
-            let result = task_commands::quick_add(&config, args).await;
+            let result = task_commands::quick_add(&config, args, cli.json).await;
             Ok(build_command_result(result, &config))
         }
         TaskCommands::Create(args) => {
             let config = fetch_config(cli, tx).await?;
-            let result = task_commands::create(config.clone(), args).await;
+            let result = task_commands::create(config.clone(), args, cli.json).await;
             Ok(build_command_result(result, &config))
         }
         TaskCommands::Edit(args) => {
@@ -257,7 +257,7 @@ async fn task_command(
         }
         TaskCommands::Complete(args) => {
             let config = fetch_config(cli, tx).await?;
-            let result = task_commands::complete(config.clone(), args).await;
+            let result = task_commands::complete(config.clone(), args, cli.json).await;
             Ok(build_command_result(result, &config))
         }
         TaskCommands::Comment(args) => {
