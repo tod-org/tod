@@ -129,6 +129,7 @@ fn bell_on_failure_default() -> bool {
 pub struct Args {
     pub verbose: bool,
     pub timeout: Option<u64>,
+    pub json: bool,
 }
 
 #[derive(Default, Clone, Debug)]
@@ -442,6 +443,7 @@ impl Config {
             args: Args {
                 verbose: false,
                 timeout: None,
+                json: false,
             },
             time_provider: TimeProviderEnum::System(SystemTimeProvider),
             task_comment_command: None,
@@ -713,6 +715,7 @@ impl Default for Config {
             args: Args {
                 verbose: false,
                 timeout: None,
+                json: false,
             },
             time_provider: TimeProviderEnum::System(SystemTimeProvider),
             projects: Some(Vec::new()),
@@ -738,6 +741,7 @@ mod tests {
                 args: Args {
                     verbose: false,
                     timeout: None,
+                    json: false,
                 },
                 internal: Internal { tx: None },
                 sort_order: Some(SortRule::default_order()),
@@ -887,11 +891,13 @@ mod tests {
         let args = Args {
             verbose: true,
             timeout: Some(42),
+            json: false,
         };
         let args_debug = format!("{args:?}");
         assert!(args_debug.contains("Args"));
         assert!(args_debug.contains("verbose"));
         assert!(args_debug.contains("timeout"));
+        assert!(args_debug.contains("json"));
 
         let (tx, _rx) = unbounded_channel::<Error>();
         let internal = Internal { tx: Some(tx) };
@@ -908,6 +914,7 @@ mod tests {
         let args = Args {
             verbose: true,
             timeout: Some(10),
+            json: false,
         };
         let args_clone = args.clone();
         assert_eq!(args, args_clone);
@@ -924,20 +931,23 @@ mod tests {
             args,
             Args {
                 verbose: true,
-                timeout: Some(10)
+                timeout: Some(10),
+                json: false,
             }
         );
         assert_ne!(
             args,
             Args {
                 verbose: false,
-                timeout: Some(5)
+                timeout: Some(5),
+                json: false,
             }
         );
 
         let default_args = Args::default();
         assert_eq!(default_args.verbose, false);
         assert_eq!(default_args.timeout, None);
+        assert_eq!(default_args.json, false);
 
         let default_internal = Internal::default();
         assert!(default_internal.tx.is_none());

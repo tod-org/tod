@@ -59,6 +59,10 @@ pub struct Cli {
     /// Time to wait for a response from API in seconds. Defaults to 30.
     pub timeout: Option<u64>,
 
+    #[arg(short = 'j', long, global = true, default_value_t = false)]
+    /// Output results as JSON for machine-readable consumption
+    pub json: bool,
+
     #[command(subcommand)]
     pub command: Commands,
 }
@@ -137,18 +141,18 @@ pub async fn select_command(cli: Cli, tx: UnboundedSender<Error>) -> Result<Comm
         Commands::Project(command) => project_command(command, &cli, &tx).await,
         Commands::Reminder(command) => reminder_command(command, &cli, &tx).await,
         Commands::Section(command) => section_command(command, &cli, &tx).await,
-        Commands::Shell(command) => shell_command(command).await,
+        Commands::Shell(command) => shell_command(command, cli.json).await,
         Commands::Task(command) => task_command(command, &cli, &tx).await,
         Commands::Test(command) => test_command(command, &cli, &tx).await,
         // Shell
     }
 }
 
-async fn shell_command(command: &ShellCommands) -> Result<CommandResult, Error> {
+async fn shell_command(command: &ShellCommands, json: bool) -> Result<CommandResult, Error> {
     match command {
         ShellCommands::Completions(args) => {
             let result = shell_commands::completions(args).await;
-            Ok(build_command_result_without_config(result))
+            Ok(build_command_result_without_config(result, json))
         }
     }
 }
@@ -337,23 +341,23 @@ async fn config_command(
 
         ConfigCommands::CheckVersion(args) => {
             let result = config_commands::check_version(args, None).await;
-            Ok(build_command_result_without_config(result))
+            Ok(build_command_result_without_config(result, cli.json))
         }
         ConfigCommands::Check(_args) => {
             let result = config_commands::check(cli.config.clone()).await;
-            Ok(build_command_result_without_config(result))
+            Ok(build_command_result_without_config(result, cli.json))
         }
         ConfigCommands::About(args) => {
             let result = config_commands::about(args).await;
-            Ok(build_command_result_without_config(result))
+            Ok(build_command_result_without_config(result, cli.json))
         }
         ConfigCommands::Reset(args) => {
             let result = crate::config::config_reset(cli.config.clone(), args.force).await;
-            Ok(build_command_result_without_config(result))
+            Ok(build_command_result_without_config(result, cli.json))
         }
         ConfigCommands::Open(_args) => {
             let result = crate::config::config_open(cli.config.clone()).await;
-            Ok(build_command_result_without_config(result))
+            Ok(build_command_result_without_config(result, cli.json))
         }
     }
 }
@@ -368,7 +372,7 @@ async fn auth_command(command: &AuthCommands, cli: &Cli) -> Result<CommandResult
 
         AuthCommands::Token(args) => {
             let result = auth_commands::token(cli.config.clone(), args).await;
-            Ok(build_command_result_without_config(result))
+            Ok(build_command_result_without_config(result, cli.json))
         }
     }
 }
@@ -391,14 +395,16 @@ fn build_command_result(result: Result<String, Error>, config: &Config) -> Comma
     CommandResult {
         bell_success: config.bell_on_success,
         bell_failure: config.bell_on_failure,
+        json: config.args.json,
         result,
     }
 }
 
-fn build_command_result_without_config(result: Result<String, Error>) -> CommandResult {
+fn build_command_result_without_config(result: Result<String, Error>, json: bool) -> CommandResult {
     CommandResult {
         bell_success: false,
         bell_failure: true,
+        json,
         result,
     }
 }
@@ -424,7 +430,11 @@ async fn get_existing_config_exists(config_path: Option<PathBuf>) -> Result<Conf
 fn with_cli_context(mut config: Config, cli: &Cli, tx: &UnboundedSender<Error>) -> Config {
     config.args.verbose = cli.verbose;
     config.args.timeout = cli.timeout;
+    config.args.json = cli.json;
     config.internal.tx = Some(tx.clone());
+    if cli.json {
+        config.spinners = Some(false);
+    }
     config
 }
 
@@ -549,18 +559,21 @@ mod tests {
         let mut config = Config::default_test();
         config.bell_on_success = true;
         config.bell_on_failure = false;
+        config.args.json = true;
 
         let result = build_command_result(Ok("ok".to_string()), &config);
         assert!(result.bell_success);
         assert!(!result.bell_failure);
+        assert!(result.json);
         assert!(matches!(result.result, Ok(text) if text == "ok"));
     }
 
     #[test]
     fn build_command_result_without_config_uses_defaults() {
-        let result = build_command_result_without_config(Ok("ok".to_string()));
+        let result = build_command_result_without_config(Ok("ok".to_string()), false);
         assert!(!result.bell_success);
         assert!(result.bell_failure);
+        assert!(!result.json);
         assert!(matches!(result.result, Ok(text) if text == "ok"));
     }
 
@@ -600,6 +613,7 @@ mod tests {
             verbose: true,
             config: None,
             timeout: Some(42),
+            json: false,
             command: Commands::Test(TestCommands::All(test_commands::All {})),
         };
         let config = Config::default_test();

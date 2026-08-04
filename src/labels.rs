@@ -1,9 +1,9 @@
 use std::fmt::Display;
 
 use crate::{config::Config, errors::Error, todoist};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize, Debug, PartialEq, Eq)]
+#[derive(Deserialize, Serialize, Debug, PartialEq, Eq)]
 pub struct Label {
     pub id: String,
     pub name: String,

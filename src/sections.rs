@@ -1,9 +1,9 @@
 use crate::{config::Config, errors::Error, input, projects::Project, todoist};
 use futures::future;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 // Projects are split into sections
-#[derive(PartialEq, Deserialize, Clone, Debug)]
+#[derive(PartialEq, Deserialize, Serialize, Clone, Debug)]
 pub struct Section {
     pub id: String,
     pub name: String,
@@ -26,7 +26,7 @@ impl Section {
     }
 }
 
-#[derive(PartialEq, Deserialize, Clone, Debug)]
+#[derive(PartialEq, Deserialize, Serialize, Clone, Debug)]
 pub struct SectionResponse {
     pub results: Vec<Section>,
     pub next_cursor: Option<String>,
