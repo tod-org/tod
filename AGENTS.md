@@ -14,14 +14,6 @@
 - Use `From` impls for wrapped library errors
 - The `Display` impl applies `format::red_string` to messages and `format::yellow_string` to the source. Callers constructing error messages must not pre-apply `format::*_string` coloring — `Display` owns color output.
 
-## Tests
-
-- Unit tests live inline at the bottom of each source file in `#[cfg(test)] mod tests`, not in separate files
-- CLI/integration tests live in `tests/*.rs` using `assert_cmd` + `tempfile::tempdir()` for isolated config files
-- Mock Todoist API calls with `mockito::Server::new_async()`, then point the config at it via `.with_mock_url(server.url())`
-- Shared test fixtures are in `src/test/fixtures.rs`; canned JSON API responses are in `src/test/responses.rs` (`ResponseFromFile`)
-- Running tests can leave stray `tests/*.testcfg` files behind; clean with `./scripts/testcfg_clean.sh`
-
 ## Commands
 
 - Run `./scripts/test.sh` as the single verification command — it runs format, check, clippy, tests, and forgotten-strings grep in one pass. Do not run `cargo test` separately before it.
