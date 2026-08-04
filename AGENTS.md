@@ -30,4 +30,5 @@
 
 - Code comments should describe what and why but not how
 - `main` is the base branch when reviewing code
+- Never push directly to `main` — all changes go through pull requests and are merged into `main`
 - Conventional Commits are enforced by `commitlint` (`.commitlint.config.mjs`); header/body max line length is 250, all lowercase

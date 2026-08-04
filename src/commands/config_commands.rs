@@ -5,7 +5,8 @@ use crate::{
     cargo::{self, Version},
     config::{self, Config},
     errors::Error,
-    update::{self, osc8_link},
+    format::format_osc8_link,
+    update,
 };
 use serde_json::Value;
 use std::path::PathBuf;
@@ -86,7 +87,10 @@ pub struct SetTimezone {
 /// Format the upgrade hint: shell commands get quoted, URLs get OSC8 hyperlinks.
 fn format_upgrade_hint(upgrade_cmd: &str) -> String {
     if upgrade_cmd.starts_with("http") {
-        format!("\nTo update: {}", osc8_link(upgrade_cmd, upgrade_cmd))
+        format!(
+            "\nTo update: {}",
+            format_osc8_link(upgrade_cmd, upgrade_cmd)
+        )
     } else {
         format!(" To update manually: '{upgrade_cmd}'")
     }
@@ -589,9 +593,9 @@ mod tests {
             response.contains("Auto-update failed:"),
             "Missing auto-update failure notice"
         );
-        // OSC8 hyperlink wraps the URL
+        // OSC8 hyperlink wraps the URL (BEL terminator used by shared format_osc8_link)
         assert!(
-            response.contains("\x1b]8;;https://github.com/tod-org/tod#installation\x1b\\"),
+            response.contains("\x1b]8;;https://github.com/tod-org/tod#installation\x07"),
             "Missing OSC8 manual update link"
         );
 
