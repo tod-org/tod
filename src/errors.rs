@@ -5,6 +5,7 @@ use std::{
 
 use crate::format;
 use homedir::GetHomeError;
+use serde::Serialize;
 use tokio::{sync::oneshot::error::RecvError, task::JoinError};
 
 /// The project-wide error type.
@@ -19,7 +20,7 @@ use tokio::{sync::oneshot::error::RecvError, task::JoinError};
 /// messages must **not** pre-apply [`format`] coloring — `Display` owns
 /// color output. The `colored` crate strips ANSI codes under `cfg!(test)`,
 /// so unit tests will not catch double-coloring bugs.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct Error {
     pub message: String,
     pub source: String,

@@ -50,6 +50,7 @@ struct CommandResult {
     result: Result<String, Error>,
     bell_success: bool,
     bell_failure: bool,
+    json: bool,
 }
 
 #[tokio::main]
@@ -74,6 +75,37 @@ async fn main() -> ExitCode {
 }
 
 fn output_result(result: CommandResult) -> u8 {
+    if result.json {
+        output_json(result)
+    } else {
+        output_text(result)
+    }
+}
+
+fn output_json(result: CommandResult) -> u8 {
+    match &result.result {
+        Ok(text) => {
+            let data = match serde_json::from_str::<serde_json::Value>(text) {
+                Ok(value) => serde_json::json!({"data": value}),
+                Err(_) => serde_json::json!({"data": {"text": text}}),
+            };
+            println!("{data}");
+            0
+        }
+        Err(e) => {
+            let error_json = serde_json::json!({
+                "error": {
+                    "message": e.message,
+                    "source": e.source,
+                }
+            });
+            println!("{error_json}");
+            1
+        }
+    }
+}
+
+fn output_text(result: CommandResult) -> u8 {
     match result.result {
         Ok(text) => {
             println!("{text}");
@@ -91,14 +123,15 @@ fn output_result(result: CommandResult) -> u8 {
         }
     }
 }
-
 async fn run_command(cli: Cli, tx: UnboundedSender<Error>) -> CommandResult {
+    let json = cli.json;
     commands::select_command(cli, tx)
         .await
         .unwrap_or_else(|e| CommandResult {
             result: Err(e),
             bell_success: true,
             bell_failure: true,
+            json,
         })
 }
 

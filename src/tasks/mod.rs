@@ -164,9 +164,9 @@ struct Body {
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 pub enum Unit {
-    #[serde(rename(deserialize = "minute"))]
+    #[serde(rename = "minute")]
     Minute,
-    #[serde(rename(deserialize = "day"))]
+    #[serde(rename = "day")]
     Day,
 }
 
