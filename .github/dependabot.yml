@@ -6,6 +6,9 @@ updates:
     directory: "/"
     schedule:
       interval: "daily"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
     commit-message:
       prefix: "chore"
       include: "scope"
@@ -18,6 +21,9 @@ updates:
     directory: "/crates/tod-e2e"
     schedule:
       interval: "daily"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
     commit-message:
       prefix: "chore"
       include: "scope"
@@ -31,6 +37,9 @@ updates:
     directory: "/"
     schedule:
       interval: "daily"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
     commit-message:
       prefix: "chore"
       include: "scope"

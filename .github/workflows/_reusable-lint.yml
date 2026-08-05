@@ -10,8 +10,6 @@ env:
   CARGO_TERM_COLOR: always
   CARGO_INCREMENTAL: 0
   CARGO_PROFILE_TEST_DEBUG: 0
-  CARGO_PROFILE_RELEASE_LTO: true
-  CARGO_PROFILE_RELEASE_CODEGEN_UNITS: 1
 
 permissions:
   contents: read
@@ -26,6 +24,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           cache-all-crates: true
+          shared-key: "lint"
       - name: Check
         run: cargo check --locked --all-features
 
@@ -35,10 +34,12 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
       - uses: Swatinem/rust-cache@v2
         with:
           cache-all-crates: true
-      - run: rustup component add rustfmt
+          shared-key: "lint"
       - run: cargo fmt --all -- --check
 
   clippy:
@@ -46,25 +47,21 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - name: Install Rust Toolchain
-        run: rustup toolchain install stable
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
       - uses: Swatinem/rust-cache@v2
         with:
           cache-all-crates: true
-      - run: rustup component add clippy
-      - run: cargo clippy -- -D warnings
+          shared-key: "lint"
+      - run: cargo clippy --all-targets --all-features --locked -- -D warnings
 
   todos:
     name: TODO and FIXME
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - run: ./scripts/lint_string.sh "TODO "
-      - run: ./scripts/lint_string.sh "TODO:"
-      - run: ./scripts/lint_string.sh "FIXME "
-      - run: ./scripts/lint_string.sh "FIXME:"
-      - run: ./scripts/lint_string.sh "todo "
-      - run: ./scripts/lint_string.sh "todo:"
-      - run: ./scripts/lint_string.sh "fixme "
-      - run: ./scripts/lint_string.sh "fixme:"
-      - run: ./scripts/lint_string.sh "dbg!"
+      - name: Install ripgrep
+        run: sudo apt-get update && sudo apt-get install -y ripgrep
+      - name: Check for forbidden strings
+        run: rg -i -s -g '*.rs' 'TODO |TODO:|FIXME |FIXME:|todo |todo:|fixme |fixme:|dbg!' . && exit 1 || exit 0

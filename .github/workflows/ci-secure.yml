@@ -10,7 +10,6 @@ concurrency:
 permissions:
   contents: read
   security-events: write
-  packages: read
   actions: read
 
 jobs:
@@ -40,14 +39,14 @@ jobs:
           components: clippy,rustfmt
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v4.37.4
+        uses: github/codeql-action/init@v4.37.5
         with:
           languages: ${{ matrix.language }}
           build-mode: ${{ matrix.build-mode }}
           config-file: .github/workflows/codeql/codeql.yml
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v4.37.4
+        uses: github/codeql-action/analyze@v4.37.5
         with:
           category: "/language:${{ matrix.language }}"
 
@@ -81,7 +80,7 @@ jobs:
         continue-on-error: true
 
       - name: Upload analysis results to GitHub
-        uses: github/codeql-action/upload-sarif@v4.37.4
+        uses: github/codeql-action/upload-sarif@v4.37.5
         with:
           sarif_file: rust-clippy-results.sarif
           wait-for-processing: true
