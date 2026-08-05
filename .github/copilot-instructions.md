@@ -32,22 +32,7 @@ Copilot should follow these conventions when generating or completing code, comm
 
 ## Error Handling & Messaging
 - **Prefer `expect` over `unwrap`** and include descriptive context.
-- Print **consistent, descriptive** errors for unexpected cases; only auto-fix safe, deterministic scenarios.
-- Centralize error reporting via a small helper so messages are uniform.
-
-### Standardized error reporter (example)
-```rust
-/// Prints a standardized error message with context and source.
-/// Use for unexpected errors you cannot recover from here.
-pub fn report_error(context: &str, err: &(dyn std::error::Error)) {
-    eprintln!("ERROR: {context}: {err}");
-    let mut src = err.source();
-    while let Some(cause) = src {
-        eprintln!("caused by: {cause}");
-        src = cause.source();
-    }
-}
-```
+- All errors use the `Error` type from `src/errors.rs` — `Error::new(source, message)` with lowercase function or feature names as `source`.
 
 ---
 
@@ -120,7 +105,7 @@ Refactor
 
 ## Checklist (what Copilot should auto-enforce)
 - [ ] Use `expect` over `unwrap` with clear messages.
-- [ ] Print consistent, descriptive errors via the standard helper.
+- [ ] Use `Error::new(source, message)` from `src/errors.rs` for ad-hoc errors.
 - [ ] Add tests for **every** new function and for all fixes/features.
 - [ ] Functions and modules have appropriate `///` docs; non-obvious logic has `//` comments.
 - [ ] Comments live beside the functions they describe.

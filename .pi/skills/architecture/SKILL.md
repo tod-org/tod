@@ -11,15 +11,17 @@ All commands funnel through a single output gateway:
 
 ```
 Command handler → Result<String, Error>
-  → build_command_result() → CommandResult { result, bell_success, bell_failure }
+  → build_command_result() → CommandResult { result, bell_success, bell_failure, json }
   → output_result() in main.rs:77-91
-      Ok  → println!("{text}") to stdout
-      Err → eprintln!("{e}") to stderr
+      json  → output_json(&result) — structured JSON to stdout
+      text → Ok  → println!("{text}") to stdout
+             Err → eprintln!("{e}") to stderr
 ```
 
-- `build_command_result()` — wraps `Result<String, Error>` with bell flags from `Config`
-- `build_command_result_without_config()` — variant for commands that don't load config (shell completions, auth token, config check/about/reset/open)
-- `CommandResult` — defined in `src/main.rs:56-64`
+- `build_command_result()` — wraps `Result<String, Error>` with bell flags and `json` from `Config`
+- `build_command_result_without_config()` — variant for commands that don't load config; takes explicit `json: bool`
+- `CommandResult` — defined in `src/main.rs:49-55` with `{ result, bell_success, bell_failure, json }`
+- `output_json()` / `output_text()` — dispatch branches in `src/main.rs:77-91`
 
 ## Config plumbing
 
@@ -43,7 +45,7 @@ Label (`src/labels.rs:8`), Section (`src/sections.rs:10`),
 LabelResponse (`src/labels.rs:19`), SectionResponse (`src/sections.rs:30`)
 
 ### Neither
-Error (`src/errors.rs:23`) — `{ message: String, source: String }`
+Error (`src/errors.rs:23`) — `{ message: String, source: String }` (but has `Serialize` derive — serializes for JSON error output)
 
 ## Key integration points
 
