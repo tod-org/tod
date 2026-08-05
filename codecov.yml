@@ -2,7 +2,7 @@ coverage:
   ignore:
     - src/errors.rs
     - src/input.rs
-    - src/color.rs
+    - src/format.rs
     - src/debug.rs
     - src/main.rs
   status:
