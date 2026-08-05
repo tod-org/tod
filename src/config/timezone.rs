@@ -9,7 +9,7 @@ impl Config {
         }
     }
 
-    // Get timezone from config, or API if necessary
+    /// Returns the configured timezone, or an error if none is set.
     pub fn get_timezone(&self) -> Result<String, Error> {
         self.timezone.clone().ok_or_else(|| Error {
             message: "Must set timezone".to_string(),

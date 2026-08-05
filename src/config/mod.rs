@@ -113,7 +113,7 @@ pub struct Config {
     #[serde(skip)]
     pub args: Args,
 
-    /// For storing arguments from the commandline
+    /// Internal runtime state (e.g. async error channel)
     #[serde(skip)]
     pub internal: Internal,
     /// Optional `TimeProvider` for testing, defaults to `SystemTimeProvider`
@@ -570,7 +570,7 @@ impl Config {
         // --- natural_language_only
         let desc = "
             natural_language_only
-            Output additional information to assist with debugging issues
+            Skip the date-picker menu and go straight to natural language input for datetime selection
         ";
         let default_value = natural_language_only.unwrap_or(false);
         let natural_language_only = Some(input::bool(desc, default_value, mock_select)?);
@@ -578,7 +578,7 @@ impl Config {
         // --- disable_links
         let desc = "
             disable_links
-            Output additional information to assist with debugging issues
+            Disable terminal hyperlinks in output
         ";
         let disable_links = input::bool(desc, disable_links, mock_select)?;
 
@@ -651,7 +651,7 @@ impl Config {
         // --- timeout
         let desc = "
             timeout
-            Comments exceeding this length will be truncated            
+            HTTP request timeout in seconds
             ";
         let default = match timeout {
             Some(comment_length) => comment_length,

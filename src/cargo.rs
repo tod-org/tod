@@ -30,7 +30,7 @@ pub async fn compare_versions(mock_url: Option<String>) -> Result<Version, Error
         Err(err) => Err(err),
     }
 }
-/// Get latest version number from Cargo.io
+/// Get latest version number from crates.io
 pub async fn get_latest_version(mock_url: Option<String>) -> Result<String, Error> {
     let cargo_url = if cfg!(test) {
         mock_url.expect("Mock URL not set")

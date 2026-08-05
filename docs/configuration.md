@@ -70,7 +70,7 @@ If the config does not exist, Tod will prompt for your initial Todoist API token
   "spinners": true,
   "timeout": null,
   "timezone": "",
-  "token": "Your Todoist API Todken",
+  "token": "Your Todoist API Token",
   "verbose": null
 }
 ```
@@ -158,7 +158,7 @@ If not set, this is dynamically calculated at runtime based on terminal window s
   possible values: null or any positive integer in string form
 ```
 
-When `task next` is executed the ID is stored in this field. When `task complete` is run the field is set back to `null`
+**Deprecated.** No longer in use. Replaced by `next_taskv1` which stores the full task object for the `task complete` flow.
 
 ### path
 
@@ -214,8 +214,8 @@ Deprecated in latest version, replaced with sort_order. Will be removed in futur
       "overdue": 150,
       "priority_high": 4,
       "priority_medium": 3,
-      "priority_low": 2,
-      "priority_none": 1,
+      "priority_low": 1,
+      "priority_none": 2,
       "today": 100
     }
 ```

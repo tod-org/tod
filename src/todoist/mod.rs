@@ -446,7 +446,7 @@ pub async fn all_labels(
     Ok(labels)
 }
 
-/// Move an task to a different project
+/// Move a task to a different project
 pub async fn move_task_to_project(
     config: &Config,
     task: &Task,
@@ -477,7 +477,7 @@ pub async fn move_task_to_section(
     Task::from_json(&response)
 }
 
-/// Update the priority of an task by ID
+/// Update the priority of a task by ID
 pub async fn update_task_priority(
     config: &Config,
     task_id: &str,
@@ -488,7 +488,7 @@ pub async fn update_task_priority(
     let url = format!("{TASKS_URL}{task_id}");
 
     request::post_todoist(config, &url, body, spinner).await?;
-    // Does not pass back an task
+    // Does not pass back a task
     Ok("✓".into())
 }
 
@@ -505,7 +505,7 @@ pub async fn add_task_label(
     let url = format!("{}{}", TASKS_URL, task.id);
 
     request::post_todoist(config, &url, body, spinner).await?;
-    // Does not pass back an task
+    // Does not pass back a task
     Ok("✓".into())
 }
 
@@ -554,7 +554,7 @@ pub async fn update_task_content(
     Ok("✓".into())
 }
 
-/// Update the content of a task by ID
+/// Update the deadline of a task by ID. Pass `None` to clear the deadline.
 pub async fn update_task_deadline(
     config: &Config,
     task_id: &str,
@@ -565,7 +565,7 @@ pub async fn update_task_deadline(
         Some(date) => {
             if !time::is_date(&date) {
                 return Err(Error {
-                    message: "Not a valid date in format YYYY-MM-DD, got: {date}".to_string(),
+                    message: format!("Not a valid date in format YYYY-MM-DD, got: {date}"),
                     source: "update_task_deadline".to_string(),
                 });
             }
@@ -611,8 +611,7 @@ pub async fn update_task_labels(
     Ok("✓".into())
 }
 
-/// Complete the last task returned by "next task"
-/// The API does not return any data, so we can't return a new task
+/// Complete a task by its ID. Does not return a new task (the API yields no data).
 pub async fn complete_task(config: &Config, task_id: &str, spinner: bool) -> Result<String, Error> {
     let url = format!("{TASKS_URL}{task_id}/close");
 

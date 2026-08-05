@@ -4,4 +4,4 @@ Contributions are welcome, just please open up an issue before putting too much 
 
 ## Setting up for development
 
-You will need to install tarpaulin with `cargo install cargo-tarpaulin` before running `./test.sh` locally.
+You will need to install `cargo-nextest` with `cargo install cargo-nextest` before running `./scripts/test.sh` locally. The script also runs `cargo fmt`, `cargo check`, and `cargo clippy`.

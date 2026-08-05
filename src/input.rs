@@ -47,9 +47,9 @@ pub enum DateTimeInput {
     Text(String),
 }
 
-/// Get datetime input from user
-/// `skip_or_delete` enables the skip and delete options
-/// it is generally true when processing tasks
+/// Get datetime input from user.
+/// `skip_or_complete` enables the skip and complete options;
+/// it is generally true when processing tasks.
 pub fn datetime(
     mock_select: Option<usize>,
     mock_string: Option<String>,

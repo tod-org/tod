@@ -146,7 +146,6 @@ pub async fn select_command(cli: Cli, tx: UnboundedSender<Error>) -> Result<Comm
         Commands::Shell(command) => shell_command(command, cli.json).await,
         Commands::Task(command) => task_command(command, &cli, &tx).await,
         Commands::Test(command) => test_command(command, &cli, &tx).await,
-        // Shell
     }
 }
 

@@ -21,7 +21,7 @@ For GitHub Copilot-specific rules, see [`.github/copilot-instructions.md`](.gith
 - Use the `?` operator for error propagation.
 - Prefer `.expect("clear message")` over `.unwrap()` when a panic is acceptable.
 - Derive common traits (`Debug`, `Clone`, `PartialEq`) where appropriate.
-- Use structured error enums (with `thiserror`) instead of panics for recoverable errors.
+- Use the `Error` struct (`src/errors.rs`) with `Error::new(source, message)` for recoverable errors.
 - Document public items and complex functions with `///` doc comments.
 - Inline `//` comments should explain **why** code is written in a certain way.
 - Place comments next to the function or block they describe, not at call sites.
@@ -31,7 +31,6 @@ For GitHub Copilot-specific rules, see [`.github/copilot-instructions.md`](.gith
 ## Error Handling
 
 - Always include context in error messages.
-- Use a **standardized error reporting function** for consistency.
 - Only auto-fix scenarios that are deterministic and safe. Otherwise, report a descriptive error.
 
 ---
