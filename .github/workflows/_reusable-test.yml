@@ -1,6 +1,10 @@
-# Reusable workflow: runs `cargo nextest`.
-# Parameterized so callers can ask for a quick single-OS run (push/PR) or the
-# full cross-platform matrix (release PRs), and optionally report results to Codecov.
+# Reusable workflow: runs tests, optionally with llvm-cov coverage and
+# Codecov reporting. Parameterized so callers can ask for a quick single-OS
+# run (push/PR) or the full cross-platform matrix (release PRs).
+#
+# When upload_coverage is true, tests are instrumented with cargo-llvm-cov
+# and both lcov coverage data and nextest JUnit results are uploaded to
+# Codecov from a single test execution — no redundant second test run.
 
 name: Reusable / Test
 
@@ -15,6 +19,10 @@ on:
         description: 'Upload nextest JUnit results to Codecov'
         type: boolean
         default: false
+      upload_coverage:
+        description: 'Run tests with llvm-cov instrumentation and upload lcov coverage to Codecov'
+        type: boolean
+        default: false
       skip_codecov_for_fork_prs:
         description: 'When true, skip the Codecov upload if this run is a PR from a fork'
         type: boolean
@@ -27,8 +35,6 @@ env:
   CARGO_TERM_COLOR: always
   CARGO_INCREMENTAL: 0
   CARGO_PROFILE_TEST_DEBUG: 0
-  CARGO_PROFILE_RELEASE_LTO: true
-  CARGO_PROFILE_RELEASE_CODEGEN_UNITS: 1
 
 permissions:
   contents: read
@@ -43,18 +49,34 @@ jobs:
         os: ${{ fromJSON(inputs.os_matrix) }}
     steps:
       - uses: actions/checkout@v7
-      - uses: taiki-e/install-action@nextest
-      - name: Install Rust Toolchain
-        run: rustup toolchain install stable
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: ${{ inputs.upload_coverage && 'llvm-tools-preview' || '' }}
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: ${{ inputs.upload_coverage && 'cargo-llvm-cov,nextest' || 'nextest' }}
       - uses: Swatinem/rust-cache@v2
         with:
           cache-all-crates: true
+          shared-key: ${{ inputs.upload_coverage && 'coverage' || 'test' }}
       - name: Cargo Test
+        if: ${{ !inputs.upload_coverage }}
         run: cargo nextest run --profile ci --all-features
+      - name: Cargo Test (with coverage)
+        if: ${{ inputs.upload_coverage }}
+        run: cargo llvm-cov nextest --profile ci --all-features --lcov --output-path lcov.info
+      - name: Upload coverage to codecov.io
+        if: ${{ inputs.upload_coverage }}
+        uses: codecov/codecov-action@v7
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: lcov.info
+          disable_search: true
       - name: Upload nextest JUnit test results to Codecov
         if: >-
           ${{ inputs.upload_codecov && !cancelled() &&
               (!inputs.skip_codecov_for_fork_prs ||
+               github.event_name == 'merge_group' ||
                github.event.pull_request.head.repo.full_name == github.repository) }}
         uses: codecov/codecov-action@v7
         with:
