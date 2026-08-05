@@ -28,9 +28,8 @@ const MESSAGE: &str = "Querying API";
 const HTTP_UNAUTHORIZED: u16 = 401;
 const HTTP_FORBIDDEN: u16 = 403;
 
-/// Post to Todoist via REST api
-/// We use this when we want more options and don't need natural language processing
-/// Pass in a `Value::Null` for the body if there is no payload
+/// POST JSON to the Todoist REST API with Bearer auth.
+/// Pass `Value::Null` for an empty body.
 pub async fn post_todoist(
     config: &Config,
     url: &str,
@@ -125,8 +124,7 @@ pub async fn delete_todoist(
     handle_response(config, response, "DELETE", url, body).await
 }
 
-// Combine get and post into one function
-/// Get Todoist via REST api
+/// GET from the Todoist REST API with Bearer auth.
 pub async fn get_todoist(config: &Config, url: &str, spinner: bool) -> Result<String, Error> {
     let base_url = get_base_url(config);
     let token = get_token(config)?;

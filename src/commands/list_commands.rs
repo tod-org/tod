@@ -75,7 +75,7 @@ pub struct View {
 #[derive(Parser, Debug, Clone)]
 pub struct Process {
     #[arg(short, long)]
-    /// Complete all tasks that are due today or undated in a project individually in priority order
+    /// The project containing the tasks
     project: Option<String>,
 
     #[arg(short, long)]
@@ -96,7 +96,7 @@ pub struct Process {
 #[derive(Parser, Debug, Clone)]
 pub struct Timebox {
     #[arg(short, long)]
-    /// Timebox all tasks without durations
+    /// The project containing the tasks
     project: Option<String>,
 
     #[arg(short, long)]

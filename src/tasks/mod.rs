@@ -126,7 +126,7 @@ impl Display for Task {
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 pub struct DateInfo {
-    /// "2025-04-26T22:00:00Z"
+    /// Date string as "YYYY-MM-DD" (date) or "YYYY-MM-DDTHH:MM:SSZ" (datetime)
     pub date: String,
     pub is_recurring: bool,
     /// "2025-04-26 15:00"
@@ -606,7 +606,8 @@ pub async fn timebox_task(
     }
 }
 
-/// Returns Date, time and duration for a task, uses the date and time on task if available, otherwise prompts. Always prompts for duration.
+/// Returns a (due_string, duration_minutes) pair for timeboxing a task.
+/// Uses the task's existing date/time if available, otherwise prompts. Always prompts for the duration.
 fn get_timebox(config: &Config, task: &Task) -> Result<(String, u32), Error> {
     let datetime = if let Task {
         due: Some(DateInfo { date, .. }),
@@ -877,9 +878,8 @@ pub fn sort_by_datetime(mut tasks: Vec<Task>, config: &Config) -> Vec<Task> {
     tasks
 }
 
-// We don't want to process parent tasks when child tasks are unchecked, or child tasks when they are checked
-// We additionally need to make sure that parent tasks are not in the future
-
+/// Filters out checked tasks, parent tasks with unchecked children, and children
+/// whose parents are in the future.
 pub async fn reject_parent_tasks(tasks: Vec<Task>, config: &Config) -> Vec<Task> {
     let parent_ids = tasks
         .iter()

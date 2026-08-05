@@ -146,20 +146,20 @@ pub async fn add(config: &mut Config, project: &Project) -> Result<String, Error
     config.save().await
 }
 
-/// Remove a project from the projects `HashMap` in Config
+/// Remove a project locally from config only (does not affect Todoist).
 pub async fn remove(config: &mut Config, project: &Project) -> Result<String, Error> {
     config.remove_project(project);
     config.save().await
 }
 
-/// Remove a project from the projects `HashMap` in Config
+/// Delete a project from Todoist and remove it from config.
 pub async fn delete(config: &mut Config, project: &Project) -> Result<String, Error> {
     todoist::delete_project(config, project, true).await?;
     config.remove_project(project);
     config.save().await
 }
 
-/// Rename a project in config
+/// Rename a project locally in config (does not sync to Todoist).
 pub async fn rename(
     config: &mut Config,
     project: &Project,
@@ -258,7 +258,7 @@ pub async fn remove_all(config: &mut Config) -> Result<String, Error> {
     Ok(format::green_string(message))
 }
 
-/// Returns the projects that are not already in config
+/// Returns the configured projects that no longer exist in Todoist.
 async fn filter_missing_projects(
     config: &mut Config,
     projects: Vec<Project>,

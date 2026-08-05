@@ -18,8 +18,8 @@ use tokio::{sync::oneshot::error::RecvError, task::JoinError};
 /// The `Display` impl applies [`format::red_string`] to `message` and
 /// [`format::yellow_string`] to `source`. Callers constructing error
 /// messages must **not** pre-apply [`format`] coloring — `Display` owns
-/// color output. The `colored` crate strips ANSI codes under `cfg!(test)`,
-/// so unit tests will not catch double-coloring bugs.
+/// color output. The project's [`format::apply_color`] wrapper strips ANSI
+/// codes under `cfg!(test)`, so unit tests will not catch double-coloring bugs.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct Error {
     pub message: String,
