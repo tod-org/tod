@@ -167,7 +167,7 @@ async fn reminder_command(
     match command {
         ReminderCommands::List(args) => {
             let mut config = fetch_config(cli, tx).await?;
-            let result = reminder_commands::list(&mut config, args).await;
+            let result = reminder_commands::list(&mut config, args, cli.json).await;
             Ok(build_command_result(result, &config))
         }
     }
@@ -181,7 +181,7 @@ async fn section_command(
     match command {
         SectionCommands::Create(args) => {
             let config = fetch_config(cli, tx).await?;
-            let result = section_commands::create(&config, args).await;
+            let result = section_commands::create(&config, args, cli.json).await;
             Ok(build_command_result(result, &config))
         }
     }
@@ -195,7 +195,7 @@ async fn project_command(
     match command {
         ProjectCommands::Create(args) => {
             let mut config = fetch_config(cli, tx).await?;
-            let result = project_commands::create(&mut config, args).await;
+            let result = project_commands::create(&mut config, args, cli.json).await;
             Ok(build_command_result(result, &config))
         }
         ProjectCommands::List(args) => {
@@ -215,7 +215,7 @@ async fn project_command(
         }
         ProjectCommands::Import(args) => {
             let mut config = fetch_config(cli, tx).await?;
-            let result = project_commands::import(&mut config, args).await;
+            let result = project_commands::import(&mut config, args, cli.json).await;
             Ok(build_command_result(result, &config))
         }
         ProjectCommands::Empty(args) => {
@@ -249,12 +249,12 @@ async fn task_command(
         }
         TaskCommands::Edit(args) => {
             let config = fetch_config(cli, tx).await?;
-            let result = task_commands::edit(config.clone(), args).await;
+            let result = task_commands::edit(config.clone(), args, cli.json).await;
             Ok(build_command_result(result, &config))
         }
         TaskCommands::Next(args) => {
             let config = fetch_config(cli, tx).await?;
-            let result = task_commands::next(config.clone(), args).await;
+            let result = task_commands::next(config.clone(), args, cli.json).await;
             Ok(build_command_result(result, &config))
         }
         TaskCommands::Complete(args) => {
@@ -264,7 +264,7 @@ async fn task_command(
         }
         TaskCommands::Comment(args) => {
             let config = fetch_config(cli, tx).await?;
-            let result = task_commands::comment(config.clone(), args).await;
+            let result = task_commands::comment(config.clone(), args, cli.json).await;
             Ok(build_command_result(result, &config))
         }
     }
@@ -318,7 +318,7 @@ async fn list_command(
         }
         ListCommands::Import(args) => {
             let config = fetch_config(cli, tx).await?;
-            let result = list_commands::import(config.clone(), args).await;
+            let result = list_commands::import(config.clone(), args, cli.json).await;
             Ok(build_command_result(result, &config))
         }
     }
@@ -342,11 +342,11 @@ async fn config_command(
         }
 
         ConfigCommands::CheckVersion(args) => {
-            let result = config_commands::check_version(args, None).await;
+            let result = config_commands::check_version(args, None, cli.json).await;
             Ok(build_command_result_without_config(result, cli.json))
         }
         ConfigCommands::Check(_args) => {
-            let result = config_commands::check(cli.config.clone()).await;
+            let result = config_commands::check(cli.config.clone(), cli.json).await;
             Ok(build_command_result_without_config(result, cli.json))
         }
         ConfigCommands::About(args) => {
@@ -379,7 +379,7 @@ async fn auth_command(command: &AuthCommands, cli: &Cli) -> Result<CommandResult
         }
 
         AuthCommands::Token(args) => {
-            let result = auth_commands::token(cli.config.clone(), args).await;
+            let result = auth_commands::token(cli.config.clone(), args, cli.json).await;
             Ok(build_command_result_without_config(result, cli.json))
         }
     }

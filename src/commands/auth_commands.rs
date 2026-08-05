@@ -53,15 +53,24 @@ pub(super) async fn load_or_create_config(config_path: Option<PathBuf>) -> Resul
 ///
 /// Creates the config file at `config_path` (or the platform default) if it does not yet exist,
 /// then fetches and saves the account timezone with the provided token.
-pub async fn token(config_path: Option<PathBuf>, args: &Token) -> Result<String, Error> {
+pub async fn token(
+    config_path: Option<PathBuf>,
+    args: &Token,
+    json: bool,
+) -> Result<String, Error> {
     let config = load_or_create_config(config_path).await?;
     let path = config.path.clone();
 
     config.set_developer_token(&args.key).await?;
-    Ok(format::green_string(&format!(
-        "✓ API token saved to {}",
-        path.display()
-    )))
+    if json {
+        let result = serde_json::json!({"status": "ok", "path": path.to_string_lossy()});
+        Ok(result.to_string())
+    } else {
+        Ok(format::green_string(&format!(
+            "✓ API token saved to {}",
+            path.display()
+        )))
+    }
 }
 
 #[cfg(test)]

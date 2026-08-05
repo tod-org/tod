@@ -320,11 +320,11 @@ pub async fn remind(config: Config, args: &Remind) -> Result<String, Error> {
         super::fetch_project_or_filter(project.as_deref(), filter.as_deref(), &config).await?;
     lists::remind(&config, flag, sort).await
 }
-pub async fn import(config: Config, args: &Import) -> Result<String, Error> {
+pub async fn import(config: Config, args: &Import, json: bool) -> Result<String, Error> {
     let Import { path } = args;
     let path = super::fetch_string(path.as_deref(), &config, input::PATH)?;
     let file_path = select_file(path, &config)?;
-    lists::import(&config, &file_path).await
+    lists::import(&config, &file_path, json).await
 }
 
 fn select_file(path_or_file: String, config: &Config) -> Result<String, Error> {

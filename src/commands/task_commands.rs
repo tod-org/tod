@@ -268,18 +268,21 @@ fn no_flags_used(args: &Create) -> bool {
         && label.is_empty()
 }
 
-pub async fn edit(config: Config, args: &Edit) -> Result<String, Error> {
+pub async fn edit(config: Config, args: &Edit, json: bool) -> Result<String, Error> {
+    if json {
+        return Err(Error::new("json_mode", super::JSON_INTERACTIVE_ERROR));
+    }
     let Edit { project, filter } = args;
     match super::fetch_project_or_filter(project.as_deref(), filter.as_deref(), &config).await? {
         Flag::Project(project) => projects::edit_task(&config, &project).await,
         Flag::Filter(filter) => filters::edit_task(&config, filter).await,
     }
 }
-pub async fn next(config: Config, args: &Next) -> Result<String, Error> {
+pub async fn next(config: Config, args: &Next, json: bool) -> Result<String, Error> {
     let Next { project, filter } = args;
     match super::fetch_project_or_filter(project.as_deref(), filter.as_deref(), &config).await? {
-        Flag::Project(project) => projects::next_task(config, &project).await,
-        Flag::Filter(filter) => filters::next_task(&config, &filter).await,
+        Flag::Project(project) => projects::next_task(config, &project, json).await,
+        Flag::Filter(filter) => filters::next_task(&config, &filter, json).await,
     }
 }
 
@@ -301,13 +304,17 @@ pub async fn complete(config: Config, _args: &Complete, json: bool) -> Result<St
     }
 }
 
-pub async fn comment(config: Config, args: &Comment) -> Result<String, Error> {
+pub async fn comment(config: Config, args: &Comment, json: bool) -> Result<String, Error> {
     let Comment { content } = args;
     match config.next_task() {
         Some(task) => {
             let content = super::fetch_string(content.as_deref(), &config, input::CONTENT)?;
-            todoist::create_comment(&config, &task.id, &content, true).await?;
-            Ok(format::green_string("Comment created successfully"))
+            let comment = todoist::create_comment(&config, &task.id, &content, true).await?;
+            if json {
+                Ok(serde_json::to_string(&comment)?)
+            } else {
+                Ok(format::green_string("Comment created successfully"))
+            }
         }
         None => Err(Error::new(
             "task_comment",
@@ -408,7 +415,7 @@ mod tests {
             filter: Some("myfilter".to_string()),
         };
 
-        let result = edit(config, &args).await;
+        let result = edit(config, &args, false).await;
 
         assert!(result.is_ok(), "edit should succeed; got: {result:?}");
         assert!(result.unwrap().contains("Finished editing"));
@@ -455,7 +462,7 @@ mod tests {
             filter: Some("myfilter".to_string()),
         };
 
-        let result = next(config, &args).await;
+        let result = next(config, &args, false).await;
 
         assert!(result.is_ok(), "next should succeed; got: {result:?}");
         assert!(result.unwrap().contains("task(s) remaining"));

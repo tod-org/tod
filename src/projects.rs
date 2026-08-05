@@ -78,10 +78,15 @@ pub async fn create(
     name: String,
     description: &str,
     is_favorite: bool,
+    json: bool,
 ) -> Result<String, Error> {
     let project = todoist::create_project(config, &name, description, is_favorite, true).await?;
     add(config, &project).await?;
-    Ok(format!("Created project {name} and added to config"))
+    if json {
+        Ok(serde_json::to_string(&project)?)
+    } else {
+        Ok(format!("Created project {name} and added to config"))
+    }
 }
 /// List the projects in config with task counts
 pub async fn list(config: &mut Config) -> Result<String, Error> {
@@ -174,15 +179,20 @@ pub async fn rename(
 }
 
 /// Get the next task by priority and save its id to config
-pub async fn next_task(config: Config, project: &Project) -> Result<String, Error> {
+pub async fn next_task(config: Config, project: &Project, json: bool) -> Result<String, Error> {
     match fetch_next_task(&config, project).await {
         Ok(Some((task, remaining))) => {
-            let comments = todoist::all_comments(&config, &task.id, None).await?;
-            let task_string = task
-                .fmt(comments, &config, FormatType::Single, false)
-                .await?;
+            let task_json = task.clone();
             config.set_next_task(task).save().await?;
-            Ok(format!("{task_string}\n{remaining} task(s) remaining"))
+            if json {
+                Ok(serde_json::to_string(&task_json)?)
+            } else {
+                let comments = todoist::all_comments(&config, &task_json.id, None).await?;
+                let task_string = task_json
+                    .fmt(comments, &config, FormatType::Single, false)
+                    .await?;
+                Ok(format!("{task_string}\n{remaining} task(s) remaining"))
+            }
         }
         Ok(None) => Ok(format::green_string("No tasks on list")),
         Err(e) => Err(e),
@@ -272,6 +282,7 @@ pub async fn import(
     auto: &bool,
     project: Option<&str>,
     id: Option<&str>,
+    json: bool,
 ) -> Result<String, Error> {
     if project.is_some() && id.is_some() {
         return Err(Error::new(
@@ -295,7 +306,12 @@ pub async fn import(
         let new_projects = filter_new_projects(config, vec![target]).await?;
 
         return if let Some(project) = new_projects.into_iter().next() {
-            add_imported_project(config, &project).await
+            let result = add_imported_project(config, &project).await?;
+            if json {
+                Ok(serde_json::to_string(&project)?)
+            } else {
+                Ok(result)
+            }
         } else {
             Ok(format::green_string("Project already in config"))
         };
@@ -314,17 +330,37 @@ pub async fn import(
         let new_projects = filter_new_projects(config, vec![target]).await?;
 
         return if let Some(project) = new_projects.into_iter().next() {
-            add_imported_project(config, &project).await
+            let result = add_imported_project(config, &project).await?;
+            if json {
+                Ok(serde_json::to_string(&project)?)
+            } else {
+                Ok(result)
+            }
         } else {
             Ok(format::green_string("Project already in config"))
         };
     }
 
     let new_projects = filter_new_projects(config, projects).await?;
-    for project in new_projects {
-        maybe_add_project(config, project, auto).await?;
+    let added: Vec<Project> = if *auto {
+        let mut added = Vec::new();
+        for project in new_projects {
+            add(config, &project).await?;
+            added.push(project);
+        }
+        added
+    } else {
+        for project in new_projects {
+            maybe_add_project(config, project, auto).await?;
+        }
+        Vec::new()
+    };
+
+    if json {
+        Ok(serde_json::to_string(&added)?)
+    } else {
+        Ok(format::green_string("No more projects"))
     }
-    Ok(format::green_string("No more projects"))
 }
 
 /// Returns the projects that are not already in config
@@ -711,7 +747,7 @@ mod tests {
             .await
             .expect("expected value or result, got None or Err");
 
-        let response = next_task(config_with_timezone, project)
+        let response = next_task(config_with_timezone, project, false)
             .await
             .expect("expected value or result, got None or Err");
 
@@ -741,7 +777,7 @@ mod tests {
             .expect("expected value or result, got None or Err");
 
         assert_eq!(
-            import(&mut config, &false, None, None).await,
+            import(&mut config, &false, None, None, false).await,
             Ok("No more projects".to_string())
         );
         mock.assert_async().await;
@@ -779,7 +815,7 @@ mod tests {
             .expect("expected value or result, got None or Err");
 
         assert_eq!(
-            import(&mut config, &false, Some("Doomsday"), None).await,
+            import(&mut config, &false, Some("Doomsday"), None, false).await,
             Ok("✓ Added project Doomsday".to_string())
         );
         mock.assert_async().await;
@@ -804,7 +840,7 @@ mod tests {
             .expect("expected value or result, got None or Err");
 
         assert_eq!(
-            import(&mut config, &false, None, Some("890")).await,
+            import(&mut config, &false, None, Some("890"), false).await,
             Ok("✓ Added project Doomsday".to_string())
         );
         mock.assert_async().await;
@@ -828,7 +864,7 @@ mod tests {
             .await
             .expect("expected value or result, got None or Err");
 
-        let result = import(&mut config, &false, Some("does-not-exist"), None).await;
+        let result = import(&mut config, &false, Some("does-not-exist"), None, false).await;
         assert_eq!(
             result,
             Err(Error::new(
@@ -857,7 +893,7 @@ mod tests {
             .await
             .expect("expected value or result, got None or Err");
 
-        let result = import(&mut config, &false, None, Some("999999")).await;
+        let result = import(&mut config, &false, None, Some("999999"), false).await;
         assert_eq!(
             result,
             Err(Error::new(

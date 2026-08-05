@@ -96,15 +96,32 @@ fn format_upgrade_hint(upgrade_cmd: &str) -> String {
     }
 }
 
-pub async fn check_version(args: &CheckVersion, mock_url: Option<String>) -> Result<String, Error> {
+pub async fn check_version(
+    args: &CheckVersion,
+    mock_url: Option<String>,
+    json: bool,
+) -> Result<String, Error> {
     let CheckVersion { force, repo } = args;
 
     match cargo::compare_versions(mock_url).await {
         Ok(Version::Latest) => {
-            let msg = format!("Tod is up to date with version: {VERSION}");
-            Ok(msg)
+            if json {
+                let result = serde_json::json!({"status": "latest", "version": VERSION});
+                Ok(result.to_string())
+            } else {
+                let msg = format!("Tod is up to date with version: {VERSION}");
+                Ok(msg)
+            }
         }
         Ok(Version::Dated(latest)) => {
+            if json {
+                let result = serde_json::json!({
+                    "status": "outdated",
+                    "installed": VERSION,
+                    "latest": latest
+                });
+                return Ok(result.to_string());
+            }
             let msg = format!(
                 "Tod is out of date. Installed version: {VERSION}, Latest version: {latest}"
             );
@@ -167,13 +184,68 @@ pub async fn check_version(args: &CheckVersion, mock_url: Option<String>) -> Res
     }
 }
 
-pub async fn check(cli_config_path: Option<PathBuf>) -> Result<String, Error> {
+pub async fn check(cli_config_path: Option<PathBuf>, json: bool) -> Result<String, Error> {
+    if json {
+        return check_json(cli_config_path).await;
+    }
     check_with_prompts(
         cli_config_path,
         |message| confirm(message, false),
         |message| confirm(message, false),
     )
     .await
+}
+
+async fn check_json(cli_config_path: Option<PathBuf>) -> Result<String, Error> {
+    let path = resolve_config_path(cli_config_path).await?;
+
+    if !tokio::fs::try_exists(&path).await? {
+        return Err(Error::new(
+            "config_check",
+            &format!(
+                "No config file found at {}. Run 'tod auth login' to initialize tod.",
+                path.display()
+            ),
+        ));
+    }
+
+    if Config::load(&path).await.is_ok() {
+        let result = serde_json::json!({"status": "valid", "path": path.to_string_lossy()});
+        return Ok(result.to_string());
+    }
+
+    let json_raw = tokio::fs::read_to_string(&path).await?;
+    let value: Value = serde_json::from_str(&json_raw).map_err(|e| {
+        Error::new(
+            "config_check",
+            &format!(
+                "Config file at {} is invalid and could not be parsed as JSON:\n{e}",
+                path.display()
+            ),
+        )
+    })?;
+
+    let repaired = repair_unknown_fields(value).map_err(|e| {
+        Error::new(
+            "config_check",
+            &format!(
+                "Config file at {} is invalid and could not be automatically repaired:\n{e}",
+                path.display()
+            ),
+        )
+    })?;
+
+    if repaired.removed_fields.is_empty() {
+        let result = serde_json::json!({"status": "valid", "path": path.to_string_lossy()});
+        return Ok(result.to_string());
+    }
+
+    let result = serde_json::json!({
+        "status": "invalid",
+        "path": path.to_string_lossy(),
+        "removed_fields": repaired.removed_fields
+    });
+    Ok(result.to_string())
 }
 
 async fn check_with_prompts<R, S>(
@@ -577,7 +649,7 @@ mod tests {
         };
 
         // Run the version check
-        let response = check_version(&args, Some(server.url()))
+        let response = check_version(&args, Some(server.url()), false)
             .await
             .expect("Expected version check to succeed");
 
