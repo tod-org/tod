@@ -122,7 +122,7 @@ pub struct Empty {
     project: Option<String>,
 }
 
-pub async fn create(config: &mut Config, args: &Create) -> Result<String, Error> {
+pub async fn create(config: &mut Config, args: &Create, json: bool) -> Result<String, Error> {
     let Create {
         name,
         description,
@@ -131,7 +131,7 @@ pub async fn create(config: &mut Config, args: &Create) -> Result<String, Error>
     let name = super::fetch_string(name.as_deref(), config, input::NAME)?;
     let description = description.as_deref().unwrap_or_default();
 
-    projects::create(config, name, description, *is_favorite).await
+    projects::create(config, name, description, *is_favorite, json).await
 }
 
 pub async fn list(config: &mut Config, _args: &List, json: bool) -> Result<String, Error> {
@@ -217,12 +217,12 @@ pub async fn rename(config: &mut Config, args: &Rename) -> Result<String, Error>
     projects::rename(config, &project, name.as_deref()).await
 }
 
-pub async fn import(config: &mut Config, args: &Import) -> Result<String, Error> {
+pub async fn import(config: &mut Config, args: &Import, json: bool) -> Result<String, Error> {
     let Import { auto, project, id } = args;
-    if !*auto && config.args.json {
+    if !*auto && json {
         return Err(Error::new("json_mode", super::JSON_INTERACTIVE_ERROR));
     }
-    projects::import(config, auto, project.as_deref(), id.as_deref()).await
+    projects::import(config, auto, project.as_deref(), id.as_deref(), json).await
 }
 
 pub async fn empty(config: &mut Config, args: &Empty) -> Result<String, Error> {

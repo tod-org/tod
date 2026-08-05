@@ -45,13 +45,20 @@ pub async fn edit_task(config: &Config, filter: String) -> Result<String, Error>
 }
 
 /// Get the next task by priority and save its id to config
-pub async fn next_task(config: &Config, filter: &str) -> Result<String, Error> {
+pub async fn next_task(config: &Config, filter: &str, json: bool) -> Result<String, Error> {
     match fetch_next_task(config, filter).await {
         Ok(Some((task, remaining))) => {
-            let comments = todoist::all_comments(config, &task.id, None).await?;
-            let task_string = task.fmt(comments, config, FormatType::Single, true).await?;
+            let task_json = task.clone();
             config.set_next_task(task).save().await?;
-            Ok(format!("{task_string}\n{remaining} task(s) remaining"))
+            if json {
+                Ok(serde_json::to_string(&task_json)?)
+            } else {
+                let comments = todoist::all_comments(config, &task_json.id, None).await?;
+                let task_string = task_json
+                    .fmt(comments, config, FormatType::Single, true)
+                    .await?;
+                Ok(format!("{task_string}\n{remaining} task(s) remaining"))
+            }
         }
         Ok(None) => Ok(format::green_string("No tasks on list")),
         Err(e) => Err(e),
@@ -197,7 +204,7 @@ mod tests {
             .expect("expected value or result, got None or Err");
 
         let filter = String::from("today");
-        let task = next_task(&config_with_timezone, &filter)
+        let task = next_task(&config_with_timezone, &filter, false)
             .await
             .expect("expected value or result, got None or Err");
 

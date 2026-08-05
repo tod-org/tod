@@ -292,23 +292,29 @@ pub async fn label(
     Ok(format::green_string(&success))
 }
 
-pub async fn import(config: &Config, file_path: &str) -> Result<String, Error> {
-    let mut lines = String::new();
+pub async fn import(config: &Config, file_path: &str, json: bool) -> Result<String, Error> {
+    let mut file_content = String::new();
     fs::File::open(file_path)
         .await?
-        .read_to_string(&mut lines)
+        .read_to_string(&mut file_content)
         .await?;
 
-    let lines: Vec<String> = lines
+    let lines: Vec<String> = file_content
         .split('\n')
         .map(std::borrow::ToOwned::to_owned)
         .filter(|s| !s.is_empty())
         .collect();
+    let count = lines.len();
     for line in lines {
         todoist::quick_create_task(config, &line, None).await?;
     }
 
-    Ok("✓".into())
+    if json {
+        let result = serde_json::json!({"imported": count});
+        Ok(result.to_string())
+    } else {
+        Ok("✓".into())
+    }
 }
 
 #[cfg(test)]
@@ -339,7 +345,10 @@ mod tests {
 
         let config = test::fixtures::config().await.with_mock_url(server.url());
 
-        assert_eq!(import(&config, import_file).await, Ok(String::from("✓")));
+        assert_eq!(
+            import(&config, import_file, false).await,
+            Ok(String::from("✓"))
+        );
 
         mock.assert();
     }

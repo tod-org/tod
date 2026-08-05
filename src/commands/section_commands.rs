@@ -19,7 +19,7 @@ pub struct Create {
     project: Option<String>,
 }
 
-pub async fn create(config: &Config, args: &Create) -> Result<String, Error> {
+pub async fn create(config: &Config, args: &Create, json: bool) -> Result<String, Error> {
     let Create { name, project } = args;
     let name = super::fetch_string(name.as_deref(), config, input::NAME)?;
 
@@ -28,8 +28,12 @@ pub async fn create(config: &Config, args: &Create) -> Result<String, Error> {
         Flag::Filter(_) => unreachable!(),
     };
 
-    todoist::create_section(config, &name, &project, true).await?;
-    Ok(format::green_string("Section created successfully"))
+    let section = todoist::create_section(config, &name, &project, true).await?;
+    if json {
+        Ok(serde_json::to_string(&section)?)
+    } else {
+        Ok(format::green_string("Section created successfully"))
+    }
 }
 
 #[cfg(test)]
@@ -44,7 +48,7 @@ mod tests {
             project: None,
         };
 
-        let error = create(&config, &args)
+        let error = create(&config, &args, false)
             .await
             .expect_err("creating a section should fail without configured projects");
 

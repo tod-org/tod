@@ -13,8 +13,8 @@ pub enum ReminderCommands {
 #[derive(Parser, Debug, Clone)]
 pub struct List {}
 
-pub async fn list(config: &mut Config, _args: &List) -> Result<String, Error> {
-    reminders::list(config).await
+pub async fn list(config: &mut Config, _args: &List, json: bool) -> Result<String, Error> {
+    reminders::list(config, json).await
 }
 
 #[cfg(test)]
@@ -52,7 +52,7 @@ mod tests {
             .with_projects(vec![test::fixtures::project()]);
         config.save().await.expect("config should be saved");
 
-        let output = list(&mut config, &List {})
+        let output = list(&mut config, &List {}, false)
             .await
             .expect("reminder list command should succeed");
         assert!(output.contains("Reminders"));

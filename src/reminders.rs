@@ -56,8 +56,12 @@ impl ReminderResponse {
 }
 
 /// List all the reminders with their tasks
-pub async fn list(config: &mut Config) -> Result<String, Error> {
+pub async fn list(config: &mut Config, json: bool) -> Result<String, Error> {
     let reminders = todoist::all_reminders(config, None).await?;
+
+    if json {
+        return Ok(serde_json::to_string(&reminders)?);
+    }
 
     let task_ids = reminders
         .clone()
@@ -129,7 +133,7 @@ mod tests {
 
         let str = "Reminders\n - 2026-01-18 17:00\n   TEST";
 
-        assert_eq!(list(&mut config).await, Ok(String::from(str)));
+        assert_eq!(list(&mut config, false).await, Ok(String::from(str)));
         mock.expect(1);
         mock2.expect(1);
     }
