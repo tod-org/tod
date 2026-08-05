@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.18.0](https://github.com/tod-org/tod/compare/v0.17.1...v0.18.0) (2026-08-05)
+
+
+### Features
+
+* add --json flag foundation with Serialize derives, config plumbing, and JSON output gateway ([b949914](https://github.com/tod-org/tod/commit/b949914597352011f45eacefc25d2ee1c7ad6da4)), closes [#1736](https://github.com/tod-org/tod/issues/1736)
+* add integration tests for --json flag ([4b99f74](https://github.com/tod-org/tod/commit/4b99f74799bbd43b920ed81bf6460ba335397b1c)), closes [#1742](https://github.com/tod-org/tod/issues/1742)
+* add interactive command guards for JSON mode ([1bc049e](https://github.com/tod-org/tod/commit/1bc049ec56ae0f72f78bec35d058e35b684146cc)), closes [#1741](https://github.com/tod-org/tod/issues/1741)
+* return structured JSON for task mutation commands ([d0ef95f](https://github.com/tod-org/tod/commit/d0ef95ffc20cce305a58d593f5c88be0513a56dc)), closes [#1739](https://github.com/tod-org/tod/issues/1739)
+* show remaining task count during project empty ([7e38661](https://github.com/tod-org/tod/commit/7e38661a62fe34042612ab32cfce8c46294e4d14)), closes [#1724](https://github.com/tod-org/tod/issues/1724)
+* structured JSON for config about command ([f62b792](https://github.com/tod-org/tod/commit/f62b792a1902a6c892c000b6eaca39ff54d1ff38)), closes [#1737](https://github.com/tod-org/tod/issues/1737)
+* structured JSON output for project list and list view commands ([f71b505](https://github.com/tod-org/tod/commit/f71b50572e3f68ab23ac480123c7e97221cc7d1f)), closes [#1738](https://github.com/tod-org/tod/issues/1738)
+* structured JSON output for remaining non-interactive commands ([56ba37b](https://github.com/tod-org/tod/commit/56ba37b0c3a2bf378a21038489c6f8e3988fcf46)), closes [#1740](https://github.com/tod-org/tod/issues/1740)
+
+
+### Bug Fixes
+
+* address Copilot review comments on OSC8 update link PR ([e1b8e7d](https://github.com/tod-org/tod/commit/e1b8e7d27aefed5f24c14f7f31123b4e4dd266c6))
+* correct docs, CLI help text, and code bugs from documentation audit ([1284889](https://github.com/tod-org/tod/commit/128488900013fbbb61a8ea9e50415a47c8746926))
+* improve error type safety, consistency, and display ([0001289](https://github.com/tod-org/tod/commit/00012897bccc2bce3c2840dcd64b264072b92454))
+* use JSON_INTERACTIVE_ERROR constant in config edit guard ([4909d55](https://github.com/tod-org/tod/commit/4909d55eb289ea33245b2c653cc16b37ec297cdd))
+* use OSC8 hyperlinks in auto-update error messages ([7011a4e](https://github.com/tod-org/tod/commit/7011a4e7e7dad54bbe28b39722994ba2d53c216f)), closes [#1681](https://github.com/tod-org/tod/issues/1681)
+
 ## [0.17.1](https://github.com/tod-org/tod/compare/v0.17.0...v0.17.1) (2026-08-01)
 
 
