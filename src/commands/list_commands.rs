@@ -10,8 +10,8 @@ use crate::{
     filters, input,
     lists::{self, Flag},
     projects,
-    tasks::{self, SortOrder, Task},
     tasks::priority::{self, Priority},
+    tasks::{self, SortOrder, Task},
     todoist,
 };
 
@@ -246,7 +246,7 @@ pub struct Deadline {
     sort: SortOrder,
 
     #[arg(short = 'd', long)]
-    /// Date string in natural language (e.g. "next Friday"). Required in JSON mode.
+    /// Deadline date in YYYY-MM-DD format (e.g. "2026-05-01"). Required in JSON mode.
     date: Option<String>,
 }
 
@@ -357,9 +357,7 @@ pub async fn prioritize(config: Config, args: &Prioritize, json: bool) -> Result
         .map(|task| {
             let config = config.clone();
             let id = task.id.clone();
-            async move {
-                todoist::update_task_priority(&config, &id, &priority, false).await
-            }
+            async move { todoist::update_task_priority(&config, &id, &priority, false).await }
         })
         .collect();
     future::join_all(handles).await;
@@ -397,14 +395,13 @@ pub async fn remind(config: Config, args: &Remind, json: bool) -> Result<String,
 
     let flag =
         super::fetch_project_or_filter(project.as_deref(), filter.as_deref(), &config).await?;
-    let tasks =
-        lists::fetch_tasks_by_flag(
-            &config,
-            &flag,
-            |t| !reminder_task_ids.contains(&t.id),
-            |t| !reminder_task_ids.contains(&t.id),
-        )
-        .await?;
+    let tasks = lists::fetch_tasks_by_flag(
+        &config,
+        &flag,
+        |t| !reminder_task_ids.contains(&t.id),
+        |t| !reminder_task_ids.contains(&t.id),
+    )
+    .await?;
     let tasks = tasks::sort(tasks, &config, *sort);
     let count = tasks.len();
 
@@ -414,9 +411,7 @@ pub async fn remind(config: Config, args: &Remind, json: bool) -> Result<String,
             let config = config.clone();
             let reminder = datetime.clone();
             let task = task.clone();
-            async move {
-                todoist::create_reminder(&config, &task, &reminder, false).await
-            }
+            async move { todoist::create_reminder(&config, &task, &reminder, false).await }
         })
         .collect();
     future::join_all(handles).await;
@@ -548,12 +543,8 @@ pub async fn schedule(config: Config, args: &Schedule, json: bool) -> Result<Str
     } = args;
 
     if !json {
-        return match super::fetch_project_or_filter(
-            project.as_deref(),
-            filter.as_deref(),
-            &config,
-        )
-        .await?
+        return match super::fetch_project_or_filter(project.as_deref(), filter.as_deref(), &config)
+            .await?
         {
             Flag::Filter(filter) => filters::schedule(&config, &filter, sort).await,
             Flag::Project(project) => {
@@ -576,8 +567,7 @@ pub async fn schedule(config: Config, args: &Schedule, json: bool) -> Result<Str
 
     let flag =
         super::fetch_project_or_filter(project.as_deref(), filter.as_deref(), &config).await?;
-    let tasks =
-        fetch_schedule_tasks(&config, &flag, sort, *overdue, *skip_recurring).await?;
+    let tasks = fetch_schedule_tasks(&config, &flag, sort, *overdue, *skip_recurring).await?;
     let count = tasks.len();
 
     let handles: Vec<_> = tasks
@@ -606,12 +596,8 @@ pub async fn deadline(config: Config, args: &Deadline, json: bool) -> Result<Str
     } = args;
 
     if !json {
-        return match super::fetch_project_or_filter(
-            project.as_deref(),
-            filter.as_deref(),
-            &config,
-        )
-        .await?
+        return match super::fetch_project_or_filter(project.as_deref(), filter.as_deref(), &config)
+            .await?
         {
             Flag::Filter(filter) => filters::deadline(&config, &filter, sort).await,
             Flag::Project(project) => projects::deadline(&config, &project, sort).await,
@@ -621,7 +607,7 @@ pub async fn deadline(config: Config, args: &Deadline, json: bool) -> Result<Str
     let Some(date) = date else {
         return Err(Error::new(
             "json_mode",
-            "--date flag is required in JSON mode (e.g. \"next Friday\").",
+            "--date flag is required in JSON mode (YYYY-MM-DD format, e.g. \"2026-05-01\").",
         ));
     };
 
@@ -636,9 +622,7 @@ pub async fn deadline(config: Config, args: &Deadline, json: bool) -> Result<Str
             let config = config.clone();
             let d = date.clone();
             let id = task.id.clone();
-            async move {
-                todoist::update_task_deadline(&config, &id, Some(d), false).await
-            }
+            async move { todoist::update_task_deadline(&config, &id, Some(d), false).await }
         })
         .collect();
     future::join_all(handles).await;
@@ -650,6 +634,708 @@ pub async fn deadline(config: Config, args: &Deadline, json: bool) -> Result<Str
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test;
+    use pretty_assertions::assert_eq;
+
+    /// Minimal task JSON with overrideable priority, labels, due, deadline, and duration.
+    fn task_json(id: &str, priority: u8) -> String {
+        format!(
+            r#"{{"id":"{id}","user_id":"910","project_id":"123","section_id":null,"parent_id":null,"added_by_uid":null,"assigned_by_uid":null,"responsible_uid":null,"labels":[],"deadline":null,"duration":null,"due":null,"checked":false,"is_deleted":false,"is_collapsed":false,"added_at":"2026-01-01T00:00:00Z","completed_at":null,"updated_at":"2026-01-01T00:00:00Z","priority":{priority},"child_order":1,"content":"Task {id}","description":"","note_count":0,"day_order":1}}"#
+        )
+    }
+
+    fn tasks_response_json(tasks: &[&str]) -> String {
+        let results = tasks.join(",");
+        format!(r#"{{"results":[{results}],"next_cursor":null}}"#)
+    }
+
+    fn empty_tasks_response() -> String {
+        r#"{"results":[],"next_cursor":null}"#.to_string()
+    }
+
+    fn empty_reminders_response() -> String {
+        r#"{"results":[],"next_cursor":null}"#.to_string()
+    }
+
+    fn recurring_task_json(id: &str) -> String {
+        format!(
+            r#"{{"id":"{id}","user_id":"910","project_id":"123","section_id":null,"parent_id":null,"added_by_uid":null,"assigned_by_uid":null,"responsible_uid":null,"labels":[],"deadline":null,"duration":null,"due":{{"date":"2020-01-01","is_recurring":true,"string":"every day","lang":"en","timezone":null}},"checked":false,"is_deleted":false,"is_collapsed":false,"added_at":"2026-01-01T00:00:00Z","completed_at":null,"updated_at":"2026-01-01T00:00:00Z","priority":1,"child_order":1,"content":"Recurring {id}","description":"","note_count":0,"day_order":1}}"#
+        )
+    }
+
+    async fn config_with_project() -> Config {
+        test::fixtures::config().await
+    }
+
+    fn assert_json_tasks_count(json: &str, expected_count: usize) {
+        let v: serde_json::Value = serde_json::from_str(json).expect("output should be valid JSON");
+        assert_eq!(
+            v["count"].as_u64().expect("count should be a number") as usize,
+            expected_count
+        );
+        assert!(v["tasks"].is_array(), "tasks should be an array");
+    }
+
+    // ─── prioritize (JSON) ────────────────────────────────────────
+
+    #[tokio::test]
+    async fn prioritize_json_with_filter_sets_priority_and_returns_json() {
+        let mut server = mockito::Server::new_async().await;
+        let task_a = task_json("t1", 1); // Priority::None
+        let task_b = task_json("t2", 1); // Priority::None
+
+        let tasks_mock = server
+            .mock("GET", "/api/v1/tasks/filter?query=today&limit=200")
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(tasks_response_json(&[&task_a, &task_b]))
+            .create_async()
+            .await;
+        let update_mock = server
+            .mock("POST", "/api/v1/tasks/t1")
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(task_json("t1", 4))
+            .expect(1)
+            .create_async()
+            .await;
+        let update_mock2 = server
+            .mock("POST", "/api/v1/tasks/t2")
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(task_json("t2", 4))
+            .expect(1)
+            .create_async()
+            .await;
+
+        let config = config_with_project().await.with_mock_url(server.url());
+        let args = Prioritize {
+            project: None,
+            filter: Some("today".into()),
+            sort: SortOrder::Value,
+            priority: Some(4),
+        };
+
+        let result = prioritize(config, &args, true)
+            .await
+            .expect("should succeed");
+        assert_json_tasks_count(&result, 2);
+        let v: serde_json::Value = serde_json::from_str(&result).unwrap();
+        assert_eq!(v["priority"].as_u64().unwrap(), 4);
+
+        tasks_mock.assert();
+        update_mock.assert();
+        update_mock2.assert();
+    }
+
+    #[tokio::test]
+    async fn prioritize_json_only_updates_tasks_matching_filter() {
+        let mut server = mockito::Server::new_async().await;
+        let task_a = task_json("t1", 1); // Priority::None
+        let task_b = task_json("t2", 4); // Already Priority::High
+
+        let tasks_mock = server
+            .mock("GET", "/api/v1/tasks/?project_id=123&limit=200")
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(tasks_response_json(&[&task_a, &task_b]))
+            .create_async()
+            .await;
+        // Only t1 (Priority::None) should be updated since project_filter filters by priority
+        let update_mock = server
+            .mock("POST", "/api/v1/tasks/t1")
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(task_json("t1", 3))
+            .expect(1)
+            .create_async()
+            .await;
+
+        let config = config_with_project().await.with_mock_url(server.url());
+        let args = Prioritize {
+            project: Some("myproject".into()),
+            filter: None,
+            sort: SortOrder::Value,
+            priority: Some(3),
+        };
+
+        let result = prioritize(config, &args, true)
+            .await
+            .expect("should succeed");
+        assert_json_tasks_count(&result, 1);
+
+        tasks_mock.assert();
+        update_mock.assert();
+    }
+
+    #[tokio::test]
+    async fn prioritize_json_missing_priority_flag_errors() {
+        let config = config_with_project().await;
+        let args = Prioritize {
+            project: Some("myproject".into()),
+            filter: None,
+            sort: SortOrder::Value,
+            priority: None,
+        };
+
+        let result = prioritize(config, &args, true).await;
+        let err = result.expect_err("should error without --priority flag");
+        assert_eq!(err.source, "json_mode");
+        assert!(err.message.contains("--priority"));
+    }
+
+    #[tokio::test]
+    async fn prioritize_non_json_uses_interactive_path() {
+        let mut server = mockito::Server::new_async().await;
+        let tasks_mock = server
+            .mock("GET", "/api/v1/tasks/filter?query=today&limit=200")
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(empty_tasks_response())
+            .create_async()
+            .await;
+
+        let config = config_with_project()
+            .await
+            .with_mock_url(server.url())
+            .mock_select(1);
+        let args = Prioritize {
+            project: None,
+            filter: Some("today".into()),
+            sort: SortOrder::Value,
+            priority: None,
+        };
+
+        let result = prioritize(config, &args, false)
+            .await
+            .expect("should succeed");
+        assert!(result.contains("No tasks"));
+        tasks_mock.assert();
+    }
+
+    // ─── remind (JSON) ────────────────────────────────────────────
+
+    #[tokio::test]
+    async fn remind_json_with_filter_creates_reminders_and_returns_json() {
+        let mut server = mockito::Server::new_async().await;
+        let task = task_json("t1", 1);
+
+        let reminders_mock = server
+            .mock("GET", "/api/v1/reminders?limit=200")
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(empty_reminders_response())
+            .create_async()
+            .await;
+        let tasks_mock = server
+            .mock("GET", "/api/v1/tasks/filter?query=today&limit=200")
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(tasks_response_json(&[&task]))
+            .create_async()
+            .await;
+        let create_mock = server
+            .mock("POST", "/api/v1/reminders")
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(r#"{"id":"r1","item_id":"t1","notify_uid":"910","type":"absolute","is_deleted":false,"minute_offset":0,"is_urgent":false,"due":{"date":"2026-01-18T17:00:00","timezone":null,"string":"2026-01-18 17:00","lang":"en","is_recurring":false}}"#)
+            .expect(1)
+            .create_async()
+            .await;
+
+        let config = config_with_project().await.with_mock_url(server.url());
+        let args = Remind {
+            project: None,
+            filter: Some("today".into()),
+            sort: SortOrder::Value,
+            datetime: Some("tomorrow at 3pm".into()),
+        };
+
+        let result = remind(config, &args, true).await.expect("should succeed");
+        assert_json_tasks_count(&result, 1);
+
+        reminders_mock.assert();
+        tasks_mock.assert();
+        create_mock.assert();
+    }
+
+    #[tokio::test]
+    async fn remind_json_skips_tasks_with_existing_reminders() {
+        let mut server = mockito::Server::new_async().await;
+        let task_a = task_json("t1", 1);
+        let task_b = task_json("t2", 1);
+
+        let reminders_mock = server
+            .mock("GET", "/api/v1/reminders?limit=200")
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(r#"{"results":[{"id":"r1","item_id":"t1","notify_uid":"910","type":"absolute","is_deleted":false,"minute_offset":0,"is_urgent":false,"due":{"date":"2026-01-18T17:00:00","timezone":null,"string":"2026-01-18 17:00","lang":"en","is_recurring":false}}],"next_cursor":null}"#)
+            .create_async()
+            .await;
+        let tasks_mock = server
+            .mock("GET", "/api/v1/tasks/filter?query=today&limit=200")
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(tasks_response_json(&[&task_a, &task_b]))
+            .create_async()
+            .await;
+        let create_mock = server
+            .mock("POST", "/api/v1/reminders")
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(r#"{"id":"r2","item_id":"t2","notify_uid":"910","type":"absolute","is_deleted":false,"minute_offset":0,"is_urgent":false,"due":{"date":"2026-01-18T17:00:00","timezone":null,"string":"2026-01-18 17:00","lang":"en","is_recurring":false}}"#)
+            .expect(1)
+            .create_async()
+            .await;
+
+        let config = config_with_project().await.with_mock_url(server.url());
+        let args = Remind {
+            project: None,
+            filter: Some("today".into()),
+            sort: SortOrder::Value,
+            datetime: Some("tomorrow at 3pm".into()),
+        };
+
+        let result = remind(config, &args, true).await.expect("should succeed");
+        assert_json_tasks_count(&result, 1);
+
+        reminders_mock.assert();
+        tasks_mock.assert();
+        create_mock.assert();
+    }
+
+    #[tokio::test]
+    async fn remind_json_missing_datetime_flag_errors() {
+        let config = config_with_project().await;
+        let args = Remind {
+            project: Some("myproject".into()),
+            filter: None,
+            sort: SortOrder::Value,
+            datetime: None,
+        };
+
+        let result = remind(config, &args, true).await;
+        let err = result.expect_err("should error without --datetime flag");
+        assert_eq!(err.source, "json_mode");
+        assert!(err.message.contains("--datetime"));
+    }
+
+    #[tokio::test]
+    async fn remind_non_json_uses_interactive_path() {
+        let mut server = mockito::Server::new_async().await;
+        let reminders_mock = server
+            .mock("GET", "/api/v1/reminders?limit=200")
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(empty_reminders_response())
+            .create_async()
+            .await;
+        let tasks_mock = server
+            .mock("GET", "/api/v1/tasks/filter?query=today&limit=200")
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(empty_tasks_response())
+            .create_async()
+            .await;
+
+        let config = config_with_project()
+            .await
+            .with_mock_url(server.url())
+            .mock_select(1);
+        let args = Remind {
+            project: None,
+            filter: Some("today".into()),
+            sort: SortOrder::Value,
+            datetime: None,
+        };
+
+        let result = remind(config, &args, false).await.expect("should succeed");
+        assert!(result.contains("No tasks"));
+        reminders_mock.assert();
+        tasks_mock.assert();
+    }
+
+    #[tokio::test]
+    async fn remind_json_with_project_skips_tasks_with_existing_reminders() {
+        let mut server = mockito::Server::new_async().await;
+        let task_a = task_json("t1", 1);
+        let task_b = task_json("t2", 1);
+
+        let reminders_mock = server
+            .mock("GET", "/api/v1/reminders?limit=200")
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(
+                r#"{"results":[{"id":"r1","item_id":"t1","notify_uid":"910","type":"absolute","is_deleted":false,"minute_offset":0,"is_urgent":false,"due":{"date":"2026-01-18T17:00:00","timezone":null,"string":"2026-01-18 17:00","lang":"en","is_recurring":false}}],"next_cursor":null}"#,
+            )
+            .create_async()
+            .await;
+        let tasks_mock = server
+            .mock("GET", "/api/v1/tasks/?project_id=123&limit=200")
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(tasks_response_json(&[&task_a, &task_b]))
+            .create_async()
+            .await;
+        let create_mock = server
+            .mock("POST", "/api/v1/reminders")
+            .match_body(mockito::Matcher::Regex(r#""task_id":"t2""#.into()))
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(
+                r#"{"id":"r2","item_id":"t2","notify_uid":"910","type":"absolute","is_deleted":false,"minute_offset":0,"is_urgent":false,"due":{"date":"2026-01-18T17:00:00","timezone":null,"string":"2026-01-18 17:00","lang":"en","is_recurring":false}}"#,
+            )
+            .expect(1)
+            .create_async()
+            .await;
+
+        let config = config_with_project().await.with_mock_url(server.url());
+        let args = Remind {
+            project: Some("myproject".into()),
+            filter: None,
+            sort: SortOrder::Value,
+            datetime: Some("tomorrow at 3pm".into()),
+        };
+
+        let result = remind(config, &args, true).await.expect("should succeed");
+        assert_json_tasks_count(&result, 1);
+
+        reminders_mock.assert();
+        tasks_mock.assert();
+        create_mock.assert();
+    }
+
+    // ─── schedule (JSON) ──────────────────────────────────────────
+
+    #[tokio::test]
+    async fn schedule_json_with_filter_schedules_tasks_and_returns_json() {
+        let mut server = mockito::Server::new_async().await;
+        let task = task_json("t1", 1);
+
+        let tasks_mock = server
+            .mock("GET", "/api/v1/tasks/filter?query=today&limit=200")
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(tasks_response_json(&[&task]))
+            .create_async()
+            .await;
+        let update_mock = server
+            .mock("POST", "/api/v1/tasks/t1")
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(task_json("t1", 1))
+            .expect(1)
+            .create_async()
+            .await;
+
+        let config = config_with_project().await.with_mock_url(server.url());
+        let args = Schedule {
+            project: None,
+            filter: Some("today".into()),
+            skip_recurring: false,
+            overdue: false,
+            sort: SortOrder::Value,
+            datetime: Some("tomorrow at 3pm".into()),
+        };
+
+        let result = schedule(config, &args, true).await.expect("should succeed");
+        assert_json_tasks_count(&result, 1);
+
+        tasks_mock.assert();
+        update_mock.assert();
+    }
+
+    #[tokio::test]
+    async fn schedule_json_with_project_respects_overdue_filter() {
+        let mut server = mockito::Server::new_async().await;
+        // Task has no due date (not overdue), so it should be filtered out when overdue=true
+        let task = task_json("t1", 1);
+
+        let tasks_mock = server
+            .mock("GET", "/api/v1/tasks/?project_id=123&limit=200")
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(tasks_response_json(&[&task]))
+            .create_async()
+            .await;
+
+        let config = config_with_project().await.with_mock_url(server.url());
+        let args = Schedule {
+            project: Some("myproject".into()),
+            filter: None,
+            skip_recurring: false,
+            overdue: true,
+            sort: SortOrder::Value,
+            datetime: Some("tomorrow at 3pm".into()),
+        };
+
+        let result = schedule(config, &args, true).await.expect("should succeed");
+        assert_json_tasks_count(&result, 0);
+
+        tasks_mock.assert();
+    }
+
+    #[tokio::test]
+    async fn schedule_json_missing_datetime_flag_errors() {
+        let config = config_with_project().await;
+        let args = Schedule {
+            project: Some("myproject".into()),
+            filter: None,
+            skip_recurring: false,
+            overdue: false,
+            sort: SortOrder::Value,
+            datetime: None,
+        };
+
+        let result = schedule(config, &args, true).await;
+        let err = result.expect_err("should error without --datetime flag");
+        assert_eq!(err.source, "json_mode");
+        assert!(err.message.contains("--datetime"));
+    }
+
+    #[tokio::test]
+    async fn schedule_non_json_uses_interactive_path() {
+        let mut server = mockito::Server::new_async().await;
+        let tasks_mock = server
+            .mock("GET", "/api/v1/tasks/filter?query=today&limit=200")
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(empty_tasks_response())
+            .create_async()
+            .await;
+
+        let config = config_with_project()
+            .await
+            .with_mock_url(server.url())
+            .mock_select(1);
+        let args = Schedule {
+            project: None,
+            filter: Some("today".into()),
+            skip_recurring: false,
+            overdue: false,
+            sort: SortOrder::Value,
+            datetime: None,
+        };
+
+        let result = schedule(config, &args, false)
+            .await
+            .expect("should succeed");
+        assert!(result.contains("No tasks"));
+        tasks_mock.assert();
+    }
+
+    // ─── deadline (JSON) ──────────────────────────────────────────
+
+    #[tokio::test]
+    async fn deadline_json_with_project_sets_deadlines_and_returns_json() {
+        let mut server = mockito::Server::new_async().await;
+        let task = task_json("t1", 1);
+
+        let tasks_mock = server
+            .mock("GET", "/api/v1/tasks/?project_id=123&limit=200")
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(tasks_response_json(&[&task]))
+            .create_async()
+            .await;
+        let update_mock = server
+            .mock("POST", "/api/v1/tasks/t1")
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(task_json("t1", 1))
+            .expect(1)
+            .create_async()
+            .await;
+
+        let config = config_with_project().await.with_mock_url(server.url());
+        let args = Deadline {
+            project: Some("myproject".into()),
+            filter: None,
+            sort: SortOrder::Value,
+            date: Some("2026-05-01".into()),
+        };
+
+        let result = deadline(config, &args, true).await.expect("should succeed");
+        assert_json_tasks_count(&result, 1);
+
+        tasks_mock.assert();
+        update_mock.assert();
+    }
+
+    #[tokio::test]
+    async fn deadline_non_json_uses_interactive_path() {
+        let mut server = mockito::Server::new_async().await;
+        let tasks_mock = server
+            .mock("GET", "/api/v1/tasks/filter?query=today&limit=200")
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(empty_tasks_response())
+            .create_async()
+            .await;
+
+        let config = config_with_project()
+            .await
+            .with_mock_url(server.url())
+            .mock_select(1);
+        let args = Deadline {
+            project: None,
+            filter: Some("today".into()),
+            sort: SortOrder::Value,
+            date: None,
+        };
+
+        let result = deadline(config, &args, false)
+            .await
+            .expect("should succeed");
+        assert!(result.contains("No tasks"));
+        tasks_mock.assert();
+    }
+
+    #[tokio::test]
+    async fn deadline_json_missing_date_flag_errors() {
+        let config = config_with_project().await;
+        let args = Deadline {
+            project: Some("myproject".into()),
+            filter: None,
+            sort: SortOrder::Value,
+            date: None,
+        };
+
+        let result = deadline(config, &args, true).await;
+        let err = result.expect_err("should error without --date flag");
+        assert_eq!(err.source, "json_mode");
+        assert!(err.message.contains("--date"));
+    }
+
+    #[tokio::test]
+    async fn fetch_deadline_tasks_with_filter_passes_non_recurring_tasks() {
+        let mut server = mockito::Server::new_async().await;
+        let task = task_json("t1", 1);
+        let tasks_mock = server
+            .mock("GET", "/api/v1/tasks/filter?query=today&limit=200")
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(tasks_response_json(&[&task]))
+            .create_async()
+            .await;
+
+        let config = config_with_project().await.with_mock_url(server.url());
+        let result =
+            fetch_deadline_tasks(&config, &Flag::Filter("today".into()), &SortOrder::Value)
+                .await
+                .expect("should succeed");
+
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].id, "t1");
+        tasks_mock.assert();
+    }
+
+    // ─── helpers ──────────────────────────────────────────────────
+
+    #[tokio::test]
+    async fn fetch_schedule_tasks_with_project_filters_unscheduled() {
+        let mut server = mockito::Server::new_async().await;
+        let task = task_json("t1", 1);
+        let tasks_mock = server
+            .mock("GET", "/api/v1/tasks/?project_id=123&limit=200")
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(tasks_response_json(&[&task]))
+            .create_async()
+            .await;
+
+        let config = config_with_project().await.with_mock_url(server.url());
+        let project = config
+            .projects()
+            .await
+            .expect("should fetch projects")
+            .into_iter()
+            .next()
+            .expect("should have at least one project");
+
+        let result = fetch_schedule_tasks(
+            &config,
+            &Flag::Project(project),
+            &SortOrder::Value,
+            false, // overdue
+            false, // skip_recurring
+        )
+        .await
+        .expect("should succeed");
+
+        assert_eq!(result.len(), 1);
+        tasks_mock.assert();
+    }
+
+    #[tokio::test]
+    async fn fetch_schedule_tasks_skip_recurring_filters_out_recurring() {
+        let mut server = mockito::Server::new_async().await;
+        let recurring = recurring_task_json("t1");
+        let normal = task_json("t2", 1);
+        let tasks_mock = server
+            .mock("GET", "/api/v1/tasks/?project_id=123&limit=200")
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(tasks_response_json(&[&recurring, &normal]))
+            .create_async()
+            .await;
+
+        let config = config_with_project().await.with_mock_url(server.url());
+        let project = config
+            .projects()
+            .await
+            .expect("should fetch projects")
+            .into_iter()
+            .next()
+            .expect("should have at least one project");
+
+        let result = fetch_schedule_tasks(
+            &config,
+            &Flag::Project(project),
+            &SortOrder::Value,
+            false, // overdue
+            true,  // skip_recurring
+        )
+        .await
+        .expect("should succeed");
+
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].id, "t2");
+        tasks_mock.assert();
+    }
+
+    #[tokio::test]
+    async fn fetch_deadline_tasks_filters_recurring_and_existing_deadlines() {
+        let mut server = mockito::Server::new_async().await;
+        // Task with a deadline already set — should be filtered out
+        let with_deadline = r#"{"id":"t1","user_id":"910","project_id":"123","section_id":null,"parent_id":null,"added_by_uid":null,"assigned_by_uid":null,"responsible_uid":null,"labels":[],"deadline":{"date":"2026-05-01","lang":"en"},"duration":null,"due":null,"checked":false,"is_deleted":false,"is_collapsed":false,"added_at":"2026-01-01T00:00:00Z","completed_at":null,"updated_at":"2026-01-01T00:00:00Z","priority":1,"child_order":1,"content":"Has deadline","description":"","note_count":0,"day_order":1}"#;
+        let without_deadline = task_json("t2", 1);
+
+        let tasks_mock = server
+            .mock("GET", "/api/v1/tasks/?project_id=123&limit=200")
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(tasks_response_json(&[&with_deadline, &without_deadline]))
+            .create_async()
+            .await;
+
+        let config = config_with_project().await.with_mock_url(server.url());
+        let project = config
+            .projects()
+            .await
+            .expect("should fetch projects")
+            .into_iter()
+            .next()
+            .expect("should have at least one project");
+
+        let result = fetch_deadline_tasks(&config, &Flag::Project(project), &SortOrder::Value)
+            .await
+            .expect("should succeed");
+
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].id, "t2");
+        tasks_mock.assert();
+    }
 
     #[test]
     fn view_sort_without_value_uses_configured_sort() {
