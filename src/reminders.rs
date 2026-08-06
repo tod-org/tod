@@ -10,16 +10,25 @@ use crate::{
     todoist,
 };
 
+/// A reminder for a task, returned by the Todoist API.
 #[allow(clippy::struct_excessive_bools)]
 #[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug)]
 pub struct Reminder {
+    /// Unique reminder ID.
     pub id: String,
+    /// ID of the task this reminder is attached to.
     pub item_id: String,
+    /// User ID that receives the notification.
     pub notify_uid: String,
+    /// Reminder type (e.g. "absolute" or "relative").
     pub r#type: String,
+    /// Whether the reminder has been soft-deleted.
     pub is_deleted: bool,
+    /// Offset in minutes for relative reminders.
     pub minute_offset: Option<u32>,
+    /// Whether this reminder is marked as urgent.
     pub is_urgent: bool,
+    /// Absolute due date for the reminder.
     pub due: Option<DateInfo>,
 }
 
@@ -42,6 +51,7 @@ impl Display for Reminder {
     }
 }
 
+/// Paginated wrapper for a list of reminders.
 #[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug)]
 pub struct ReminderResponse {
     pub results: Vec<Reminder>,

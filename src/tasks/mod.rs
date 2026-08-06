@@ -22,6 +22,7 @@ use crate::projects;
 use crate::tasks::priority::Priority;
 use crate::{input, time, todoist};
 
+/// A task returned by the Todoist API.
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 pub struct Task {
     pub id: String,
@@ -33,11 +34,17 @@ pub struct Task {
     pub assigned_by_uid: Option<String>,
     pub responsible_uid: Option<String>,
     pub labels: Vec<String>,
+    /// Hard deadline date (YYYY-MM-DD).
     pub deadline: Option<Deadline>,
+    /// Duration for timeboxing (amount + unit).
     pub duration: Option<Duration>,
+    /// Due date and time information.
     pub due: Option<DateInfo>,
+    /// Whether the task has been completed.
     pub checked: bool,
+    /// Whether the task has been soft-deleted.
     pub is_deleted: bool,
+    /// Whether subtasks are collapsed in Todoist UI.
     pub is_collapsed: bool,
     pub added_at: Option<String>,
     pub completed_at: Option<String>,
@@ -52,13 +59,14 @@ pub struct Task {
 }
 
 impl Task {
-    /// Converts a JSON string to a single task (creates a single task from a JSON string)
+    /// Converts a JSON string to a single task.
     pub fn from_json(json: &str) -> Result<Task, Error> {
         let task: Task = serde_json::from_str(json)?;
         Ok(task)
     }
 }
 
+/// Paginated wrapper for a list of tasks.
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 pub struct TaskResponse {
     pub results: Vec<Task>,
@@ -73,14 +81,20 @@ impl TaskResponse {
     }
 }
 
-// Update task_attributes fn when adding here
+/// An editable attribute of a task.
 #[derive(Eq, PartialEq)]
 pub enum TaskAttribute {
+    /// Task title text.
     Content,
+    /// Task description.
     Description,
+    /// Priority level.
     Priority,
+    /// Due date.
     Due,
+    /// Labels applied to the task.
     Labels,
+    /// Hard deadline.
     Deadline,
 }
 impl Display for TaskAttribute {
@@ -124,16 +138,17 @@ impl Display for Task {
     }
 }
 
+/// A date and time representation from the Todoist API.
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 pub struct DateInfo {
-    /// Date string as "YYYY-MM-DD" (date) or "YYYY-MM-DDTHH:MM:SSZ" (datetime)
+    /// Date string as "YYYY-MM-DD" (date) or "YYYY-MM-DDTHH:MM:SSZ" (datetime).
     pub date: String,
     pub is_recurring: bool,
-    /// "2025-04-26 15:00"
+    /// Formatted date display string, e.g. "2025-04-26 15:00".
     pub string: String,
-    /// i.e. "en"
+    /// Language code, e.g. "en".
     pub lang: String,
-    /// i.e. "America/Vancouver"
+    /// The IANA timezone for this date, e.g. "America/Vancouver".
     pub timezone: Option<String>,
 }
 
@@ -143,35 +158,40 @@ impl Display for DateInfo {
     }
 }
 
+/// A hard deadline for a task.
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 pub struct Deadline {
-    /// In format YYYY-MM-DD
+    /// Date in format YYYY-MM-DD.
     pub date: String,
-    /// i.e. "en"
+    /// Language code, e.g. "en".
     pub lang: String,
 }
 
+/// A duration attached to a task, used for timeboxing.
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 pub struct Duration {
+    /// Number of units.
     pub amount: u32,
+    /// Unit of time.
     pub unit: Unit,
 }
-#[allow(dead_code)] // Body Struct is not currently used/constructed
-#[derive(Serialize, Deserialize, Debug)]
-struct Body {
-    items: Vec<Task>,
-}
 
+/// Unit of time for a task duration.
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 pub enum Unit {
+    /// Duration in minutes.
     #[serde(rename = "minute")]
     Minute,
+    /// Duration in days.
     #[serde(rename = "day")]
     Day,
 }
 
+/// Controls prefix display in terminal output.
 pub enum FormatType {
+    /// Indented list format (prefix = "- ").
     List,
+    /// No prefix, used for a single task.
     Single,
 }
 

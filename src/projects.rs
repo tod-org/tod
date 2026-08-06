@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 const PAD_WIDTH: usize = 30;
 const PROJECT_URL: &str = "https://app.todoist.com/app/project";
 
-// Projects are split into sections
+/// A project from the Todoist API.
 #[allow(clippy::struct_excessive_bools)]
 #[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug)]
 pub struct Project {
@@ -23,22 +23,31 @@ pub struct Project {
     pub child_order: i32,
     pub color: String,
     pub created_at: Option<String>,
+    /// Whether the project is archived.
     pub is_archived: bool,
+    /// Whether the project has been soft-deleted.
     pub is_deleted: bool,
+    /// Whether the project is marked as a favorite.
     pub is_favorite: bool,
     pub is_frozen: bool,
     pub name: String,
     pub updated_at: Option<String>,
+    /// The Todoist view style for this project ("list" or "board").
     pub view_style: String,
     pub default_order: i32,
     pub description: String,
+    /// ID of the parent project, if this is a sub-project.
     pub parent_id: Option<String>,
+    /// Whether this is the Todoist inbox project.
     #[allow(clippy::struct_field_names)]
     pub inbox_project: Option<bool>,
+    /// Whether subtasks are shown collapsed.
     pub is_collapsed: bool,
+    /// Whether this project is shared with others.
     pub is_shared: bool,
 }
 
+/// Paginated wrapper for a list of projects.
 #[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug)]
 pub struct ProjectResponse {
     pub results: Vec<Project>,
