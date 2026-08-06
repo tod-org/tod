@@ -3,6 +3,7 @@ use clap::{Parser, Subcommand};
 use crate::reminders;
 use crate::{config::Config, errors::Error};
 
+/// Reminder subcommands.
 #[derive(Subcommand, Debug, Clone)]
 pub enum ReminderCommands {
     #[clap(alias = "l")]
@@ -13,6 +14,7 @@ pub enum ReminderCommands {
 #[derive(Parser, Debug, Clone)]
 pub struct List {}
 
+/// Lists all reminders with their associated tasks.
 pub async fn list(config: &mut Config, _args: &List, json: bool) -> Result<String, Error> {
     reminders::list(config, json).await
 }

@@ -12,6 +12,7 @@ use crate::{
     todoist,
 };
 
+/// Task subcommands (create, edit, complete, etc.).
 #[derive(Subcommand, Debug, Clone)]
 pub enum TaskCommands {
     #[clap(alias = "q")]
@@ -40,6 +41,7 @@ pub enum TaskCommands {
 }
 
 #[derive(Parser, Debug, Clone)]
+/// Creates a task using Todoist quick-add NLP.
 pub struct QuickAdd {
     #[arg(short, long, num_args(1..))]
     /// Content for task. Add a reminder at the end by prefixing the natural language date with `!`.
@@ -48,6 +50,7 @@ pub struct QuickAdd {
 }
 
 #[derive(Parser, Debug, Clone)]
+/// Creates a task with structured fields.
 pub struct Create {
     #[arg(short, long)]
     /// The project into which the task will be added
@@ -79,6 +82,7 @@ pub struct Create {
 }
 
 #[derive(Parser, Debug, Clone)]
+/// Edits an existing task's attributes.
 pub struct Edit {
     #[arg(short, long)]
     /// The project containing the task
@@ -90,6 +94,7 @@ pub struct Edit {
 }
 
 #[derive(Parser, Debug, Clone)]
+/// Fetches the next task by priority.
 pub struct Next {
     #[arg(short, long)]
     /// The project containing the task
@@ -101,14 +106,17 @@ pub struct Next {
 }
 
 #[derive(Parser, Debug, Clone)]
+/// Completes the last task fetched with the next command.
 pub struct Complete {}
 
 #[derive(Parser, Debug, Clone)]
+/// Adds a comment to the last task fetched with the next command.
 pub struct Comment {
     #[arg(short, long)]
     /// Content for comment
     content: Option<String>,
 }
+/// Creates a task using natural language quick-add.
 pub async fn quick_add(config: &Config, args: &QuickAdd, json: bool) -> Result<String, Error> {
     let QuickAdd { content } = args;
     let maybe_string = content.as_ref().map(|c| c.join(" "));
@@ -136,6 +144,7 @@ fn is_no_sections(args: &Create, config: &Config) -> bool {
     args.no_section || config.no_sections.unwrap_or_default()
 }
 
+/// Creates a task with structured fields and optional interactive prompts.
 pub async fn create(config: Config, args: &Create, json: bool) -> Result<String, Error> {
     let task = if no_flags_used(args) {
         if config.args.json {
@@ -268,6 +277,7 @@ fn no_flags_used(args: &Create) -> bool {
         && label.is_empty()
 }
 
+/// Edits a task's attributes interactively. Blocks interactive prompts in JSON mode.
 pub async fn edit(config: Config, args: &Edit, json: bool) -> Result<String, Error> {
     if json {
         return Err(Error::new("json_mode", super::JSON_INTERACTIVE_ERROR));
@@ -278,6 +288,7 @@ pub async fn edit(config: Config, args: &Edit, json: bool) -> Result<String, Err
         Flag::Filter(filter) => filters::edit_task(&config, filter).await,
     }
 }
+/// Fetches the next task by priority and stores it in config.
 pub async fn next(config: Config, args: &Next, json: bool) -> Result<String, Error> {
     let Next { project, filter } = args;
     match super::fetch_project_or_filter(project.as_deref(), filter.as_deref(), &config).await? {
@@ -286,6 +297,7 @@ pub async fn next(config: Config, args: &Next, json: bool) -> Result<String, Err
     }
 }
 
+/// Completes the stored next task.
 pub async fn complete(config: Config, _args: &Complete, json: bool) -> Result<String, Error> {
     match config.next_task() {
         Some(task) => {
@@ -304,6 +316,7 @@ pub async fn complete(config: Config, _args: &Complete, json: bool) -> Result<St
     }
 }
 
+/// Adds a comment to the stored next task.
 pub async fn comment(config: Config, args: &Comment, json: bool) -> Result<String, Error> {
     let Comment { content } = args;
     match config.next_task() {

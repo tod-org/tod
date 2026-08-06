@@ -15,6 +15,7 @@ use crate::{
     todoist,
 };
 
+/// Multi-task subcommands (view, process, schedule, etc.).
 #[derive(Subcommand, Debug, Clone)]
 pub enum ListCommands {
     #[clap(alias = "v")]
@@ -256,6 +257,7 @@ pub struct Import {
     /// The file or directory to fuzzy find in
     path: Option<String>,
 }
+/// Views tasks matching a project or filter.
 pub async fn view(config: &mut Config, args: &View, json: bool) -> Result<String, Error> {
     let View {
         project,
@@ -283,6 +285,7 @@ pub async fn view(config: &mut Config, args: &View, json: bool) -> Result<String
     }
 }
 
+/// Applies labels from a predefined list or the API.
 pub async fn label(config: Config, args: &Label) -> Result<String, Error> {
     let Label {
         filter,
@@ -296,6 +299,7 @@ pub async fn label(config: Config, args: &Label) -> Result<String, Error> {
     lists::label(&config, flag, &labels, sort).await
 }
 
+/// Walks through tasks one at a time for completion.
 pub async fn process(config: Config, args: &Process) -> Result<String, Error> {
     let Process {
         project,
@@ -307,6 +311,7 @@ pub async fn process(config: Config, args: &Process) -> Result<String, Error> {
     lists::process(&config, flag, sort).await
 }
 
+/// Assigns dates, times, and durations to tasks.
 pub async fn timebox(config: Config, args: &Timebox) -> Result<String, Error> {
     let Timebox {
         project,
@@ -318,6 +323,7 @@ pub async fn timebox(config: Config, args: &Timebox) -> Result<String, Error> {
     lists::timebox(&config, flag, sort).await
 }
 
+/// Assigns priorities to unprioritized tasks.
 pub async fn prioritize(config: Config, args: &Prioritize, json: bool) -> Result<String, Error> {
     let Prioritize {
         project,
@@ -366,6 +372,7 @@ pub async fn prioritize(config: Config, args: &Prioritize, json: bool) -> Result
     Ok(json_output.to_string())
 }
 
+/// Adds reminders to tasks that lack them.
 pub async fn remind(config: Config, args: &Remind, json: bool) -> Result<String, Error> {
     let Remind {
         project,
@@ -419,6 +426,7 @@ pub async fn remind(config: Config, args: &Remind, json: bool) -> Result<String,
     let json_output = serde_json::json!({"tasks": tasks, "count": count});
     Ok(json_output.to_string())
 }
+/// Creates tasks from a text file using natural language.
 pub async fn import(config: Config, args: &Import, json: bool) -> Result<String, Error> {
     let Import { path } = args;
     let path = super::fetch_string(path.as_deref(), &config, input::PATH)?;
@@ -532,6 +540,7 @@ async fn fetch_deadline_tasks(
     }
 }
 
+/// Schedules dates on tasks individually.
 pub async fn schedule(config: Config, args: &Schedule, json: bool) -> Result<String, Error> {
     let Schedule {
         project,
@@ -587,6 +596,7 @@ pub async fn schedule(config: Config, args: &Schedule, json: bool) -> Result<Str
     Ok(json_output.to_string())
 }
 
+/// Sets deadlines on non-recurring tasks without deadlines.
 pub async fn deadline(config: Config, args: &Deadline, json: bool) -> Result<String, Error> {
     let Deadline {
         project,

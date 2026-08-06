@@ -42,6 +42,7 @@ const NO_PROJECTS_ERR: &str = "No projects in config. Add projects with `tod pro
 const JSON_INTERACTIVE_ERROR: &str =
     "Interactive input not available in JSON mode. Provide the required argument via CLI flags.";
 
+/// Parsed command-line arguments.
 #[derive(Parser, Clone)]
 #[command(name = NAME)]
 #[command(author = AUTHOR)]
@@ -69,6 +70,7 @@ pub struct Cli {
     pub command: Commands,
 }
 
+/// Top-level command groups.
 #[derive(Subcommand, Debug, Clone)]
 pub enum Commands {
     #[command(subcommand)]
@@ -131,6 +133,7 @@ impl Display for FlagOptions {
     }
 }
 
+/// Routes a parsed command to its handler.
 pub async fn select_command(cli: Cli, tx: UnboundedSender<Error>) -> Result<CommandResult, Error> {
     if cli.verbose {
         crate::debug::print(LONG_VERSION);
@@ -460,6 +463,7 @@ fn ensure_auth_present(config: &Config, source: &str) -> Result<(), Error> {
     }
 }
 
+/// Resolves task content from an argument or interactive prompt.
 fn fetch_string(
     maybe_string: Option<&str>,
     config: &Config,
@@ -475,6 +479,7 @@ fn fetch_string(
         }
     }
 }
+/// Resolves a project name from an argument or interactive prompt.
 async fn fetch_project(project_name: Option<&str>, config: &Config) -> Result<Flag, Error> {
     let projects = config.projects().await?;
     if projects.is_empty() {
@@ -503,6 +508,7 @@ async fn fetch_project(project_name: Option<&str>, config: &Config) -> Result<Fl
     }
 }
 
+/// Wraps a filter string in `Flag::Filter`, or prompts for one.
 fn fetch_filter(filter: Option<&str>, config: &Config) -> Result<Flag, Error> {
     if let Some(string) = filter {
         Ok(Flag::Filter(string.to_owned()))
@@ -515,6 +521,7 @@ fn fetch_filter(filter: Option<&str>, config: &Config) -> Result<Flag, Error> {
     }
 }
 
+/// Resolves a project or filter from arguments, errors if both are set.
 async fn fetch_project_or_filter(
     project: Option<&str>,
     filter: Option<&str>,
@@ -540,6 +547,7 @@ async fn fetch_project_or_filter(
     }
 }
 
+/// Converts a u8 to Priority or prompts the user.
 fn fetch_priority(priority: Option<u8>, config: &Config) -> Result<Priority, Error> {
     if let Some(priority) = priority::from_integer(priority)? {
         Ok(priority)
@@ -557,6 +565,7 @@ fn fetch_priority(priority: Option<u8>, config: &Config) -> Result<Priority, Err
     }
 }
 
+/// Returns the provided labels or fetches them from the API.
 async fn maybe_fetch_labels(config: &Config, labels: &[String]) -> Result<Vec<String>, Error> {
     if labels.is_empty() {
         let labels = labels::get_labels(config, false)

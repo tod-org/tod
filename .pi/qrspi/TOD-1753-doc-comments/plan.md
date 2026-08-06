@@ -1204,9 +1204,9 @@ pub async fn completions(args: &Completions) -> Result<String, Error> { ... }
 
 ### Verification
 #### Automated
-- [ ] `cargo build` passes
-- [ ] `scripts/test.sh` passes
-- [ ] `cargo clippy -- -D warnings` passes
+- [x] `cargo build` passes
+- [x] `scripts/test.sh` passes
+- [x] `cargo clippy -- -D warnings` passes
 
 #### Manual
 - [ ] `cargo doc --no-deps --open` → `commands` module — `Cli`, `Commands`, `select_command`, all 6 `fetch_*` helpers documented
