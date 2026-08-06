@@ -1,6 +1,7 @@
 use crate::{config::Config, errors::Error, format, input, lists::Flag, todoist};
 use clap::{Parser, Subcommand};
 
+/// Section subcommands.
 #[derive(Subcommand, Debug, Clone)]
 pub enum SectionCommands {
     #[clap(alias = "c")]
@@ -19,6 +20,7 @@ pub struct Create {
     project: Option<String>,
 }
 
+/// Creates a section in a Todoist project.
 pub async fn create(config: &Config, args: &Create, json: bool) -> Result<String, Error> {
     let Create { name, project } = args;
     let name = super::fetch_string(name.as_deref(), config, input::NAME)?;

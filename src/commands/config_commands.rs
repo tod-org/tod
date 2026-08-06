@@ -20,6 +20,7 @@ const BUILD_TARGET: &str = env!("BUILD_TARGET");
 const BUILD_PROFILE: &str = env!("BUILD_PROFILE");
 const BUILD_TIMESTAMP: &str = env!("BUILD_TIMESTAMP");
 
+/// Configuration subcommands (check, edit, timezone, etc.).
 #[derive(Subcommand, Debug, Clone)]
 pub enum ConfigCommands {
     #[clap(alias = "a")]
@@ -96,6 +97,7 @@ fn format_upgrade_hint(upgrade_cmd: &str) -> String {
     }
 }
 
+/// Checks crates.io for a newer version.
 pub async fn check_version(
     args: &CheckVersion,
     mock_url: Option<String>,
@@ -184,6 +186,7 @@ pub async fn check_version(
     }
 }
 
+/// Validates the config file and optionally removes invalid values.
 pub async fn check(cli_config_path: Option<PathBuf>, json: bool) -> Result<String, Error> {
     if json {
         return check_json(cli_config_path).await;
@@ -407,6 +410,7 @@ fn confirm(message: &str, default: bool) -> Result<bool, Error> {
         .map_err(Error::from)
 }
 
+/// Sets the timezone from Todoist user data or a flag.
 pub async fn set_timezone(config: Config, _args: &SetTimezone) -> Result<String, Error> {
     if config
         .token
@@ -431,6 +435,7 @@ pub async fn set_timezone(config: Config, _args: &SetTimezone) -> Result<String,
     }
 }
 
+/// Interactively edits config fields via prompts.
 pub async fn edit(config: Config, _args: &Edit) -> Result<String, Error> {
     if config.args.json {
         return Err(Error::new("json_mode", super::JSON_INTERACTIVE_ERROR));
@@ -439,6 +444,7 @@ pub async fn edit(config: Config, _args: &Edit) -> Result<String, Error> {
 }
 
 #[allow(clippy::unused_async)]
+/// Prints build and version information.
 pub async fn about(_args: &About, json: bool) -> Result<String, Error> {
     if json {
         let json = serde_json::json!({

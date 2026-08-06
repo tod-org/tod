@@ -5,6 +5,7 @@ use crate::{
     shell::{self, Shell},
 };
 
+/// Shell completion subcommands.
 #[derive(Subcommand, Debug, Clone)]
 pub enum ShellCommands {
     #[clap(alias = "b")]
@@ -18,6 +19,7 @@ pub struct Completions {
 }
 
 #[allow(clippy::unused_async)]
+/// Generates shell completions for the specified shell.
 pub async fn completions(args: &Completions) -> Result<String, Error> {
     shell::generate_completions(args.shell);
 

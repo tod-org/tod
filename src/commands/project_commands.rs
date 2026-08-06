@@ -2,6 +2,7 @@ use clap::{Parser, Subcommand};
 
 use crate::{config::Config, debug, errors::Error, input, lists::Flag, projects, todoist};
 
+/// Project subcommands (create, delete, import, etc.).
 #[derive(Subcommand, Debug, Clone)]
 pub enum ProjectCommands {
     #[clap(alias = "c")]
@@ -122,6 +123,7 @@ pub struct Empty {
     project: Option<String>,
 }
 
+/// Creates a project in Todoist and adds it to config.
 pub async fn create(config: &mut Config, args: &Create, json: bool) -> Result<String, Error> {
     let Create {
         name,
@@ -134,6 +136,7 @@ pub async fn create(config: &mut Config, args: &Create, json: bool) -> Result<St
     projects::create(config, name, description, *is_favorite, json).await
 }
 
+/// Lists configured projects with task counts.
 pub async fn list(config: &mut Config, _args: &List, json: bool) -> Result<String, Error> {
     if json {
         config.reload_projects().await?;
@@ -144,6 +147,7 @@ pub async fn list(config: &mut Config, _args: &List, json: bool) -> Result<Strin
     }
 }
 
+/// Removes a project from config (local only).
 pub async fn remove(config: &mut Config, args: &Remove) -> Result<String, Error> {
     let Remove {
         all,
@@ -169,6 +173,7 @@ pub async fn remove(config: &mut Config, args: &Remove) -> Result<String, Error>
     }
 }
 
+/// Deletes a project from Todoist and removes from config.
 pub async fn delete(config: &mut Config, args: &Delete) -> Result<String, Error> {
     let Delete {
         force,
@@ -204,6 +209,7 @@ pub async fn delete(config: &mut Config, args: &Delete) -> Result<String, Error>
     }
 }
 
+/// Renames a project in config (local only).
 pub async fn rename(config: &mut Config, args: &Rename) -> Result<String, Error> {
     let Rename { project, name } = args;
     let project = match super::fetch_project(project.as_deref(), config).await? {
@@ -217,6 +223,7 @@ pub async fn rename(config: &mut Config, args: &Rename) -> Result<String, Error>
     projects::rename(config, &project, name.as_deref()).await
 }
 
+/// Imports projects from Todoist into config.
 pub async fn import(config: &mut Config, args: &Import, json: bool) -> Result<String, Error> {
     let Import { auto, project, id } = args;
     if !*auto && json {
@@ -225,6 +232,7 @@ pub async fn import(config: &mut Config, args: &Import, json: bool) -> Result<St
     projects::import(config, auto, project.as_deref(), id.as_deref(), json).await
 }
 
+/// Empties a project by moving tasks to other projects.
 pub async fn empty(config: &mut Config, args: &Empty) -> Result<String, Error> {
     let Empty { project } = args;
     if config.args.json {

@@ -6,6 +6,7 @@ use crate::{
 use clap::{Parser, Subcommand};
 use std::{io::ErrorKind, path::PathBuf};
 
+/// Authentication subcommands (OAuth login, developer token).
 #[derive(Subcommand, Debug, Clone)]
 pub enum AuthCommands {
     #[clap(alias = "l")]
@@ -26,6 +27,7 @@ pub struct Token {
     key: String,
 }
 
+/// Logs in via OAuth browser flow.
 pub async fn login(config: &mut Config, _args: &Login) -> Result<String, Error> {
     oauth::login(config, None).await
 }
