@@ -42,7 +42,7 @@ pub enum ConfigCommands {
     Open(ConfigOpen),
 
     #[clap(alias = "tz")]
-    /// (tz) Automatically set the timezone to your Todoist timezone. Can be overriden with the --timezone flag.
+    /// (tz) Automatically set the timezone to your Todoist timezone. Can be overridden with the --timezone flag.
     SetTimezone(SetTimezone),
 
     #[clap(alias = "e")]

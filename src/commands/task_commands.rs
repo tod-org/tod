@@ -54,7 +54,7 @@ pub struct Create {
     project: Option<String>,
 
     #[arg(short = 'u', long)]
-    /// Date date in format YYYY-MM-DD, YYYY-MM-DD HH:MM, or natural language
+    /// Due date in format YYYY-MM-DD, YYYY-MM-DD HH:MM, or natural language
     due: Option<String>,
 
     #[arg(short, long, default_value_t = String::new())]

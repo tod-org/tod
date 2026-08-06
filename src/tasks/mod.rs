@@ -122,6 +122,7 @@ pub fn edit_task_attributes() -> Vec<TaskAttribute> {
     ]
 }
 
+/// Returns task attributes available when creating a task (all except Content).
 pub fn create_task_attributes() -> Vec<TaskAttribute> {
     vec![
         TaskAttribute::Description,
@@ -209,6 +210,7 @@ enum DateTimeInfo {
     },
 }
 
+/// Specifies how tasks should be sorted.
 #[derive(clap::ValueEnum, Debug, Copy, Clone)]
 pub enum SortOrder {
     /// Sort by Tod's configured sort order
@@ -406,6 +408,7 @@ impl Task {
     }
 }
 
+/// Filters out tasks whose due date is in the future.
 pub fn filter_not_in_future(tasks: Vec<Task>, config: &Config) -> Vec<Task> {
     tasks
         .into_iter()
@@ -417,6 +420,7 @@ pub fn filter_not_in_future(tasks: Vec<Task>, config: &Config) -> Vec<Task> {
         .collect()
 }
 
+/// Sorts tasks using either the config sort order or custom sort order.
 pub fn sort(tasks: Vec<Task>, config: &Config, sort: SortOrder) -> Vec<Task> {
     match sort {
         SortOrder::Value => sort_by_value(tasks, config),
@@ -425,6 +429,7 @@ pub fn sort(tasks: Vec<Task>, config: &Config, sort: SortOrder) -> Vec<Task> {
     }
 }
 
+/// Updates a task attribute interactively, returning a join handle for the API call.
 pub async fn update_task(
     config: &Config,
     task: &Task,
@@ -487,6 +492,7 @@ pub async fn update_task(
     }
 }
 
+/// Applies labels to a task via interactive menu.
 pub async fn label_task(
     config: &Config,
     task: Task,
@@ -508,6 +514,7 @@ pub async fn label_task(
     }))
 }
 
+/// Walks through tasks one at a time for completion.
 pub async fn process_task(
     comments: Vec<Comment>,
     config: &Config,
@@ -575,6 +582,7 @@ pub async fn process_task(
     }
 }
 
+/// Assigns a date, time, and duration to a task via interactive prompts.
 pub async fn timebox_task(
     config: &Config,
     task: Task,
@@ -656,6 +664,7 @@ fn get_timebox(config: &Config, task: &Task) -> Result<(String, u32), Error> {
     Ok((datetime, duration.parse::<u32>()?))
 }
 
+/// Schedules a task's due date inside a spawned thread.
 pub async fn spawn_schedule_task(
     config: Config,
     task: Task,
@@ -689,6 +698,7 @@ pub async fn spawn_schedule_task(
         }
     }
 }
+/// Sets a task's deadline inside a spawned thread.
 pub async fn spawn_deadline_task(
     config: Config,
     task: Task,
@@ -843,6 +853,7 @@ pub fn spawn_update_task_priority(
     })
 }
 
+/// Sorts tasks by configured sort key and direction.
 pub fn sort_by_value(mut tasks: Vec<Task>, config: &Config) -> Vec<Task> {
     tasks.sort_by(|a, b| compare_by_sort_order(a, b, config));
     tasks
@@ -893,6 +904,7 @@ fn compare_datetime(a: Option<DateTime<Tz>>, b: Option<DateTime<Tz>>) -> Orderin
     }
 }
 
+/// Sorts tasks by their computed datetime.
 pub fn sort_by_datetime(mut tasks: Vec<Task>, config: &Config) -> Vec<Task> {
     tasks.sort_by_key(|i| i.datetime(config));
     tasks
@@ -949,6 +961,7 @@ pub async fn reject_parent_tasks(tasks: Vec<Task>, config: &Config) -> Vec<Task>
     filtered_tasks
 }
 
+/// Sets task priority via interactive menu.
 pub async fn set_priority(
     config: &Config,
     task: Task,
@@ -976,6 +989,7 @@ pub async fn set_priority(
     }))
 }
 
+/// Creates a reminder for a task using natural-language date input.
 pub async fn create_reminder(config: &Config, task: Task) -> Result<Option<JoinHandle<()>>, Error> {
     let comments = Vec::new();
     let text = task.fmt(comments, config, FormatType::Single, true).await?;

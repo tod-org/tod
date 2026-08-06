@@ -389,9 +389,9 @@ Change `/// Can be overriden with` to `/// Can be overridden with`.
 
 ### Verification
 #### Automated
-- [ ] `cargo build` passes
-- [ ] `scripts/test.sh` passes
-- [ ] `cargo clippy -- -D warnings` passes
+- [x] `cargo build` passes
+- [x] `scripts/test.sh` passes
+- [x] `cargo clippy -- -D warnings` passes
 
 #### Manual
 - [ ] `cargo doc --no-deps --open` → navigate to `tasks` module — all 13 public functions documented with `///` one-liners

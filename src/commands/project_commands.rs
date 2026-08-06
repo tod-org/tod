@@ -118,7 +118,7 @@ pub struct Rename {
 #[derive(Parser, Debug, Clone)]
 pub struct Empty {
     #[arg(short, long)]
-    /// Project to remove
+    /// Project to empty
     project: Option<String>,
 }
 
