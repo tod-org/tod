@@ -12,7 +12,6 @@ For GitHub Copilot-specific rules, see [`.github/copilot-instructions.md`](.gith
 - Use descriptive function and variable names; no cryptic abbreviations.
 - Code should compile cleanly with **no warnings** and pass **all tests**.
 - Prefer `PathBuf` for paths instead of raw `String`s.
-- Debug output should always start with `DEBUG:`.
 
 ---
 

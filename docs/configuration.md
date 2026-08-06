@@ -29,6 +29,7 @@ If the config does not exist, Tod will prompt for your initial Todoist API token
 {
   "bell_on_failure": true,
   "bell_on_success": false,
+  "comment_exclude_regex": null,
   "completed": null,
   "disable_links": false,
   "last_version_check": null,
@@ -67,6 +68,10 @@ If the config does not exist, Tod will prompt for your initial Todoist API token
     "order:asc"
   ],
   "spinners": true,
+  "task_comment_command": null,
+  "task_complete_command": null,
+  "task_create_command": null,
+  "task_exclude_regex": null,
   "timeout": null,
   "timezone": "",
   "token": "Your Todoist API Token",

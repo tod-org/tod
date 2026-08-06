@@ -47,11 +47,3 @@ cargo install tod
 ## Related projects
 
 - [Alfred Tod Workflow](https://github.com/stacksjb/AlfredTodWorkflow)
-
-## Other projects by Alan Vardy
-
-- [lnr - Linear CLI client](https://github.com/alanvardy/lnr)
-- [gpto - OpenAI CLI client](https://github.com/alanvardy/gpto)
-- SingleTask - A webapp for completing Todoist tasks one at a time
-  - [GitHub](https://github.com/alanvardy/singletask)
-  - [WebApp](https://singletask-6hm5.shuttle.app)
