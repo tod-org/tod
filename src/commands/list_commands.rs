@@ -1,4 +1,6 @@
 use clap::{Parser, Subcommand};
+use futures::future;
+use std::collections::HashSet;
 use std::path::Path;
 use walkdir::WalkDir;
 
@@ -8,7 +10,8 @@ use crate::{
     filters, input,
     lists::{self, Flag},
     projects,
-    tasks::SortOrder,
+    tasks::{self, SortOrder, Task},
+    tasks::priority::{self, Priority},
     todoist,
 };
 
@@ -133,6 +136,10 @@ pub struct Prioritize {
     )]
     /// Choose how results should be sorted
     sort: SortOrder,
+
+    #[arg(short = 'P', long)]
+    /// Priority to assign (1-4). Required in JSON mode.
+    priority: Option<u8>,
 }
 
 #[derive(Parser, Debug, Clone)]
@@ -154,6 +161,10 @@ pub struct Remind {
     )]
     /// Choose how results should be sorted
     sort: SortOrder,
+
+    #[arg(short = 'd', long)]
+    /// Datetime string in natural language (e.g. "tomorrow at 3pm"). Required in JSON mode.
+    datetime: Option<String>,
 }
 
 #[derive(Parser, Debug, Clone)]
@@ -199,6 +210,10 @@ pub struct Schedule {
     /// Only schedule overdue tasks
     overdue: bool,
 
+    #[arg(short = 'd', long)]
+    /// Datetime string in natural language (e.g. "tomorrow at 3pm"). Required in JSON mode.
+    datetime: Option<String>,
+
     #[arg(
         short = 't',
         long,
@@ -229,6 +244,10 @@ pub struct Deadline {
     )]
     /// Choose how results should be sorted
     sort: SortOrder,
+
+    #[arg(short = 'd', long)]
+    /// Date string in natural language (e.g. "next Friday"). Required in JSON mode.
+    date: Option<String>,
 }
 
 #[derive(Parser, Debug, Clone)]
@@ -299,26 +318,114 @@ pub async fn timebox(config: Config, args: &Timebox) -> Result<String, Error> {
     lists::timebox(&config, flag, sort).await
 }
 
-pub async fn prioritize(config: Config, args: &Prioritize) -> Result<String, Error> {
+pub async fn prioritize(config: Config, args: &Prioritize, json: bool) -> Result<String, Error> {
     let Prioritize {
         project,
         filter,
         sort,
+        priority,
     } = args;
-    let flag =
-        super::fetch_project_or_filter(project.as_deref(), filter.as_deref(), &config).await?;
-    lists::prioritize(&config, flag, sort).await
+
+    if json {
+        let priority = match priority {
+            Some(p) => match priority::from_integer(Some(*p))? {
+                Some(p) => p,
+                None => {
+                    return Err(Error::new(
+                        "json_mode",
+                        "Invalid priority. Use 1 (p4), 2 (p3), 3 (p2), or 4 (p1).",
+                    ));
+                }
+            },
+            None => {
+                return Err(Error::new(
+                    "json_mode",
+                    "--priority flag is required in JSON mode. Use 1 (p4), 2 (p3), 3 (p2), or 4 (p1).",
+                ));
+            }
+        };
+
+        let flag =
+            super::fetch_project_or_filter(project.as_deref(), filter.as_deref(), &config).await?;
+        let tasks =
+            lists::fetch_tasks_by_flag(&config, &flag, |t| t.priority == Priority::None, |_| true)
+                .await?;
+        let count = tasks.len();
+
+        let handles: Vec<_> = tasks
+            .iter()
+            .map(|task| {
+                let config = config.clone();
+                let id = task.id.clone();
+                async move {
+                    todoist::update_task_priority(&config, &id, &priority, false).await
+                }
+            })
+            .collect();
+        future::join_all(handles).await;
+
+        let json = serde_json::json!({"tasks": tasks, "count": count, "priority": priority});
+        Ok(json.to_string())
+    } else {
+        let flag =
+            super::fetch_project_or_filter(project.as_deref(), filter.as_deref(), &config).await?;
+        lists::prioritize(&config, flag, sort).await
+    }
 }
 
-pub async fn remind(config: Config, args: &Remind) -> Result<String, Error> {
+pub async fn remind(config: Config, args: &Remind, json: bool) -> Result<String, Error> {
     let Remind {
         project,
         filter,
         sort,
+        datetime,
     } = args;
-    let flag =
-        super::fetch_project_or_filter(project.as_deref(), filter.as_deref(), &config).await?;
-    lists::remind(&config, flag, sort).await
+
+    if json {
+        let datetime = match datetime {
+            Some(d) => d.clone(),
+            None => {
+                return Err(Error::new(
+                    "json_mode",
+                    "--datetime flag is required in JSON mode (e.g. \"tomorrow at 3pm\").",
+                ));
+            }
+        };
+
+        let reminder_task_ids = todoist::all_reminders(&config, None)
+            .await?
+            .into_iter()
+            .map(|r| r.item_id)
+            .collect::<HashSet<String>>();
+
+        let flag =
+            super::fetch_project_or_filter(project.as_deref(), filter.as_deref(), &config).await?;
+        let tasks =
+            lists::fetch_tasks_by_flag(&config, &flag, |t| !reminder_task_ids.contains(&t.id), |t| !reminder_task_ids.contains(&t.id))
+                .await?;
+        let tasks = tasks::sort(tasks, &config, *sort);
+        let count = tasks.len();
+
+        let handles: Vec<_> = tasks
+            .iter()
+            .map(|task| {
+                let config = config.clone();
+                let reminder = datetime.clone();
+                async move {
+                    let task = task.clone();
+                    todoist::create_reminder(&config, &task, &reminder, false).await
+                }
+            })
+            .collect();
+        future::join_all(handles).await;
+
+        let json = serde_json::json!({"tasks": tasks, "count": count});
+        Ok(json.to_string())
+    } else {
+        let flag =
+            super::fetch_project_or_filter(project.as_deref(), filter.as_deref(), &config).await?;
+        lists::remind(&config, flag, sort).await
+    }
 }
 pub async fn import(config: Config, args: &Import, json: bool) -> Result<String, Error> {
     let Import { path } = args;
@@ -362,37 +469,169 @@ fn is_md_file(entry: &walkdir::DirEntry) -> bool {
         .is_some_and(|ext| ext.eq_ignore_ascii_case("md"))
 }
 
-pub async fn schedule(config: Config, args: &Schedule) -> Result<String, Error> {
+pub async fn schedule(config: Config, args: &Schedule, json: bool) -> Result<String, Error> {
     let Schedule {
         project,
         filter,
         skip_recurring,
         overdue,
         sort,
+        datetime,
     } = args;
-    match super::fetch_project_or_filter(project.as_deref(), filter.as_deref(), &config).await? {
-        Flag::Filter(filter) => filters::schedule(&config, &filter, sort).await,
-        Flag::Project(project) => {
-            let task_filter = if *overdue {
-                projects::TaskFilter::Overdue
-            } else {
-                projects::TaskFilter::Unscheduled
-            };
 
-            projects::schedule(&config, &project, task_filter, *skip_recurring, sort).await
+    if json {
+        let datetime = match datetime {
+            Some(d) => d.clone(),
+            None => {
+                return Err(Error::new(
+                    "json_mode",
+                    "--datetime flag is required in JSON mode (e.g. \"tomorrow at 3pm\").",
+                ));
+            }
+        };
+
+        let flag =
+            super::fetch_project_or_filter(project.as_deref(), filter.as_deref(), &config).await?;
+        let tasks = match &flag {
+            Flag::Project(project) => {
+                let tasks = todoist::all_tasks_by_project(&config, project, None).await?;
+                let tasks = tasks::sort(tasks, &config, *sort);
+                let task_filter = if *overdue {
+                    projects::TaskFilter::Overdue
+                } else {
+                    projects::TaskFilter::Unscheduled
+                };
+                let tasks: Vec<Task> = if *skip_recurring {
+                    tasks
+                        .into_iter()
+                        .filter(|task| {
+                            task.filter(&config, &task_filter)
+                                && !task.filter(&config, &projects::TaskFilter::Recurring)
+                        })
+                        .collect()
+                } else {
+                    tasks
+                        .into_iter()
+                        .filter(|task| task.filter(&config, &task_filter))
+                        .collect()
+                };
+                tasks
+            }
+            Flag::Filter(filter) => {
+                let tasks = todoist::all_tasks_by_filters(&config, filter)
+                    .await?
+                    .into_iter()
+                    .flat_map(|(_, tasks)| tasks)
+                    .collect::<Vec<Task>>();
+                tasks::sort(tasks, &config, *sort)
+            }
+        };
+        let count = tasks.len();
+
+        let handles: Vec<_> = tasks
+            .iter()
+            .map(|task| {
+                let config = config.clone();
+                let dt = datetime.clone();
+                let task = task.clone();
+                async move {
+                    todoist::update_task_due_natural_language(
+                        &config, &task, dt, None, false,
+                    )
+                    .await
+                }
+            })
+            .collect();
+        future::join_all(handles).await;
+
+        let json = serde_json::json!({"tasks": tasks, "count": count});
+        Ok(json.to_string())
+    } else {
+        match super::fetch_project_or_filter(project.as_deref(), filter.as_deref(), &config).await? {
+            Flag::Filter(filter) => filters::schedule(&config, &filter, sort).await,
+            Flag::Project(project) => {
+                let task_filter = if *overdue {
+                    projects::TaskFilter::Overdue
+                } else {
+                    projects::TaskFilter::Unscheduled
+                };
+
+                projects::schedule(&config, &project, task_filter, *skip_recurring, sort).await
+            }
         }
     }
 }
 
-pub async fn deadline(config: Config, args: &Deadline) -> Result<String, Error> {
+pub async fn deadline(config: Config, args: &Deadline, json: bool) -> Result<String, Error> {
     let Deadline {
         project,
         filter,
         sort,
+        date,
     } = args;
-    match super::fetch_project_or_filter(project.as_deref(), filter.as_deref(), &config).await? {
-        Flag::Filter(filter) => filters::deadline(&config, &filter, sort).await,
-        Flag::Project(project) => projects::deadline(&config, &project, sort).await,
+
+    if json {
+        let date = match date {
+            Some(d) => d.clone(),
+            None => {
+                return Err(Error::new(
+                    "json_mode",
+                    "--date flag is required in JSON mode (e.g. \"next Friday\").",
+                ));
+            }
+        };
+
+        let flag =
+            super::fetch_project_or_filter(project.as_deref(), filter.as_deref(), &config).await?;
+        let tasks = match &flag {
+            Flag::Project(project) => {
+                let tasks = todoist::all_tasks_by_project(&config, project, None).await?;
+                let tasks = tasks::sort(tasks, &config, *sort);
+                tasks
+                    .into_iter()
+                    .filter(|task| {
+                        !task.filter(&config, &projects::TaskFilter::Recurring)
+                            && task.deadline.is_none()
+                    })
+                    .collect::<Vec<Task>>()
+            }
+            Flag::Filter(filter) => {
+                let tasks = todoist::all_tasks_by_filters(&config, filter)
+                    .await?
+                    .into_iter()
+                    .flat_map(|(_, tasks)| tasks)
+                    .collect::<Vec<Task>>();
+                let tasks = tasks::sort(tasks, &config, *sort);
+                tasks
+                    .into_iter()
+                    .filter(|task| {
+                        !task.filter(&config, &projects::TaskFilter::Recurring)
+                    })
+                    .collect::<Vec<Task>>()
+            }
+        };
+        let count = tasks.len();
+
+        let handles: Vec<_> = tasks
+            .iter()
+            .map(|task| {
+                let config = config.clone();
+                let d = date.clone();
+                let id = task.id.clone();
+                async move {
+                    todoist::update_task_deadline(&config, &id, Some(d), false).await
+                }
+            })
+            .collect();
+        future::join_all(handles).await;
+
+        let json = serde_json::json!({"tasks": tasks, "count": count});
+        Ok(json.to_string())
+    } else {
+        match super::fetch_project_or_filter(project.as_deref(), filter.as_deref(), &config).await? {
+            Flag::Filter(filter) => filters::deadline(&config, &filter, sort).await,
+            Flag::Project(project) => projects::deadline(&config, &project, sort).await,
+        }
     }
 }
 
