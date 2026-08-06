@@ -905,9 +905,9 @@ pub fn bool(desc: &str, default_value: bool, mock_select: Option<usize>) -> Resu
 
 ### Verification
 #### Automated
-- [ ] `cargo build` passes
-- [ ] `scripts/test.sh` passes
-- [ ] `cargo clippy -- -D warnings` passes
+- [x] `cargo build` passes
+- [x] `scripts/test.sh` passes
+- [x] `cargo clippy -- -D warnings` passes
 
 #### Manual
 - [ ] `cargo doc --no-deps --open` → `todoist` module — `get_task`, `get_access_token`, `all_sections_by_project`, `all_projects`, `all_reminders`, `all_labels`, `move_task_to_section`, `delete_task`, `delete_project`, `create_project`, `create_section`, `create_comment`, `get_user_data`, `filter_tasks_by_title`, `TASKS_URL`, `COMMENTS_URL`, `OAUTH_URL`, `QUERY_LIMIT` documented

@@ -27,7 +27,9 @@ use crate::{format, time};
 use regex::Regex;
 
 // TODOIST URLS
+/// Tasks API base URL.
 pub const TASKS_URL: &str = "/api/v1/tasks/";
+/// Comments API base URL.
 pub const COMMENTS_URL: &str = "/api/v1/comments/";
 const SECTIONS_URL: &str = "/api/v1/sections";
 const REMINDERS_URL: &str = "/api/v1/reminders";
@@ -35,6 +37,7 @@ const USER_URL: &str = "/api/v1/user";
 const PROJECTS_URL: &str = "/api/v1/projects";
 const LABELS_URL: &str = "/api/v1/labels";
 const ACCESS_TOKEN_URL: &str = "/oauth/access_token";
+/// OAuth authorization URL.
 pub const OAUTH_URL: &str = "/oauth/authorize";
 
 /// Number of items that can be requested from API at once
@@ -156,12 +159,14 @@ pub async fn quick_create_task(
     Task::from_json(&json)
 }
 
+/// Fetches a single task by ID.
 pub async fn get_task(config: &Config, id: &str) -> Result<Task, Error> {
     let url = format!("{TASKS_URL}{id}");
     let json = request::get_todoist(config, &url, true).await?;
     Task::from_json(&json)
 }
 
+/// Exchanges an OAuth code for an access token.
 pub async fn get_access_token(config: &Config, code: &str) -> Result<String, Error> {
     let url = ACCESS_TOKEN_URL.to_string();
     let body = json!({"code": code, "client_id": CLIENT_ID, "client_secret": CLIENT_SECRET});
@@ -349,6 +354,7 @@ pub async fn all_tasks_by_ids(
     Ok(tasks)
 }
 
+/// Returns all sections for a project with cursor-based pagination.
 pub async fn all_sections_by_project(
     config: &Config,
     project: &Project,
@@ -377,6 +383,7 @@ pub async fn all_sections_by_project(
     Ok(sections)
 }
 
+/// Returns all projects with cursor-based pagination.
 pub async fn all_projects(config: &Config, limit: Option<u8>) -> Result<Vec<Project>, Error> {
     let limit = limit.unwrap_or(QUERY_LIMIT);
     let mut url = format!("{PROJECTS_URL}?limit={limit}");
@@ -399,6 +406,7 @@ pub async fn all_projects(config: &Config, limit: Option<u8>) -> Result<Vec<Proj
     Ok(projects)
 }
 
+/// Returns all reminders with cursor-based pagination.
 pub async fn all_reminders(config: &Config, limit: Option<u8>) -> Result<Vec<Reminder>, Error> {
     let limit = limit.unwrap_or(QUERY_LIMIT);
     let mut url = format!("{REMINDERS_URL}?limit={limit}");
@@ -421,6 +429,7 @@ pub async fn all_reminders(config: &Config, limit: Option<u8>) -> Result<Vec<Rem
     Ok(reminders)
 }
 
+/// Returns all labels with cursor-based pagination.
 pub async fn all_labels(
     config: &Config,
     spinner: bool,
@@ -462,6 +471,7 @@ pub async fn move_task_to_project(
     Task::from_json(&response)
 }
 
+/// Moves a task to a different section.
 pub async fn move_task_to_section(
     config: &Config,
     task: &Task,
@@ -627,6 +637,7 @@ pub async fn complete_task(config: &Config, task_id: &str, spinner: bool) -> Res
     Ok("✓".into())
 }
 
+/// Deletes a task by ID.
 pub async fn delete_task(config: &Config, task_id: &str, spinner: bool) -> Result<String, Error> {
     let body = json!({});
     let url = format!("{TASKS_URL}{task_id}");
@@ -635,6 +646,7 @@ pub async fn delete_task(config: &Config, task_id: &str, spinner: bool) -> Resul
     Ok("✓".into())
 }
 
+/// Deletes a project by ID.
 pub async fn delete_project(
     config: &Config,
     project: &Project,
@@ -646,6 +658,7 @@ pub async fn delete_project(
     request::delete_todoist(config, &url, body, spinner).await?;
     Ok("✓".into())
 }
+/// Creates a new project in Todoist.
 pub async fn create_project(
     config: &Config,
     name: &str,
@@ -660,6 +673,7 @@ pub async fn create_project(
     Project::from_json(&json)
 }
 
+/// Creates a new section in a project.
 pub async fn create_section(
     config: &Config,
     name: &str,
@@ -673,6 +687,7 @@ pub async fn create_section(
     Section::from_json(&json)
 }
 
+/// Creates a comment on a task.
 pub async fn create_comment(
     config: &Config,
     task_id: &str,
@@ -687,6 +702,7 @@ pub async fn create_comment(
     Comment::from_json(&response)
 }
 
+/// Fetches the authenticated user's data.
 pub async fn get_user_data(config: &Config) -> Result<User, Error> {
     let url = USER_URL.to_string();
     let json = request::get_todoist(config, &url, true).await?;
@@ -749,7 +765,7 @@ fn maybe_run_command(command: Option<&str>, config: &Config) -> Result<(), Error
     Ok(())
 }
 
-/// Filters (Excludes) tasks based on task title and configured `task_exclude_regex`
+/// Filters tasks by title regex if configured.
 pub fn filter_tasks_by_title(
     tasks: Vec<Task>,
     regex: Option<&Regex>,
