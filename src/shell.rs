@@ -161,10 +161,14 @@ mod tests {
     #[tokio::test]
     async fn test_execute_command_does_not_wait_for_command_completion() {
         let start = std::time::Instant::now();
-        let (tx, _rx) = unbounded_channel();
-        execute_command("sleep 1", tx);
+        let (tx, rx) = unbounded_channel();
+        execute_command("sleep 0.1", tx);
 
         assert!(start.elapsed() < std::time::Duration::from_millis(500));
+
+        // Wait for the background process to exit so it doesn't leak.
+        tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+        drop(rx);
     }
 
     #[cfg(unix)]
