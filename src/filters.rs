@@ -11,6 +11,7 @@ use crate::{
     todoist,
 };
 
+/// Edits tasks matching a Todoist filter.
 pub async fn edit_task(config: &Config, filter: String) -> Result<String, Error> {
     let tasks = todoist::all_tasks_by_filters(config, &filter)
         .await?

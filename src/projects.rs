@@ -82,6 +82,7 @@ impl Project {
         Ok(project)
     }
 }
+/// Creates a project in Todoist and optionally tracks it in the config.
 pub async fn create(
     config: &mut Config,
     name: String,
@@ -438,6 +439,7 @@ async fn maybe_add_project(
     }
 }
 
+/// Edits a task within a project via interactive attribute selection.
 pub async fn edit_task(config: &Config, project: &Project) -> Result<String, Error> {
     let project_tasks = todoist::all_tasks_by_project(config, project, None).await?;
 
@@ -547,6 +549,7 @@ pub async fn schedule(
         )))
     }
 }
+/// Sets deadlines for non-recurring tasks in a project.
 pub async fn deadline(
     config: &Config,
     project: &Project,
@@ -582,6 +585,7 @@ pub async fn deadline(
     }
 }
 
+/// Moves a task from one project to another.
 pub async fn move_task_to_project(
     config: &mut Config,
     task: Task,

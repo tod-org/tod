@@ -54,6 +54,7 @@ pub async fn view(config: &mut Config, flag: Flag, sort: &SortOrder) -> Result<S
     Ok(buffer)
 }
 
+/// Fetches tasks matching a flag (project or filter) with optional filtering.
 pub async fn fetch_tasks_by_flag<F, P>(
     config: &Config,
     flag: &Flag,
@@ -292,6 +293,7 @@ pub async fn label(
     Ok(format::green_string(&success))
 }
 
+/// Imports tasks from a file with natural-language syntax, one per line.
 pub async fn import(config: &Config, file_path: &str, json: bool) -> Result<String, Error> {
     let mut file_content = String::new();
     fs::File::open(file_path)
