@@ -61,6 +61,7 @@ pub async fn post_todoist(
     handle_response(config, response, "POST", url, body).await
 }
 
+/// Sends a POST request to Todoist without an auth token (used for OAuth token exchange).
 pub async fn post_todoist_no_token(
     config: &Config,
     url: &str,
@@ -95,6 +96,7 @@ fn get_token(config: &Config) -> Result<String, Error> {
         .ok_or_else(|| Error::new("post_todoist", "No token, use auth login to set your token"))
 }
 
+/// Sends a DELETE request to the Todoist API.
 pub async fn delete_todoist(
     config: &Config,
     url: &str,

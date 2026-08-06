@@ -1,3 +1,5 @@
+//! Terminal color utilities and hyperlink formatting.
+
 use colored::{ColoredString, Colorize};
 use linkify::{LinkFinder, LinkKind};
 use supports_hyperlinks::Stream;
@@ -12,38 +14,47 @@ fn apply_color(str: &str, color: fn(String) -> ColoredString) -> String {
     color(str.to_string()).to_string()
 }
 
+/// Wraps text in ANSI green.
 pub fn green_string(str: &str) -> String {
     apply_color(str, |s| s.green())
 }
 
+/// Wraps text in ANSI red.
 pub fn red_string(str: &str) -> String {
     apply_color(str, |s| s.red())
 }
 
+/// Wraps text in ANSI bright cyan.
 pub fn cyan_string(str: &str) -> String {
     apply_color(str, |s| s.bright_cyan())
 }
 
+/// Wraps text in ANSI purple.
 pub fn purple_string(str: &str) -> String {
     apply_color(str, |s| s.purple())
 }
 
+/// Wraps text in ANSI blue.
 pub fn blue_string(str: &str) -> String {
     apply_color(str, |s| s.blue())
 }
 
+/// Wraps text in ANSI yellow.
 pub fn yellow_string(str: &str) -> String {
     apply_color(str, |s| s.yellow())
 }
 
+/// Wraps text in ANSI bright blue on yellow (debug style).
 pub fn debug_string(str: &str) -> String {
     apply_color(str, |s| s.bright_blue().on_yellow())
 }
 
+/// Returns text without color (normal style).
 pub fn normal_string(str: &str) -> String {
     String::from(str).normal().to_string()
 }
 
+/// Returns true if terminal hyperlinks are disabled.
 pub fn hyperlinks_disabled(config: &Config) -> bool {
     config.disable_links || !supports_hyperlinks::on(Stream::Stdout)
 }

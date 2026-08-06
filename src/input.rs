@@ -1,3 +1,5 @@
+//! Terminal input prompts (text, select, confirm, datetime) with test mock support.
+
 use crate::errors::Error;
 use inquire::{Confirm, CustomType, DateSelect, MultiSelect, Select, Text};
 use std::fmt::Display;
@@ -6,44 +8,80 @@ use terminal_size::{Height, Width, terminal_size};
 // These constants are used throughout the app
 
 // Set
+
+/// Prompt label for task content.
 pub const CONTENT: &str = "Set content";
+/// Prompt label for task description.
 pub const DESCRIPTION: &str = "Set description";
+/// Prompt label for project name.
 pub const NAME: &str = "Set name";
+/// Prompt label for Todoist filter.
 pub const FILTER: &str = "Set filter";
+/// Prompt label for file path.
 pub const PATH: &str = "Set path";
+/// Prompt label for due date.
 pub const DATE: &str = "Set a due date";
+/// Prompt label for time.
 pub const TIME: &str = "Set time, i.e. 3pm or 1500";
+/// Prompt label for date and time in natural language.
 pub const DATE_AND_TIME: &str = "Set a date and time in natural language";
+/// Prompt label for duration in minutes.
 pub const DURATION: &str = "Set duration in minutes";
 
 // Select
+
+/// Prompt label for attribute selection.
 pub const ATTRIBUTES: &str = "Select attributes";
+/// Prompt label for project selection.
 pub const PROJECT: &str = "Select a project";
+/// Prompt label for label selection.
 pub const LABELS: &str = "Select labels";
+/// Prompt label for section selection.
 pub const SECTION: &str = "Select section";
+/// Prompt label for priority selection.
 pub const PRIORITY: &str = "Select priority";
+/// Prompt label for option selection.
 pub const OPTION: &str = "Select an option";
+/// Prompt label for date selection.
 pub const SELECT_DATE: &str = "Select a date";
+/// Prompt label for task selection.
 pub const TASK: &str = "Select a task";
 
 // Options
+
+/// Option: use natural language input.
 pub const NAT_LANG: &str = "Natural Language";
+/// Option: clear the date.
 pub const NO_DATE: &str = "No Date";
+/// Option: complete the task.
 pub const COMPLETE: &str = "Complete";
+/// Option: add a reminder.
 pub const REMIND: &str = "Remind";
+/// Option: assign a duration.
 pub const TIMEBOX: &str = "Timebox";
+/// Option: add a comment.
 pub const COMMENT: &str = "Comment";
+/// Option: skip this task.
 pub const SKIP: &str = "Skip";
+/// Option: delete the task.
 pub const DELETE: &str = "Delete";
+/// Option: cancel the operation.
 pub const CANCEL: &str = "Cancel";
+/// Option: quit processing.
 pub const QUIT: &str = "Quit";
+/// Option: schedule the task.
 pub const SCHEDULE: &str = "Schedule";
 
+/// Natural language date and time input.
 #[derive(Debug, PartialEq)]
 pub enum DateTimeInput {
+    /// Skip this task.
     Skip,
+    /// Clear the date.
     None,
+    /// Complete the task.
     Complete,
+    /// Natural language date string.
     Text(String),
 }
 
@@ -114,6 +152,7 @@ pub fn datetime(
     }
 }
 
+/// Prompts the user for a date via date picker.
 pub fn date() -> Result<String, Error> {
     let string = DateSelect::new("Select Date")
         .with_help_message(
@@ -171,6 +210,7 @@ pub fn number_with_default(desc: &str, default_message: usize) -> Result<usize, 
         .map_err(Error::from)
 }
 
+/// Prompts the user for a boolean value.
 pub fn bool(desc: &str, default_value: bool, mock_select: Option<usize>) -> Result<bool, Error> {
     let options = vec![true, false];
     let cursor_index = usize::from(!default_value);
