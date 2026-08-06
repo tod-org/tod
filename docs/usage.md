@@ -24,27 +24,14 @@ Tod supports common Todoist workflows from the command line:
 
 ## Discovering the commands
 
-```bash
-> tod -h
+Run `tod -h` to see all available commands and global flags. Key global flags:
 
-An unofficial Todoist command line client
+- `--json` / `-j` — Output results as JSON for machine-readable consumption. Suppresses interactive prompts and spinners.
+- `--timeout` / `-t` — Time to wait for API responses in seconds (default: 30).
+- `--verbose` / `-v` — Display additional debug info while processing.
+- `--config` / `-c` — Absolute path to configuration file (default: `$XDG_CONFIG_HOME/tod.cfg`).
 
-Usage: tod [OPTIONS] <COMMAND>
-
-Commands:
-  project  (p) Commands that change projects
-  task     (t) Commands for individual tasks
-  list     (l) Commands for multiple tasks
-  config   (c) Commands around configuration and the app
-  auth     (a) Commands for logging in with OAuth or setting an API token
-  help     Print this message or the help of the given subcommand(s)
-
-Options:
-  -v, --verbose          Display additional debug info while processing
-  -c, --config <CONFIG>  Absolute path of configuration. Defaults to $XDG_CONFIG_HOME/tod.cfg
-  -h, --help             Print help
-  -V, --version          Print version
-  ```
+Use `tod <command> -h` to see subcommands and flags for each command group.
 
 And also use it to dig into subcommands
 

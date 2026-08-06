@@ -100,7 +100,7 @@ pub fn number_comments(quantity: usize) -> String {
 
     format!("\n{comment_icon} {quantity} comments")
 }
-/// Returns a hyperlink-formatted URL formatted as "[link]" for a given task ID if hyperlinks are enabled in the config.
+/// Returns a hyperlink-formatted URL as "`link`" for a given task ID if hyperlinks are enabled in the config.
 pub fn maybe_format_task_id(task_id: &str, config: &Config) -> String {
     let url = format!("https://app.todoist.com/app/task/{task_id}");
     if format::hyperlinks_disabled(config) {

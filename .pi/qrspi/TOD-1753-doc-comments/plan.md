@@ -1311,10 +1311,10 @@ Only use `#[allow(missing_docs)]` as a last resort for items where a doc would b
 
 ### Verification
 #### Automated
-- [ ] `cargo doc --no-deps 2>&1 | grep warning` returns **zero** matches
-- [ ] `cargo build` passes with **zero warnings**
-- [ ] `scripts/test.sh` passes
-- [ ] `cargo clippy -- -D warnings` passes
+- [x] `cargo doc --no-deps 2>&1 | grep warning` returns **zero** matches
+- [x] `cargo build` passes with **zero warnings**
+- [x] `scripts/test.sh` passes
+- [x] `cargo clippy -- -D warnings` passes
 
 #### Manual
 - [ ] `docs/usage.md` — no pasted `-h` output; `--json`/`-j` and `--timeout`/`-t` are documented
