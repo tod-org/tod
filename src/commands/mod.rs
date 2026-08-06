@@ -287,12 +287,12 @@ async fn list_command(
         }
         ListCommands::Prioritize(args) => {
             let config = fetch_config(cli, tx).await?;
-            let result = list_commands::prioritize(config.clone(), args).await;
+            let result = list_commands::prioritize(config.clone(), args, cli.json).await;
             Ok(build_command_result(result, &config))
         }
         ListCommands::Remind(args) => {
             let config = fetch_config(cli, tx).await?;
-            let result = list_commands::remind(config.clone(), args).await;
+            let result = list_commands::remind(config.clone(), args, cli.json).await;
             Ok(build_command_result(result, &config))
         }
         ListCommands::Label(args) => {
@@ -302,12 +302,12 @@ async fn list_command(
         }
         ListCommands::Schedule(args) => {
             let config = fetch_config(cli, tx).await?;
-            let result = list_commands::schedule(config.clone(), args).await;
+            let result = list_commands::schedule(config.clone(), args, cli.json).await;
             Ok(build_command_result(result, &config))
         }
         ListCommands::Deadline(args) => {
             let config = fetch_config(cli, tx).await?;
-            let result = list_commands::deadline(config.clone(), args).await;
+            let result = list_commands::deadline(config.clone(), args, cli.json).await;
             Ok(build_command_result(result, &config))
         }
         ListCommands::Timebox(args) => {
