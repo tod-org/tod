@@ -4,7 +4,7 @@ cargo fmt --all &&
 echo "=== CHECK ===" &&
 cargo check &&
 echo "=== CLIPPY ===" &&
-cargo clippy -- -D warnings &&
+cargo clippy --tests -- -D warnings &&
 echo "=== TEST ===" &&
 cargo nextest run &&
 echo "=== FORGOTTEN TODOS ===" &&
