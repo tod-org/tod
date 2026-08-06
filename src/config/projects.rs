@@ -7,6 +7,7 @@ impl Config {
         Ok(self.projects.clone().unwrap_or_default())
     }
 
+    /// Refetches projects from the API and updates the config.
     pub async fn reload_projects(self: &mut Config) -> Result<String, Error> {
         let all_projects = todoist::all_projects(self, None).await?;
         let current_projects = self.projects.clone().unwrap_or_default();
@@ -24,6 +25,7 @@ impl Config {
         Ok(format::green_string("✓"))
     }
 
+    /// Adds a project to the config's project list.
     pub fn add_project(&mut self, project: Project) {
         let option_projects = &mut self.projects;
         match option_projects {
@@ -34,6 +36,7 @@ impl Config {
         }
     }
 
+    /// Removes a project from the config by ID.
     pub fn remove_project(&mut self, project: &Project) {
         let projects = self
             .projects

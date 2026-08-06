@@ -54,6 +54,7 @@ impl Config {
         Ok(format::green_string("✓"))
     }
 
+    /// Loads the config from disk.
     pub async fn load(path: &Path) -> Result<Config, Error> {
         let mut json = String::new();
         fs::File::open(path)
@@ -66,6 +67,7 @@ impl Config {
         Ok(config.with_default_sort_order())
     }
 
+    /// Reloads the config, preserving internal state and time provider.
     pub async fn reload(&self) -> Result<Self, Error> {
         Config::load(&self.path).await.map(|config| Config {
             internal: self.internal.clone(),
@@ -86,6 +88,7 @@ fn config_load_error(error: &serde_json::Error, path: &Path) -> Error {
 
     Error::new(source, &message)
 }
+/// Generates the config file path (test temp path or `$XDG_CONFIG_HOME/tod.cfg`).
 pub async fn generate_path() -> Result<PathBuf, Error> {
     if cfg!(test) {
         let file = tempfile::Builder::new()
@@ -134,7 +137,7 @@ pub async fn config_reset(cli_config_path: Option<PathBuf>, force: bool) -> Resu
     .await
 }
 
-// Full config reset function, but accepts inputs for CI testing
+/// Fully resets the config, accepting inputs for CI testing.
 pub async fn config_reset_with_prompt<F>(
     cli_config_path: Option<PathBuf>,
     force: bool,
@@ -235,7 +238,7 @@ pub async fn get_config(config_path: Option<PathBuf>) -> Result<Config, Error> {
     Config::load(&path_for_error).await
 }
 
-/// Checks if the config file exists at the given path OR  default path if None).
+/// Checks whether the config file exists at the given path or the default path.
 pub async fn check_config_exists(config_path: Option<PathBuf>) -> Result<bool, Error> {
     let path = resolve_config_path(config_path).await?;
     Ok(path.exists())

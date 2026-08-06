@@ -643,9 +643,9 @@ Also remove the toc entry for `timeprovider` at the top of the file.
 
 ### Verification
 #### Automated
-- [ ] `cargo build` passes
-- [ ] `scripts/test.sh` passes
-- [ ] `cargo clippy -- -D warnings` passes
+- [x] `cargo build` passes
+- [x] `scripts/test.sh` passes
+- [x] `cargo clippy -- -D warnings` passes
 
 #### Manual
 - [ ] `cargo doc --no-deps --open` → `config` module — `Completed`, `Args`, `Internal`, `SortKey` (with variants), `SortDirection`, `SortRule`, `DEFAULT_TIMEOUT_SECONDS` all documented
