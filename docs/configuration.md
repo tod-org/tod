@@ -17,7 +17,6 @@
     - [timeout](#timeout)
     - [timezone](#timezone)
     - [token](#token)
-    - [timeprovider](#timeprovider)
     - [task_create_command](#task_create_command)
     - [task_comment_command](#task_comment_command)
     - [task_complete_command](#task_complete_command)

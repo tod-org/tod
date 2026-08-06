@@ -17,6 +17,7 @@ impl Config {
         })
     }
 
+    /// Sets the timezone from Todoist user data if not already configured.
     pub async fn maybe_set_timezone(self) -> Result<Config, Error> {
         if self.timezone.is_none() {
             self.set_timezone().await

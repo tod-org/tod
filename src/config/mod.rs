@@ -18,6 +18,7 @@ use terminal_size::{Height, Width, terminal_size};
 use tokio::sync::mpsc::UnboundedSender;
 
 const MAX_COMMENT_LENGTH: u32 = 500;
+/// Default HTTP timeout for API requests.
 pub const DEFAULT_TIMEOUT_SECONDS: u64 = 30;
 const TODOIST_INTEGRATIONS_URL: &str = "https://todoist.com/prefs/integrations";
 pub use file::config_open;
@@ -27,6 +28,7 @@ pub use file::get_config;
 pub use file::resolve_config_path;
 pub use legacy::LegacySortValue;
 
+/// Tracks the number of tasks completed today.
 #[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct Completed {
@@ -125,6 +127,7 @@ fn bell_on_failure_default() -> bool {
     true
 }
 
+/// CLI runtime overrides. Fields are `#[serde(skip)]` — not persisted.
 #[derive(Default, Clone, Eq, PartialEq, Debug)]
 pub struct Args {
     pub verbose: bool,
@@ -132,22 +135,33 @@ pub struct Args {
     pub json: bool,
 }
 
+/// Internal async error channel. `#[serde(skip)]` — runtime only.
 #[derive(Default, Clone, Debug)]
 pub struct Internal {
     pub tx: Option<UnboundedSender<Error>>,
 }
 
+/// Sort dimension for task ordering.
 #[derive(Copy, Clone, Serialize, Deserialize, Eq, PartialEq, Debug)]
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub enum SortKey {
+    /// Sort by task priority.
     Priority,
+    /// Sort by due date.
     DueDate,
+    /// Sort overdue tasks first.
     Overdue,
+    /// Sort today's tasks first.
     Today,
+    /// Sort tasks due within ±15 minutes first.
     Now,
+    /// Sort tasks without due dates last.
     NoDueDate,
+    /// Sort non-recurring tasks first.
     NotRecurring,
+    /// Sort by deadline.
     Deadline,
+    /// Sort by Todoist child order.
     Order,
 }
 
@@ -208,9 +222,12 @@ impl SortKey {
     }
 }
 
+/// Sort direction.
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum SortDirection {
+    /// Ascending order.
     Asc,
+    /// Descending order.
     Desc,
 }
 
@@ -223,6 +240,7 @@ impl SortDirection {
     }
 }
 
+/// A sort key paired with a direction.
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub struct SortRule {
     pub key: SortKey,
@@ -319,7 +337,7 @@ impl Config {
         }
     }
 
-    // Returns the maximum comment length if configured, otherwise estimates based on terminal window size (if supported)
+    /// Returns the configured max comment length or estimates from terminal width.
     pub fn max_comment_length(&self) -> u32 {
         match self.max_comment_length {
             Some(length) => length,
@@ -336,12 +354,12 @@ impl Config {
         }
     }
 
-    /// Fetches a sender for the error channel
-    /// Use this to end errors from an async process
+    /// Fetches a sender for the error channel from async processes.
     pub fn tx(self) -> UnboundedSender<Error> {
         self.internal.tx.expect("No tx in Config")
     }
 
+    /// Checks crates.io for a newer version and saves the check date.
     pub async fn check_for_latest_version(self: Config) -> Result<Config, Error> {
         let last_version = self.last_version_check.clone();
         let today = time::date_string_today(&self)?;
@@ -384,6 +402,7 @@ impl Config {
         }
     }
 
+    /// Clears the stored next task.
     pub fn clear_next_task(self) -> Config {
         let next_task: Option<Task> = None;
 
@@ -453,6 +472,7 @@ impl Config {
         })
     }
 
+    /// Stores a task as the next task for completion.
     pub fn set_next_task(&self, task: Task) -> Config {
         let next_task: Option<Task> = Some(task);
 
@@ -462,6 +482,7 @@ impl Config {
         }
     }
 
+    /// Returns the count of tasks completed today.
     pub fn tasks_completed(&self) -> Result<u32, Error> {
         let date = time::naive_date_today(self)?.to_string();
         match &self.completed {
@@ -476,15 +497,18 @@ impl Config {
         }
     }
 
+    /// Returns the stored next task, if any.
     pub fn next_task(&self) -> Option<Task> {
         self.next_task.clone()
     }
 
+    /// Sets the API token and saves the config.
     pub async fn set_token(&mut self, access_token: String) -> Result<String, Error> {
         self.token = Some(access_token);
         self.save().await
     }
 
+    /// Trims, validates, and saves a developer API token; auto-detects timezone.
     pub async fn set_developer_token(mut self, key: &str) -> Result<Config, Error> {
         let trimmed_key = key.trim();
         if trimmed_key.is_empty() {
@@ -498,6 +522,7 @@ impl Config {
         self.maybe_set_timezone().await
     }
 
+    /// Interactively edits config fields via prompts.
     #[allow(clippy::too_many_lines)]
     pub async fn edit_interactive(self) -> Result<String, Error> {
         let Config {
