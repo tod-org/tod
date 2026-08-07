@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.19.0](https://github.com/tod-org/tod/compare/v0.18.0...v0.19.0) (2026-08-07)
+
+
+### Features
+
+* add JSON output support for prioritize, remind, schedule, and deadline commands ([ad74fd4](https://github.com/tod-org/tod/commit/ad74fd41a13bace88eff90b1fa66e9cdfde2e4ca)), closes [#1734](https://github.com/tod-org/tod/issues/1734)
+* add QRSPI research questions for doc comments ([#1753](https://github.com/tod-org/tod/issues/1753)) ([301620f](https://github.com/tod-org/tod/commit/301620f4c86204323895072bdaa22cfd6fefaeac))
+
+
+### Bug Fixes
+
+* prevent leaky test in shell command non-blocking test ([9566e85](https://github.com/tod-org/tod/commit/9566e85b763ed20bae5942b9ab67d249a4ead53c))
+
 ## [0.18.0](https://github.com/tod-org/tod/compare/v0.17.1...v0.18.0) (2026-08-05)
 
 
