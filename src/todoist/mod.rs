@@ -69,6 +69,7 @@ pub async fn test_all_endpoints(config: &Config) -> Result<String, Error> {
         &name,
         None,
         &[],
+        None,
     )
     .await?;
 
@@ -187,6 +188,7 @@ pub async fn create_task(
     description: &str,
     due: Option<&str>,
     labels: &[String],
+    parent_id: Option<&str>,
 ) -> Result<Task, Error> {
     let project_id = project.id.clone();
     let url = TASKS_URL;
@@ -216,6 +218,10 @@ pub async fn create_task(
 
     if let Some(section) = section {
         body.insert("section_id".to_owned(), Value::String(section.id.clone()));
+    }
+
+    if let Some(parent_id) = parent_id {
+        body.insert("parent_id".to_owned(), Value::String(parent_id.to_owned()));
     }
 
     let body = json!(body);
@@ -896,7 +902,8 @@ mod tests {
                 priority,
                 "",
                 None,
-                &[]
+                &[],
+                None,
             )
             .await,
             Ok(test::fixtures::today_task().await)

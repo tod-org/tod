@@ -79,6 +79,10 @@ pub struct Create {
     #[arg(short, long)]
     /// List of labels to choose from, to be applied to each entry. Use flag once per label
     label: Vec<String>,
+
+    #[arg(long)]
+    /// Parent task ID to create this task as a subtask of
+    parent_id: Option<String>,
 }
 
 #[derive(Parser, Debug, Clone)]
@@ -214,6 +218,7 @@ pub async fn create(config: Config, args: &Create, json: bool) -> Result<String,
             &description,
             due.as_deref(),
             &labels,
+            args.parent_id.as_deref(),
         )
         .await?
     } else {
@@ -225,6 +230,7 @@ pub async fn create(config: Config, args: &Create, json: bool) -> Result<String,
             priority,
             label: labels,
             no_section: _no_section,
+            parent_id,
         } = args;
         let project = match super::fetch_project(project.as_deref(), &config).await? {
             Flag::Project(project) => project,
@@ -248,6 +254,7 @@ pub async fn create(config: Config, args: &Create, json: bool) -> Result<String,
             description,
             due.as_deref(),
             labels,
+            parent_id.as_deref(),
         )
         .await?
     };
@@ -267,6 +274,7 @@ fn no_flags_used(args: &Create) -> bool {
         no_section: _no_section,
         priority,
         label,
+        parent_id,
     } = args;
 
     project.is_none()
@@ -275,6 +283,7 @@ fn no_flags_used(args: &Create) -> bool {
         && content.is_none()
         && priority.is_none()
         && label.is_empty()
+        && parent_id.is_none()
 }
 
 /// Edits a task's attributes interactively. Blocks interactive prompts in JSON mode.
@@ -353,6 +362,7 @@ mod tests {
             no_section: false,
             priority: None,
             label: Vec::new(),
+            parent_id: None,
         }
     }
 
