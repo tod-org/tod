@@ -114,6 +114,21 @@ tod project import -p work # or --id 123
 # Import all projects in Todoist into Tod
 tod project import -a
 
+# Create a section in a project
+tod section create -s "Groceries" -p "Shopping"
+
+# Delete a section from a project (interactive: pick project, section, confirm)
+tod section delete
+
+# Delete a section by name
+tod section delete -s "Groceries" -p "Shopping"
+
+# Skip confirmation when deleting a section (tasks inside will also be deleted)
+tod section delete -s "Groceries" -p "Shopping" --force
+
+# Repeat mode — keep deleting sections until Ctrl+C
+tod section delete -r
+
 # Get the next task for a project
 tod task next
 
