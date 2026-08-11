@@ -104,6 +104,9 @@ tod task create
 # Create a task in a project
 tod task create --content "Write more rust" --project code
 
+# Create a subtask under an existing task
+tod task create --content "Add tests" --project code --parent-id 1234567890
+
 # Import your projects
 tod project import
 tod project import -p work # or --id 123
