@@ -384,6 +384,11 @@ async fn auth_command(command: &AuthCommands, cli: &Cli) -> Result<CommandResult
             let result = auth_commands::token(cli.config.clone(), args, cli.json).await;
             Ok(build_command_result_without_config(result, cli.json))
         }
+
+        AuthCommands::View(_args) => {
+            let result = auth_commands::view(cli.config.clone(), cli.json).await;
+            Ok(build_command_result_without_config(result, cli.json))
+        }
     }
 }
 

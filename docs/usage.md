@@ -64,6 +64,7 @@ Usage: tod auth <COMMAND>
 Commands:
   login  (l) Log into Todoist using OAuth
   token  (t) Save a Todoist developer API token directly to the config (non-interactive)
+  view   (v) Display the current Todoist API token
   help   Print this message or the help of the given subcommand(s)
 ```
 
