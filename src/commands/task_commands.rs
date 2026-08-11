@@ -380,6 +380,13 @@ mod tests {
     }
 
     #[test]
+    fn no_flags_used_returns_false_when_parent_id_is_set() {
+        let mut args = create_args();
+        args.parent_id = Some("123".to_string());
+        assert!(!no_flags_used(&args));
+    }
+
+    #[test]
     fn is_no_sections_respects_argument_flag() {
         let mut args = create_args();
         args.no_section = true;

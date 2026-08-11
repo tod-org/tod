@@ -910,6 +910,92 @@ mod tests {
         );
         mock.assert();
     }
+
+    #[tokio::test]
+    async fn test_create_task_with_parent_id() {
+        let mut server = mockito::Server::new_async().await;
+        let mock = server
+            .mock("POST", "/api/v1/tasks/")
+            .match_body(mockito::Matcher::Regex(
+                r#""parent_id":"999""#.to_string(),
+            ))
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(ResponseFromFile::TodayTask.read().await)
+            .create_async()
+            .await;
+
+        let config = test::fixtures::config()
+            .await
+            .with_mock_url(server.url())
+            .with_time_provider(TimeProviderEnum::Fixed(FixedTimeProvider));
+
+        let project = test::fixtures::project();
+        let priority = priority::Priority::None;
+
+        let result = create_task(
+            &config,
+            "Subtasks",
+            &project,
+            None,
+            priority,
+            "",
+            None,
+            &[],
+            Some("999"),
+        )
+        .await;
+
+        assert!(
+            result.is_ok(),
+            "create_task with parent_id should succeed; got: {result:?}"
+        );
+        mock.assert();
+    }
+
+    #[tokio::test]
+    async fn test_create_task_without_parent_id_omits_field() {
+        let mut server = mockito::Server::new_async().await;
+        let mock = server
+            .mock("POST", "/api/v1/tasks/")
+            .match_body(mockito::Matcher::AllOf(vec![
+                mockito::Matcher::Regex(r#""content":"No parent task""#.to_string()),
+                mockito::Matcher::Regex(r#""project_id":"123""#.to_string()),
+            ]))
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(ResponseFromFile::TodayTask.read().await)
+            .create_async()
+            .await;
+
+        let config = test::fixtures::config()
+            .await
+            .with_mock_url(server.url())
+            .with_time_provider(TimeProviderEnum::Fixed(FixedTimeProvider));
+
+        let project = test::fixtures::project();
+        let priority = priority::Priority::None;
+
+        let result = create_task(
+            &config,
+            "No parent task",
+            &project,
+            None,
+            priority,
+            "",
+            None,
+            &[],
+            None,
+        )
+        .await;
+
+        assert!(
+            result.is_ok(),
+            "create_task without parent_id should succeed; got: {result:?}"
+        );
+        mock.assert();
+    }
+
     #[tokio::test]
     async fn test_create_section() {
         let mut server = mockito::Server::new_async().await;
