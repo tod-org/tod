@@ -6,7 +6,7 @@ use crate::{
 use clap::{Parser, Subcommand};
 use std::{io::ErrorKind, path::PathBuf};
 
-/// Authentication subcommands (OAuth login, developer token).
+/// Authentication subcommands (OAuth login, developer token, token display).
 #[derive(Subcommand, Debug, Clone)]
 pub enum AuthCommands {
     #[clap(alias = "l")]
@@ -55,6 +55,10 @@ pub(super) async fn load_or_create_config(config_path: Option<PathBuf>) -> Resul
     }
 }
 
+/// Arguments for the auth view subcommand.
+#[derive(Parser, Debug, Clone)]
+pub struct View {}
+
 /// Displays the current Todoist API token from the config.
 ///
 /// Loads the existing config and outputs the stored token in plain text or JSON format.
@@ -63,19 +67,15 @@ pub async fn view(config_path: Option<PathBuf>, json: bool) -> Result<String, Er
 
     let token = config
         .token
-        .as_ref()
         .filter(|t| !t.trim().is_empty())
         .ok_or_else(|| Error::new("auth view", "No auth present - run \"tod auth login\""))?;
 
     if json {
         Ok(serde_json::json!({"token": token}).to_string())
     } else {
-        Ok(token.clone())
+        Ok(token)
     }
 }
-
-#[derive(Parser, Debug, Clone)]
-pub struct View {}
 
 /// Saves the given Todoist API token to the config without any interactive prompts.
 ///
