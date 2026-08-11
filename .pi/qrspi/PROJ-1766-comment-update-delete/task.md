@@ -1,0 +1,1 @@
+Add `update_comment` and `delete_comment` API client functions to `src/todoist/mod.rs` that call the Todoist REST API's comment update (POST /comments/{id}) and delete (DELETE /comments/{id}) endpoints. Wire these into the interactive task processing workflow so users can edit or remove comments they've posted, not just create and view them.
