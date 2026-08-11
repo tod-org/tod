@@ -38,7 +38,7 @@ Add dispatch arm for `SectionCommands::Delete`.
 ### Phase 4: Docs — `docs/usage.md`
 Add section delete usage examples.
 
-- [ ] Add `### tod section delete` section with examples
+- [x] Add `tod section create` and `tod section delete` examples
 
 **Verification:**
 - [ ] Manual review of docs
