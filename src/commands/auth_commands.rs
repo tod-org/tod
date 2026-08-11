@@ -16,6 +16,10 @@ pub enum AuthCommands {
     #[clap(alias = "t")]
     /// (t) Save a Todoist developer API token directly to the config (non-interactive)
     Token(Token),
+
+    #[clap(alias = "v")]
+    /// (v) Display the current Todoist API token
+    View(View),
 }
 
 #[derive(Parser, Debug, Clone)]
@@ -51,6 +55,28 @@ pub(super) async fn load_or_create_config(config_path: Option<PathBuf>) -> Resul
     }
 }
 
+/// Displays the current Todoist API token from the config.
+///
+/// Loads the existing config and outputs the stored token in plain text or JSON format.
+pub async fn view(config_path: Option<PathBuf>, json: bool) -> Result<String, Error> {
+    let config = crate::config::get_config(config_path).await?;
+
+    let token = config
+        .token
+        .as_ref()
+        .filter(|t| !t.trim().is_empty())
+        .ok_or_else(|| Error::new("auth view", "No auth present - run \"tod auth login\""))?;
+
+    if json {
+        Ok(serde_json::json!({"token": token}).to_string())
+    } else {
+        Ok(token.clone())
+    }
+}
+
+#[derive(Parser, Debug, Clone)]
+pub struct View {}
+
 /// Saves the given Todoist API token to the config without any interactive prompts.
 ///
 /// Creates the config file at `config_path` (or the platform default) if it does not yet exist,
@@ -78,6 +104,7 @@ pub async fn token(
 #[cfg(test)]
 mod tests {
     use super::load_or_create_config;
+    use super::view;
     use crate::config::Config;
     use tempfile::tempdir;
 
@@ -182,5 +209,98 @@ mod tests {
             "error should be from the non-NotFound IO conversion, got source: {}",
             err.source
         );
+    }
+
+    #[tokio::test]
+    async fn view_returns_token_for_valid_config() {
+        let dir = tempdir().expect("temp dir should be created");
+        let path = dir.path().join("tod.cfg");
+        let mut config = Config::new(None, path.clone())
+            .await
+            .expect("config should be created")
+            .with_token("my-api-token")
+            .with_timezone("UTC");
+        config
+            .touch_file()
+            .await
+            .expect("config file should be created");
+        config.save().await.expect("config should save");
+
+        let result = view(Some(path), false).await;
+        assert_eq!(result.expect("should return token"), "my-api-token");
+    }
+
+    #[tokio::test]
+    async fn view_returns_json_when_json_flag_set() {
+        let dir = tempdir().expect("temp dir should be created");
+        let path = dir.path().join("tod.cfg");
+        let mut config = Config::new(None, path.clone())
+            .await
+            .expect("config should be created")
+            .with_token("my-api-token")
+            .with_timezone("UTC");
+        config
+            .touch_file()
+            .await
+            .expect("config file should be created");
+        config.save().await.expect("config should save");
+
+        let result = view(Some(path), true).await;
+        assert_eq!(
+            result.expect("should return JSON"),
+            serde_json::json!({"token": "my-api-token"}).to_string()
+        );
+    }
+
+    #[tokio::test]
+    async fn view_errors_when_no_config_exists() {
+        let dir = tempdir().expect("temp dir should be created");
+        let path = dir.path().join("nonexistent.cfg");
+
+        let result = view(Some(path), false).await;
+        let err = result.expect_err("should error for missing config");
+        assert_eq!(err.source, "get_config");
+        assert!(err.message.contains("No config file found"));
+    }
+
+    #[tokio::test]
+    async fn view_errors_when_token_is_none() {
+        let dir = tempdir().expect("temp dir should be created");
+        let path = dir.path().join("tod.cfg");
+        let mut config = Config::new(None, path.clone())
+            .await
+            .expect("config should be created")
+            .with_timezone("UTC");
+        config
+            .touch_file()
+            .await
+            .expect("config file should be created");
+        config.save().await.expect("config should save");
+
+        let result = view(Some(path), false).await;
+        let err = result.expect_err("should error for missing token");
+        assert_eq!(err.source, "auth view");
+        assert!(err.message.contains("tod auth login"));
+    }
+
+    #[tokio::test]
+    async fn view_errors_when_token_is_whitespace() {
+        let dir = tempdir().expect("temp dir should be created");
+        let path = dir.path().join("tod.cfg");
+        let mut config = Config::new(None, path.clone())
+            .await
+            .expect("config should be created")
+            .with_token("   ")
+            .with_timezone("UTC");
+        config
+            .touch_file()
+            .await
+            .expect("config file should be created");
+        config.save().await.expect("config should save");
+
+        let result = view(Some(path), false).await;
+        let err = result.expect_err("should error for whitespace token");
+        assert_eq!(err.source, "auth view");
+        assert!(err.message.contains("tod auth login"));
     }
 }
