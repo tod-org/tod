@@ -202,11 +202,7 @@ pub async fn update(
 }
 
 /// Archives a project in Todoist and marks it as archived in config.
-pub async fn archive(
-    config: &mut Config,
-    project: &Project,
-    json: bool,
-) -> Result<String, Error> {
+pub async fn archive(config: &mut Config, project: &Project, json: bool) -> Result<String, Error> {
     todoist::archive_project(config, &project.id, true).await?;
 
     let mut archived = project.clone();
@@ -1306,7 +1302,16 @@ mod tests {
             .find(|p| p.name == "myproject")
             .expect("fixture project should exist");
 
-        let result = update(&mut config, &project, Some("Renamed"), None, None, None, false).await;
+        let result = update(
+            &mut config,
+            &project,
+            Some("Renamed"),
+            None,
+            None,
+            None,
+            false,
+        )
+        .await;
 
         assert!(result.is_ok());
         mock.assert_async().await;
@@ -1338,12 +1343,19 @@ mod tests {
             .find(|p| p.name == "myproject")
             .expect("fixture project should exist");
 
-        let json = update(&mut config, &project, Some("Renamed"), None, None, None, true)
-            .await
-            .expect("update should succeed");
+        let json = update(
+            &mut config,
+            &project,
+            Some("Renamed"),
+            None,
+            None,
+            None,
+            true,
+        )
+        .await
+        .expect("update should succeed");
 
-        let parsed: Project =
-            serde_json::from_str(&json).expect("should be valid project JSON");
+        let parsed: Project = serde_json::from_str(&json).expect("should be valid project JSON");
         assert_eq!(parsed.name, "Doomsday"); // fixture returns "Doomsday"
         mock.assert_async().await;
     }

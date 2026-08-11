@@ -648,7 +648,15 @@ mod tests {
     #[test]
     fn update_flags_parse() {
         let args = Update::try_parse_from([
-            "tod", "-p", "myproject", "-n", "new-name", "-c", "red", "-f", "true",
+            "tod",
+            "-p",
+            "myproject",
+            "-n",
+            "new-name",
+            "-c",
+            "red",
+            "-f",
+            "true",
         ])
         .expect("update args should parse");
         assert_eq!(args.project.as_deref(), Some("myproject"));
