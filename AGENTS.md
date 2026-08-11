@@ -15,7 +15,7 @@
 - `docs/usage.md` — User-facing command examples; keep in sync with CLI changes
 
 ### Todoist API
-- `src/todoist/` — REST API client (`mod.rs`) and HTTP layer (`request.rs`)
+- `src/todoist/` — REST API client (`mod.rs`) and HTTP layer (`request.rs`). Base URL: `https://api.todoist.com` with `/api/v1/` prefix (see `TODOIST_URL` in `request.rs`).
 
 ### Business logic
 - `src/projects.rs` — `Project` struct, CRUD operations, task scheduling
@@ -27,6 +27,12 @@
 
 ### CLI dispatch
 - `src/commands/` — Dispatch via clap `Subcommand` enum (`mod.rs`) and command handlers for auth, config, list, project, reminder, section, shell, task, test
+
+## Pre-commit checklist
+
+- Run `cargo fmt` to format the codebase
+- Run `scripts/test.sh` to verify formatting, compilation, clippy, tests, and forbidden strings
+- Both must pass before committing
 
 ## GitHub conventions
 
