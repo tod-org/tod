@@ -57,7 +57,7 @@ Options:
 ```bash
 > tod auth -h
 
-Commands for logging in with OAuth or setting an API token
+(a) Commands for logging in with OAuth or managing API tokens
 
 Usage: tod auth <COMMAND>
 

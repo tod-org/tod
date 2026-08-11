@@ -105,7 +105,7 @@ pub enum Commands {
 
     #[command(subcommand)]
     #[clap(alias = "a")]
-    /// (a) Commands for logging in with OAuth
+    /// (a) Commands for logging in with OAuth or managing API tokens
     Auth(AuthCommands),
 
     #[command(subcommand)]
