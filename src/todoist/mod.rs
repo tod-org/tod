@@ -693,6 +693,19 @@ pub async fn create_section(
     Section::from_json(&json)
 }
 
+/// Deletes a section by ID.
+pub async fn delete_section(
+    config: &Config,
+    section_id: &str,
+    spinner: bool,
+) -> Result<String, Error> {
+    let url = format!("{SECTIONS_URL}/{}", section_id);
+    let body = json!({});
+
+    request::delete_todoist(config, &url, body, spinner).await?;
+    Ok("✓".into())
+}
+
 /// Creates a comment on a task.
 pub async fn create_comment(
     config: &Config,
@@ -1166,6 +1179,27 @@ mod tests {
         mock.assert();
 
         assert_eq!(response, Ok(String::from("✓")));
+    }
+
+    #[tokio::test]
+    async fn test_delete_section() {
+        let mut server = mockito::Server::new_async().await;
+
+        let mock = server
+            .mock("DELETE", "/api/v1/sections/1234")
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body("null")
+            .create_async()
+            .await;
+
+        let config = test::fixtures::config()
+            .await
+            .with_mock_url(server.url());
+
+        let result = delete_section(&config, "1234", false).await;
+        assert_eq!(result, Ok("✓".into()));
+        mock.assert();
     }
 
     #[tokio::test]
