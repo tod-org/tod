@@ -75,4 +75,55 @@ mod tests {
         let result = LabelResponse::from_json("not json");
         assert!(result.is_err());
     }
+
+    mod proptests {
+        use super::*;
+        use pretty_assertions::assert_eq;
+        use proptest::prelude::*;
+
+        fn arb_label() -> impl Strategy<Value = Label> {
+            (
+                "[0-9a-f]{5,20}",
+                "[A-Za-z0-9 _-]{1,30}",
+                "[a-z]{3,10}",
+                proptest::option::of(0u32..100),
+                proptest::bool::ANY,
+            )
+                .prop_map(|(id, name, color, order, is_favorite)| Label {
+                    id,
+                    name,
+                    color,
+                    order,
+                    is_favorite,
+                })
+        }
+
+        proptest! {
+            #[test]
+            fn label_serde_roundtrip(label in arb_label()) {
+                let json = serde_json::to_string(&label).unwrap();
+                let roundtripped: Label = serde_json::from_str(&json).unwrap();
+                assert_eq!(label, roundtripped);
+            }
+
+            #[test]
+            fn label_response_deserialize_from_labels(
+                labels in proptest::collection::vec(arb_label(), 0..10),
+                next_cursor in proptest::option::of("[a-zA-Z0-9]{5,20}"),
+            ) {
+                let results_json = serde_json::to_string(&labels).unwrap();
+                let cursor_json = match &next_cursor {
+                    Some(c) => format!("\"{}\"", c),
+                    None => "null".to_string(),
+                };
+                let json = format!(
+                    "{{\"results\":{},\"next_cursor\":{}}}",
+                    results_json, cursor_json
+                );
+                let response = LabelResponse::from_json(&json).unwrap();
+                assert_eq!(response.results, labels);
+                assert_eq!(response.next_cursor, next_cursor);
+            }
+        }
+    }
 }
