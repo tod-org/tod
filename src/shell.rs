@@ -67,28 +67,32 @@ fn shell_command(command: &str) -> Command {
 }
 
 pub(crate) fn generate_completions(shell: Shell) {
+    generate_completions_to_writer(shell, &mut io::stdout());
+}
+
+fn generate_completions_to_writer(shell: Shell, writer: &mut dyn io::Write) {
     let mut cli = Cli::command();
 
     match shell {
         Shell::Bash => {
             let shell = clap_complete::shells::Bash;
-            clap_complete::generate(shell, &mut cli, LOWERCASE_NAME, &mut io::stdout());
+            clap_complete::generate(shell, &mut cli, LOWERCASE_NAME, writer);
         }
         Shell::Fish => {
             let shell = clap_complete::shells::Fish;
-            clap_complete::generate(shell, &mut cli, LOWERCASE_NAME, &mut io::stdout());
+            clap_complete::generate(shell, &mut cli, LOWERCASE_NAME, writer);
         }
         Shell::Zsh => {
             let shell = clap_complete::shells::Zsh;
-            clap_complete::generate(shell, &mut cli, LOWERCASE_NAME, &mut io::stdout());
+            clap_complete::generate(shell, &mut cli, LOWERCASE_NAME, writer);
         }
         Shell::PowerShell => {
             let shell = clap_complete::shells::PowerShell;
-            clap_complete::generate(shell, &mut cli, LOWERCASE_NAME, &mut io::stdout());
+            clap_complete::generate(shell, &mut cli, LOWERCASE_NAME, writer);
         }
         Shell::Elvish => {
             let shell = clap_complete::shells::Elvish;
-            clap_complete::generate(shell, &mut cli, LOWERCASE_NAME, &mut io::stdout());
+            clap_complete::generate(shell, &mut cli, LOWERCASE_NAME, writer);
         }
     }
 }
@@ -232,5 +236,53 @@ mod tests {
         cmd.assert()
             .failure()
             .stderr(contains("No such").or(contains("cannot find")));
+    }
+
+    #[test]
+    fn test_generate_completions_bash_produces_output() {
+        let mut buf = Vec::new();
+        generate_completions_to_writer(Shell::Bash, &mut buf);
+        let output = String::from_utf8(buf).expect("completions output should be valid UTF-8");
+        assert!(!output.is_empty());
+        assert!(output.contains(LOWERCASE_NAME));
+    }
+
+    #[test]
+    fn test_generate_completions_fish_produces_output() {
+        let mut buf = Vec::new();
+        generate_completions_to_writer(Shell::Fish, &mut buf);
+        let output = String::from_utf8(buf).expect("completions output should be valid UTF-8");
+        assert!(!output.is_empty());
+        assert!(output.contains(LOWERCASE_NAME));
+    }
+
+    #[test]
+    fn test_generate_completions_zsh_produces_output() {
+        let mut buf = Vec::new();
+        generate_completions_to_writer(Shell::Zsh, &mut buf);
+        let output = String::from_utf8(buf).expect("completions output should be valid UTF-8");
+        assert!(!output.is_empty());
+        assert!(output.contains(LOWERCASE_NAME));
+    }
+
+    // Uses gag::BufferRedirect which replaces the process-wide stdout fd.
+    // These cannot run in parallel — cargo nextest runs each in its own process.
+    #[test]
+    fn test_generate_completions_writes_to_stdout() {
+        use std::io::Read;
+        let mut buf = gag::BufferRedirect::stdout().expect("should buffer stdout");
+        generate_completions(Shell::Bash);
+        let mut output = String::new();
+        buf.read_to_string(&mut output)
+            .expect("output should be readable");
+        drop(buf);
+        assert!(
+            !output.is_empty(),
+            "generate_completions must write to stdout"
+        );
+        assert!(
+            output.contains(LOWERCASE_NAME),
+            "output must contain binary name"
+        );
     }
 }

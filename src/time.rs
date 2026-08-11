@@ -310,6 +310,15 @@ mod tests {
         assert_eq!(today, expected);
     }
 
+    #[test]
+    fn trait_default_now_string_is_used() {
+        let provider = SystemTimeProvider;
+        let tz: Tz = "UTC".parse().expect("failed to parse timezone 'UTC'");
+        let result = provider.now_string(tz);
+        assert!(!result.is_empty(), "now_string must not be empty");
+        assert!(result.contains('T'), "now_string must be RFC3339 format");
+    }
+
     #[tokio::test]
     async fn errors_when_no_timezone() {
         let path = config::generate_path()
