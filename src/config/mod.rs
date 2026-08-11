@@ -848,12 +848,17 @@ mod tests {
     #[tokio::test]
     async fn set_and_clear_next_task_should_work() {
         let config = test::fixtures::config().await;
+        let original_token = config.token.clone();
         assert_eq!(config.next_task, None);
         let task = test::fixtures::today_task().await;
         let config = config.set_next_task(task.clone());
         assert_eq!(config.next_task, Some(task));
         let config = config.clear_next_task();
         assert_eq!(config.next_task, None);
+        assert_eq!(
+            config.token, original_token,
+            "other fields must be preserved"
+        );
     }
 
     #[tokio::test]
@@ -1154,5 +1159,60 @@ mod tests {
                 .expect("Could not check if file exists"),
             "Config file should exist after edit_interactive"
         );
+    }
+
+    #[test]
+    fn bell_on_failure_default_returns_true() {
+        assert!(bell_on_failure_default());
+    }
+
+    #[test]
+    fn token_message_contains_url_and_prompt() {
+        let config = Config::default_test();
+        let message = config.token_message();
+        assert!(!message.is_empty());
+        assert!(message.contains("API token"));
+    }
+
+    #[tokio::test]
+    async fn increment_completed_increments_count_for_same_day() {
+        let config = crate::test::fixtures::config()
+            .await
+            .with_timezone("America/Vancouver");
+        // Set up an existing completed count for today
+        let today = time::naive_date_today(&config).expect("should get today");
+        let config = Config {
+            completed: Some(Completed {
+                date: today.to_string(),
+                count: 5,
+            }),
+            ..config
+        };
+        let updated = config
+            .increment_completed()
+            .expect("should increment completed");
+        let completed = updated.completed.expect("should have completed");
+        assert_eq!(completed.count, 6);
+        assert_eq!(completed.date, today.to_string());
+    }
+
+    #[tokio::test]
+    async fn increment_completed_starts_new_count_for_different_day() {
+        let config = crate::test::fixtures::config()
+            .await
+            .with_timezone("America/Vancouver");
+        let config = Config {
+            completed: Some(Completed {
+                date: "2000-01-01".to_string(),
+                count: 5,
+            }),
+            ..config
+        };
+        let updated = config
+            .increment_completed()
+            .expect("should increment completed");
+        let completed = updated.completed.expect("should have completed");
+        // Should reset count to 1 for the new day
+        assert_eq!(completed.count, 1);
     }
 }

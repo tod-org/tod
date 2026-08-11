@@ -404,4 +404,34 @@ mod tests {
         let result = bool("test", false, Some(1));
         assert_eq!(result, Ok(false));
     }
+
+    #[test]
+    fn datetime_no_natural_language_without_skip_complete_uses_else_branch() {
+        // no_natural_language=true, skip_or_complete=false
+        // Must not match no_natural_language && skip_or_complete.
+        // Goes to else branch with options: [SELECT_DATE(0), NAT_LANG(1), NO_DATE(2)]
+        let result = datetime(Some(2), None, None, true, false);
+        assert_eq!(result, Ok(DateTimeInput::None));
+    }
+
+    #[test]
+    #[should_panic(expected = "Must provide a vector of options")]
+    fn datetime_no_nat_lang_no_skip_complete_extra_index_panics() {
+        // no_natural_language=false, skip_or_complete=false
+        // Original (&&): !false && false = false → else (3 options) → mock_select=3 panics
+        // Mutant  (||): !false || false = true  → branch (5 options) → mock_select=3 → SKIP
+        let _ = datetime(Some(3), None, None, false, false);
+    }
+
+    #[test]
+    fn string_with_default_returns_default_message() {
+        let result = string_with_default("Test prompt", "default value");
+        assert_eq!(result, Ok("default value".to_string()));
+    }
+
+    #[test]
+    fn number_with_default_returns_default_number() {
+        let result = number_with_default("Test prompt", 42);
+        assert_eq!(result, Ok(42));
+    }
 }

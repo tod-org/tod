@@ -308,6 +308,30 @@ mod tests {
             InstallMethod::Unknown
         );
     }
+
+    #[test]
+    fn test_detect_install_method_from_components_debug_without_target() {
+        let components: Vec<String> = ["usr", "local", "bin", "tod"]
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
+        assert_eq!(
+            detect_install_method_from_components(&components, true),
+            InstallMethod::FromSource
+        );
+    }
+
+    #[test]
+    fn test_detect_install_method_from_components_release_with_target() {
+        let components: Vec<String> = ["home", "user", "target", "release", "tod"]
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
+        assert_eq!(
+            detect_install_method_from_components(&components, false),
+            InstallMethod::FromSource
+        );
+    }
     #[test]
     fn test_get_install_method_override_whitespace_case() {
         assert_eq!(get_install_method(Some("  CaRgO  ")), InstallMethod::Cargo);
