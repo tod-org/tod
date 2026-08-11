@@ -1193,9 +1193,7 @@ mod tests {
             .create_async()
             .await;
 
-        let config = test::fixtures::config()
-            .await
-            .with_mock_url(server.url());
+        let config = test::fixtures::config().await.with_mock_url(server.url());
 
         let result = delete_section(&config, "1234", false).await;
         assert_eq!(result, Ok("✓".into()));

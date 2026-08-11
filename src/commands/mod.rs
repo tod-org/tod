@@ -186,6 +186,11 @@ async fn section_command(
             let result = section_commands::create(&config, args, cli.json).await;
             Ok(build_command_result(result, &config))
         }
+        SectionCommands::Delete(args) => {
+            let config = fetch_config(cli, tx).await?;
+            let result = section_commands::delete(&config, args, cli.json).await;
+            Ok(build_command_result(result, &config))
+        }
     }
 }
 
