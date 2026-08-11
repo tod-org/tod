@@ -11,38 +11,31 @@
 - `src/main.rs` — entry point, `CommandResult` struct, `output_result()` output gateway
 - `src/errors.rs` — `Error` type (`{message, source}`) with `Serialize` derive for JSON output
 - `src/format.rs` — Terminal color utilities
-- `src/input.rs` — inquire-based terminal prompts with mock support (`config.mock_string`, `config.mock_select`). Guards for JSON/non-interactive modes belong at the `fetch_*` call sites in `src/commands/mod.rs`, not inside `input.rs`.
+- `src/input.rs` — inquire-based terminal prompts with mock support. Guards for JSON/non-interactive modes belong at the `fetch_*` call sites in `src/commands/mod.rs`, not inside `input.rs`.
+- `docs/usage.md` — User-facing command examples; keep in sync with CLI changes
 
 ### Todoist API
-- `src/todoist/mod.rs` — REST API client. Key exports: `all_tasks_by_*`, `quick_create_task`, `create_task`, `complete_task`, `update_task_*`, `all_projects`, `all_labels`, `all_comments`, `all_sections_by_project`
-- `src/todoist/request.rs` — HTTP layer (GET/POST/DELETE via reqwest)
+- `src/todoist/` — REST API client (`mod.rs`) and HTTP layer (`request.rs`)
 
 ### Business logic
 - `src/projects.rs` — `Project` struct, CRUD operations, task scheduling
-- `src/lists.rs` — Business-logic functions for multi-task operations (view, process, label, timebox, etc.). The clap arg structs live in `src/commands/list_commands.rs`.
+- `src/lists.rs` — Multi-task operations (view, process, label, timebox, etc.)
 - `src/tasks/mod.rs` — `Task` struct + formatting
 
 ### Config
-- `src/config/mod.rs` — `Config` struct + serialization (`#[serde(deny_unknown_fields)]`)
-- `src/config/file.rs` — File I/O: `Config::load()`, `save()`, `create()`, `reload()`, `touch_file()`
-- `src/config/projects.rs` — Project CRUD on the config's `projectsv1` field
+- `src/config/` — `Config` struct + serialization (`mod.rs`), file I/O (`file.rs`), project CRUD (`projects.rs`)
 
 ### CLI dispatch
-- `src/commands/mod.rs` — Dispatch via clap `Subcommand` enum. Defines the `Cli` struct (including `--json`/`-j` flag) and `fetch_*` helpers: `fetch_string`, `fetch_project`, `fetch_filter`, `fetch_priority`, `fetch_project_or_filter`, `maybe_fetch_labels`.
-- `src/commands/task_commands.rs` — Task subcommand handlers
-- `src/commands/list_commands.rs` — List/view subcommand handlers
-- `src/commands/project_commands.rs` — Project subcommand handlers
-- `src/commands/config_commands.rs` — Config subcommand handlers
-- `src/commands/auth_commands.rs` — Auth subcommand handlers
-- `src/commands/reminder_commands.rs` — Reminder subcommand handlers
-- `src/commands/section_commands.rs` — Section subcommand handlers
-- `src/commands/shell_commands.rs` — Shell completion handler
-- `src/commands/test_commands.rs` — Manual API test handler
+- `src/commands/` — Dispatch via clap `Subcommand` enum (`mod.rs`) and command handlers for auth, config, list, project, reminder, section, shell, task, test
 
 ## GitHub conventions
 
-- Fetch issue/PR content with `gh issue view <N>` or `gh pr view <N>`. Use `--json` for labels and comments. Do not use web_search for repo issues — GitHub issue pages are not indexed for web search.
-- Issue templates live in `.github/ISSUE_TEMPLATE/` — use `feature_request.md` for features, `bug_report.md` for bugs
+- Use `gh issue view <N>` or `gh pr view <N>` to fetch issue/PR content. Never use web_search for repo issues.
+- Issue templates live in `.github/ISSUE_TEMPLATE/` — `feature_request.md` for features, `bug_report.md` for bugs
+
+## Docs
+
+- When adding or changing CLI commands, check `docs/usage.md` for example output that references the changed subcommands and keep it up to date.
 
 ## Error handling
 
