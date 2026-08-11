@@ -1700,4 +1700,104 @@ mod tests {
         assert!(displayed.contains("https://app.todoist.com/app/project"));
         assert!(displayed.contains(&project.id));
     }
+
+    mod proptests {
+        use super::*;
+        use pretty_assertions::assert_eq;
+        use proptest::prelude::*;
+
+        fn arb_project() -> impl Strategy<Value = Project> {
+            // Split into two smaller tuples to stay under proptest's 10-element limit.
+            let base = (
+                "[0-9]{5,15}",
+                proptest::bool::ANY,
+                -100i32..1000i32,
+                "[a-z]{3,10}",
+                proptest::option::of("[0-9T:+-]{10,25}"),
+                proptest::bool::ANY,
+                proptest::bool::ANY,
+                proptest::bool::ANY,
+                proptest::bool::ANY,
+            );
+            let rest = (
+                "[A-Za-z0-9 _-]{1,40}",
+                proptest::option::of("[0-9T:+-]{10,25}"),
+                "(list|board)",
+                -100i32..1000i32,
+                "\\PC{0,50}",
+                proptest::option::of("[0-9]{5,15}"),
+                proptest::option::of(proptest::bool::ANY),
+                proptest::bool::ANY,
+                proptest::bool::ANY,
+            );
+            (base, rest).prop_map(
+                |(
+                    (
+                        id,
+                        can_assign_tasks,
+                        child_order,
+                        color,
+                        created_at,
+                        is_archived,
+                        is_deleted,
+                        is_favorite,
+                        is_frozen,
+                    ),
+                    (
+                        name,
+                        updated_at,
+                        view_style,
+                        default_order,
+                        description,
+                        parent_id,
+                        inbox_project,
+                        is_collapsed,
+                        is_shared,
+                    ),
+                )| Project {
+                    id,
+                    can_assign_tasks,
+                    child_order,
+                    color,
+                    created_at,
+                    is_archived,
+                    is_deleted,
+                    is_favorite,
+                    is_frozen,
+                    name,
+                    updated_at,
+                    view_style,
+                    default_order,
+                    description,
+                    parent_id,
+                    inbox_project,
+                    is_collapsed,
+                    is_shared,
+                },
+            )
+        }
+
+        proptest! {
+            #[test]
+            fn project_serde_roundtrip(project in arb_project()) {
+                let json = serde_json::to_string(&project).unwrap();
+                let roundtripped: Project = serde_json::from_str(&json).unwrap();
+                assert_eq!(project, roundtripped);
+            }
+
+            #[test]
+            fn project_response_serde_roundtrip(
+                projects in proptest::collection::vec(arb_project(), 0..10),
+                next_cursor in proptest::option::of("[a-zA-Z0-9]{5,20}"),
+            ) {
+                let response = ProjectResponse {
+                    results: projects.clone(),
+                    next_cursor: next_cursor.clone(),
+                };
+                let json = serde_json::to_string(&response).unwrap();
+                let roundtripped: ProjectResponse = serde_json::from_str(&json).unwrap();
+                assert_eq!(response, roundtripped);
+            }
+        }
+    }
 }

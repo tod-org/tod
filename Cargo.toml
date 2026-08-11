@@ -55,6 +55,7 @@ mockito = "1.7.2"
 gag = "1.0.0"
 predicates = "3.1.4"
 pretty_assertions = "1.4.1"
+proptest = "1.5"
 serde_test = "1.0.177"
 
 [build-dependencies]

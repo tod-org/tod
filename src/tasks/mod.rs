@@ -2178,4 +2178,198 @@ mod tests {
         assert_eq!(result.len(), 1);
         assert_eq!(result[0].id, orphan.id);
     }
+
+    mod proptests {
+        use super::*;
+        use pretty_assertions::assert_eq;
+        use proptest::prelude::*;
+
+        // ── sub-type strategies ────────────────────────────────────
+
+        fn arb_unit() -> impl Strategy<Value = Unit> {
+            prop_oneof![Just(Unit::Minute), Just(Unit::Day)]
+        }
+
+        fn arb_duration() -> impl Strategy<Value = Duration> {
+            (0u32..1000, arb_unit()).prop_map(|(amount, unit)| Duration { amount, unit })
+        }
+
+        fn arb_deadline() -> impl Strategy<Value = Deadline> {
+            ("[0-9]{4}-[0-9]{2}-[0-9]{2}", "[a-z]{2,5}")
+                .prop_map(|(date, lang)| Deadline { date, lang })
+        }
+
+        fn arb_date_info() -> impl Strategy<Value = DateInfo> {
+            (
+                "[0-9T:+-]{10,25}",
+                proptest::bool::ANY,
+                "\\PC{1,30}",
+                "[a-z]{2,5}",
+                proptest::option::of("[A-Za-z_/]{3,20}"),
+            )
+                .prop_map(|(date, is_recurring, string, lang, timezone)| DateInfo {
+                    date,
+                    is_recurring,
+                    string,
+                    lang,
+                    timezone,
+                })
+        }
+
+        fn arb_priority() -> impl Strategy<Value = Priority> {
+            prop_oneof![
+                Just(Priority::None),
+                Just(Priority::Low),
+                Just(Priority::Medium),
+                Just(Priority::High),
+            ]
+        }
+
+        // ── Task strategy (split across three tuples to stay under 10-element cap) ──
+
+        fn arb_task() -> impl Strategy<Value = Task> {
+            let g1 = (
+                "[0-9a-f]{5,20}",
+                "[0-9]{3,10}",
+                "[0-9]{5,15}",
+                proptest::option::of("[0-9]{5,15}"),
+                proptest::option::of("[0-9]{5,15}"),
+                proptest::option::of("[0-9]{3,10}"),
+                proptest::option::of("[0-9]{3,10}"),
+                proptest::option::of("[0-9]{3,10}"),
+                proptest::collection::vec("[a-z_]{2,15}", 0..5),
+            );
+            let g2 = (
+                proptest::option::of(arb_deadline()),
+                proptest::option::of(arb_duration()),
+                proptest::option::of(arb_date_info()),
+                proptest::bool::ANY,
+                proptest::bool::ANY,
+                proptest::bool::ANY,
+                proptest::option::of("[0-9T:+-]{10,25}"),
+                proptest::option::of("[0-9T:+-]{10,25}"),
+                proptest::option::of("[0-9T:+-]{10,25}"),
+            );
+            let g3 = (
+                arb_priority(),
+                -100i16..1000i16,
+                "\\PC{0,60}",
+                "\\PC{0,100}",
+                0u32..100u32,
+                -100i16..1000i16,
+            );
+            (g1, g2, g3).prop_map(
+                |(
+                    (
+                        id,
+                        user_id,
+                        project_id,
+                        section_id,
+                        parent_id,
+                        added_by_uid,
+                        assigned_by_uid,
+                        responsible_uid,
+                        labels,
+                    ),
+                    (
+                        deadline,
+                        duration,
+                        due,
+                        checked,
+                        is_deleted,
+                        is_collapsed,
+                        added_at,
+                        completed_at,
+                        updated_at,
+                    ),
+                    (priority, child_order, content, description, note_count, day_order),
+                )| Task {
+                    id,
+                    user_id,
+                    project_id,
+                    section_id,
+                    parent_id,
+                    added_by_uid,
+                    assigned_by_uid,
+                    responsible_uid,
+                    labels,
+                    deadline,
+                    duration,
+                    due,
+                    checked,
+                    is_deleted,
+                    is_collapsed,
+                    added_at,
+                    completed_at,
+                    updated_at,
+                    priority,
+                    child_order,
+                    content,
+                    description,
+                    note_count,
+                    day_order,
+                },
+            )
+        }
+
+        // ── properties ─────────────────────────────────────────────
+
+        proptest! {
+            #[test]
+            fn priority_serde_roundtrip(priority in arb_priority()) {
+                let json = serde_json::to_string(&priority).unwrap();
+                let roundtripped: Priority = serde_json::from_str(&json).unwrap();
+                assert_eq!(priority, roundtripped);
+            }
+
+            #[test]
+            fn unit_serde_roundtrip(unit in arb_unit()) {
+                let json = serde_json::to_string(&unit).unwrap();
+                let roundtripped: Unit = serde_json::from_str(&json).unwrap();
+                assert_eq!(unit, roundtripped);
+            }
+
+            #[test]
+            fn duration_serde_roundtrip(dur in arb_duration()) {
+                let json = serde_json::to_string(&dur).unwrap();
+                let roundtripped: Duration = serde_json::from_str(&json).unwrap();
+                assert_eq!(dur, roundtripped);
+            }
+
+            #[test]
+            fn deadline_serde_roundtrip(deadline in arb_deadline()) {
+                let json = serde_json::to_string(&deadline).unwrap();
+                let roundtripped: Deadline = serde_json::from_str(&json).unwrap();
+                assert_eq!(deadline, roundtripped);
+            }
+
+            #[test]
+            fn date_info_serde_roundtrip(di in arb_date_info()) {
+                let json = serde_json::to_string(&di).unwrap();
+                let roundtripped: DateInfo = serde_json::from_str(&json).unwrap();
+                assert_eq!(di, roundtripped);
+            }
+
+            #[test]
+            fn task_serde_roundtrip(task in arb_task()) {
+                let json = serde_json::to_string(&task).unwrap();
+                let roundtripped: Task = serde_json::from_str(&json).unwrap();
+                assert_eq!(task, roundtripped);
+            }
+
+            #[test]
+            fn task_response_serde_roundtrip(
+                tasks in proptest::collection::vec(arb_task(), 0..10),
+                next_cursor in proptest::option::of("[a-zA-Z0-9]{5,20}"),
+            ) {
+                let response = TaskResponse {
+                    results: tasks,
+                    next_cursor,
+                };
+                let json = serde_json::to_string(&response).unwrap();
+                let roundtripped: TaskResponse = serde_json::from_str(&json).unwrap();
+                assert_eq!(response, roundtripped);
+            }
+        }
+    }
 }
