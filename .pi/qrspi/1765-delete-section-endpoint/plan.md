@@ -41,4 +41,4 @@ Add section delete usage examples.
 - [x] Add `tod section create` and `tod section delete` examples
 
 **Verification:**
-- [ ] Manual review of docs
+- [x] Manual review of docs — verified via `--help`, aliases, JSON mode error handling
