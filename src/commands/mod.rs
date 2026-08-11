@@ -235,6 +235,21 @@ async fn project_command(
             let result = project_commands::delete(&mut config, args).await;
             Ok(build_command_result(result, &config))
         }
+        ProjectCommands::Update(args) => {
+            let mut config = fetch_config(cli, tx).await?;
+            let result = project_commands::update(&mut config, args, cli.json).await;
+            Ok(build_command_result(result, &config))
+        }
+        ProjectCommands::Archive(args) => {
+            let mut config = fetch_config(cli, tx).await?;
+            let result = project_commands::archive(&mut config, args).await;
+            Ok(build_command_result(result, &config))
+        }
+        ProjectCommands::Unarchive(args) => {
+            let mut config = fetch_config(cli, tx).await?;
+            let result = project_commands::unarchive(&mut config, args).await;
+            Ok(build_command_result(result, &config))
+        }
     }
 }
 
