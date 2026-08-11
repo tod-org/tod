@@ -179,6 +179,8 @@ impl From<inquire::InquireError> for Error {
 impl std::error::Error for Error {}
 
 impl Error {
+    /// Creates a new Error. `message` must be `&str` — when using
+    /// `format!()`, borrow the result: `&format!("...")`.
     pub fn new(source: &str, message: &str) -> Error {
         Error {
             source: source.into(),

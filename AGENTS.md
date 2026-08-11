@@ -57,3 +57,4 @@
 - Push the branch to origin before creating a PR: `git push -u origin <branch>`
 - Create PRs with `gh pr create --title "type: description" --body "..." --base main`
 - Commit format follows Conventional Commits (lowercase, 250-char line limit). See `.commitlint.config.mjs` for enforced rules.
+- To fix non-conforming commits after the fact, use an interactive rebase with `GIT_SEQUENCE_EDITOR` to add `exec git commit --amend -m "type: description"` lines after each `pick`, then `git push --force-with-lease`.
