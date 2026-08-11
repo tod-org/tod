@@ -32,6 +32,17 @@ pub enum ProjectCommands {
     #[clap(alias = "e")]
     /// (e) Empty a project by putting tasks in other projects
     Empty(Empty),
+
+    #[clap(alias = "u")]
+    /// (u) Update a project in Todoist
+    Update(Update),
+
+    #[clap(alias = "a")]
+    /// (a) Archive a project
+    Archive(Archive),
+
+    /// Unarchive a project
+    Unarchive(Unarchive),
 }
 
 #[derive(Parser, Debug, Clone)]
@@ -120,6 +131,43 @@ pub struct Rename {
 pub struct Empty {
     #[arg(short, long)]
     /// Project to empty
+    project: Option<String>,
+}
+
+#[derive(Parser, Debug, Clone)]
+pub struct Update {
+    #[arg(short, long)]
+    /// Project to update
+    project: Option<String>,
+
+    #[arg(short, long)]
+    /// New project name
+    name: Option<String>,
+
+    #[arg(short, long)]
+    /// Project color (e.g. "blue", "red", "charcoal", "berry_red")
+    color: Option<String>,
+
+    #[arg(short = 'f', long)]
+    /// Toggle favorite status
+    is_favorite: Option<bool>,
+
+    #[arg(short = 'v', long)]
+    /// View style: "list" or "board"
+    view_style: Option<String>,
+}
+
+#[derive(Parser, Debug, Clone)]
+pub struct Archive {
+    #[arg(short, long)]
+    /// Project to archive
+    project: Option<String>,
+}
+
+#[derive(Parser, Debug, Clone)]
+pub struct Unarchive {
+    #[arg(short, long)]
+    /// Project to unarchive
     project: Option<String>,
 }
 
@@ -244,6 +292,69 @@ pub async fn empty(config: &mut Config, args: &Empty) -> Result<String, Error> {
     };
 
     projects::empty(config, &project).await
+}
+
+/// Updates a project in Todoist and syncs changes to config.
+pub async fn update(config: &mut Config, args: &Update, json: bool) -> Result<String, Error> {
+    let Update {
+        project,
+        name,
+        color,
+        is_favorite,
+        view_style,
+    } = args;
+
+    if json && project.is_none() {
+        return Err(Error::new("json_mode", super::JSON_INTERACTIVE_ERROR));
+    }
+
+    let project = match super::fetch_project(project.as_deref(), config).await? {
+        Flag::Project(project) => project,
+        Flag::Filter(_) => unreachable!(),
+    };
+
+    projects::update(
+        config,
+        &project,
+        name.as_deref(),
+        color.as_deref(),
+        *is_favorite,
+        view_style.as_deref(),
+        json,
+    )
+    .await
+}
+
+/// Archives a project in Todoist and marks it archived in config.
+pub async fn archive(config: &mut Config, args: &Archive) -> Result<String, Error> {
+    let Archive { project } = args;
+
+    if config.args.json {
+        return Err(Error::new("json_mode", super::JSON_INTERACTIVE_ERROR));
+    }
+
+    let project = match super::fetch_project(project.as_deref(), config).await? {
+        Flag::Project(project) => project,
+        Flag::Filter(_) => unreachable!(),
+    };
+
+    projects::archive(config, &project, false).await
+}
+
+/// Unarchives a project in Todoist and marks it unarchived in config.
+pub async fn unarchive(config: &mut Config, args: &Unarchive) -> Result<String, Error> {
+    let Unarchive { project } = args;
+
+    if config.args.json {
+        return Err(Error::new("json_mode", super::JSON_INTERACTIVE_ERROR));
+    }
+
+    let project = match super::fetch_project(project.as_deref(), config).await? {
+        Flag::Project(project) => project,
+        Flag::Filter(_) => unreachable!(),
+    };
+
+    projects::unarchive(config, &project, false).await
 }
 
 #[cfg(test)]
