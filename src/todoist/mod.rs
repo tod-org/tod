@@ -916,9 +916,7 @@ mod tests {
         let mut server = mockito::Server::new_async().await;
         let mock = server
             .mock("POST", "/api/v1/tasks/")
-            .match_body(mockito::Matcher::Regex(
-                r#""parent_id":"999""#.to_string(),
-            ))
+            .match_body(mockito::Matcher::Regex(r#""parent_id":"999""#.to_string()))
             .with_status(200)
             .with_header("content-type", "application/json")
             .with_body(ResponseFromFile::TodayTask.read().await)
