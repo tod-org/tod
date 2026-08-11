@@ -540,4 +540,134 @@ mod tests {
         assert!(project_names.contains(&"renamed-project"));
         assert!(!project_names.contains(&"myproject"));
     }
+
+    #[tokio::test]
+    async fn update_name_flag_hits_api() {
+        let mut server = mockito::Server::new_async().await;
+        let mock = server
+            .mock("POST", "/api/v1/projects/123")
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(ResponseFromFile::Project.read().await)
+            .create_async()
+            .await;
+
+        let mut config = test::fixtures::config()
+            .await
+            .with_mock_url(server.url())
+            .create()
+            .await
+            .expect("config should be created");
+
+        let args = Update {
+            project: Some("myproject".into()),
+            name: Some("NewName".into()),
+            color: None,
+            is_favorite: None,
+            view_style: None,
+        };
+
+        let result = update(&mut config, &args, false).await;
+
+        assert!(result.is_ok());
+        mock.assert_async().await;
+    }
+
+    #[tokio::test]
+    async fn archive_hits_api() {
+        let mut server = mockito::Server::new_async().await;
+        let mock = server
+            .mock("POST", "/api/v1/projects/123/archive")
+            .with_status(204)
+            .create_async()
+            .await;
+
+        let mut config = test::fixtures::config()
+            .await
+            .with_mock_url(server.url())
+            .create()
+            .await
+            .expect("config should be created");
+
+        let args = Archive {
+            project: Some("myproject".into()),
+        };
+
+        let result = archive(&mut config, &args).await;
+
+        assert!(result.is_ok());
+        mock.assert_async().await;
+    }
+
+    #[tokio::test]
+    async fn unarchive_hits_api() {
+        let mut server = mockito::Server::new_async().await;
+        let mock = server
+            .mock("POST", "/api/v1/projects/123/unarchive")
+            .with_status(204)
+            .create_async()
+            .await;
+
+        let mut config = test::fixtures::config()
+            .await
+            .with_mock_url(server.url())
+            .create()
+            .await
+            .expect("config should be created");
+
+        let args = Unarchive {
+            project: Some("myproject".into()),
+        };
+
+        let result = unarchive(&mut config, &args).await;
+
+        assert!(result.is_ok());
+        mock.assert_async().await;
+    }
+
+    #[tokio::test]
+    async fn update_json_mode_without_project_fails() {
+        let mut config = Config::default_test();
+        config.args.json = true;
+
+        let args = Update {
+            project: None,
+            name: Some("N".into()),
+            color: None,
+            is_favorite: None,
+            view_style: None,
+        };
+
+        let error = update(&mut config, &args, true)
+            .await
+            .expect_err("should fail without project in json mode");
+
+        assert_eq!(error.source, "json_mode");
+    }
+
+    #[test]
+    fn update_flags_parse() {
+        let args = Update::try_parse_from([
+            "tod", "-p", "myproject", "-n", "new-name", "-c", "red", "-f", "true",
+        ])
+        .expect("update args should parse");
+        assert_eq!(args.project.as_deref(), Some("myproject"));
+        assert_eq!(args.name.as_deref(), Some("new-name"));
+        assert_eq!(args.color.as_deref(), Some("red"));
+        assert_eq!(args.is_favorite, Some(true));
+    }
+
+    #[test]
+    fn archive_flag_parses() {
+        let args =
+            Archive::try_parse_from(["tod", "-p", "myproject"]).expect("archive args should parse");
+        assert_eq!(args.project.as_deref(), Some("myproject"));
+    }
+
+    #[test]
+    fn unarchive_flag_parses() {
+        let args = Unarchive::try_parse_from(["tod", "-p", "myproject"])
+            .expect("unarchive args should parse");
+        assert_eq!(args.project.as_deref(), Some("myproject"));
+    }
 }
