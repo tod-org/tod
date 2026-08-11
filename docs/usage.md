@@ -114,6 +114,15 @@ tod project import -p work # or --id 123
 # Import all projects in Todoist into Tod
 tod project import -a
 
+# Update a project
+tod project update -p "My Project" -n "Renamed Project" -c "red"
+tod project update --project "Work" --is-favorite true
+tod project update -p "Side Project" -v "board"
+
+# Archive / unarchive a project
+tod project archive -p "Old Project"
+tod project unarchive -p "Old Project"
+
 # Create a section in a project
 tod section create -s "Groceries" -p "Shopping"
 
@@ -128,7 +137,6 @@ tod section delete -s "Groceries" -p "Shopping" --force
 
 # Repeat mode — keep deleting sections until Ctrl+C
 tod section delete -r
-
 # Get the next task for a project
 tod task next
 
