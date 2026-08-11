@@ -113,6 +113,9 @@ pub fn project() -> Project {
 }
 
 pub fn section() -> Section {
+    // Note: project_id "5678" differs from project().id "123".
+    // When mocking API calls, use the project's ID ("123"), not
+    // the section's project_id field.
     Section {
         id: "1234".to_string(),
         added_at: "2020-06-11T14:51:08.056500Z".to_string(),
