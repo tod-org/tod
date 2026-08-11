@@ -679,6 +679,63 @@ pub async fn create_project(
     Project::from_json(&json)
 }
 
+/// Updates a project's writable fields. Only provided `Some(...)` fields are sent
+/// in the request body; `None` fields are omitted.
+pub async fn update_project(
+    config: &Config,
+    project_id: &str,
+    name: Option<&str>,
+    color: Option<&str>,
+    is_favorite: Option<bool>,
+    view_style: Option<&str>,
+    spinner: bool,
+) -> Result<Project, Error> {
+    let url = format!("{PROJECTS_URL}/{project_id}");
+    let mut body = json!({});
+
+    if let Some(name) = name {
+        body["name"] = json!(name);
+    }
+    if let Some(color) = color {
+        body["color"] = json!(color);
+    }
+    if let Some(is_favorite) = is_favorite {
+        body["is_favorite"] = json!(is_favorite);
+    }
+    if let Some(view_style) = view_style {
+        body["view_style"] = json!(view_style);
+    }
+
+    let json = request::post_todoist(config, &url, body, spinner).await?;
+    Project::from_json(&json)
+}
+
+/// Archives a project by ID. The Todoist API returns 204 No Content.
+pub async fn archive_project(
+    config: &Config,
+    project_id: &str,
+    spinner: bool,
+) -> Result<String, Error> {
+    let url = format!("{PROJECTS_URL}/{project_id}/archive");
+    let body = json!({});
+
+    request::post_todoist(config, &url, body, spinner).await?;
+    Ok("✓".into())
+}
+
+/// Unarchives a project by ID. The Todoist API returns 204 No Content.
+pub async fn unarchive_project(
+    config: &Config,
+    project_id: &str,
+    spinner: bool,
+) -> Result<String, Error> {
+    let url = format!("{PROJECTS_URL}/{project_id}/unarchive");
+    let body = json!({});
+
+    request::post_todoist(config, &url, body, spinner).await?;
+    Ok("✓".into())
+}
+
 /// Creates a new section in a project.
 pub async fn create_section(
     config: &Config,
@@ -1410,5 +1467,58 @@ mod tests {
         );
         assert_eq!(result.len(), 1);
         assert_eq!(result[0].content, task.content);
+    }
+
+    #[tokio::test]
+    async fn test_update_project_hits_api() {
+        let mut server = mockito::Server::new_async().await;
+        let mock = server
+            .mock("POST", "/api/v1/projects/123")
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(ResponseFromFile::Project.read().await)
+            .create_async()
+            .await;
+
+        let config = test::fixtures::config().await.with_mock_url(server.url());
+
+        let result = update_project(&config, "123", Some("NewName"), None, None, None, false).await;
+
+        assert!(result.is_ok());
+        mock.assert_async().await;
+    }
+
+    #[tokio::test]
+    async fn test_archive_project_hits_api() {
+        let mut server = mockito::Server::new_async().await;
+        let mock = server
+            .mock("POST", "/api/v1/projects/123/archive")
+            .with_status(204)
+            .create_async()
+            .await;
+
+        let config = test::fixtures::config().await.with_mock_url(server.url());
+
+        let result = archive_project(&config, "123", false).await;
+
+        assert_eq!(result, Ok("✓".to_string()));
+        mock.assert_async().await;
+    }
+
+    #[tokio::test]
+    async fn test_unarchive_project_hits_api() {
+        let mut server = mockito::Server::new_async().await;
+        let mock = server
+            .mock("POST", "/api/v1/projects/123/unarchive")
+            .with_status(204)
+            .create_async()
+            .await;
+
+        let config = test::fixtures::config().await.with_mock_url(server.url());
+
+        let result = unarchive_project(&config, "123", false).await;
+
+        assert_eq!(result, Ok("✓".to_string()));
+        mock.assert_async().await;
     }
 }
