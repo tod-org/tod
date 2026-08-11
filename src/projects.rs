@@ -169,6 +169,80 @@ pub async fn delete(config: &mut Config, project: &Project) -> Result<String, Er
     config.save().await
 }
 
+/// Updates a project in Todoist and replaces it in config with the API response.
+pub async fn update(
+    config: &mut Config,
+    project: &Project,
+    name: Option<&str>,
+    color: Option<&str>,
+    is_favorite: Option<bool>,
+    view_style: Option<&str>,
+    json: bool,
+) -> Result<String, Error> {
+    let updated = todoist::update_project(
+        config,
+        &project.id,
+        name,
+        color,
+        is_favorite,
+        view_style,
+        true,
+    )
+    .await?;
+
+    config.remove_project(project);
+    config.add_project(updated.clone());
+    config.save().await?;
+
+    if json {
+        Ok(serde_json::to_string(&updated)?)
+    } else {
+        Ok(format!("Updated project {}", updated.name))
+    }
+}
+
+/// Archives a project in Todoist and marks it as archived in config.
+pub async fn archive(
+    config: &mut Config,
+    project: &Project,
+    json: bool,
+) -> Result<String, Error> {
+    todoist::archive_project(config, &project.id, true).await?;
+
+    let mut archived = project.clone();
+    archived.is_archived = true;
+    config.remove_project(project);
+    config.add_project(archived);
+    config.save().await?;
+
+    if json {
+        Ok(serde_json::to_string(&project)?)
+    } else {
+        Ok(format!("Archived project {}", project.name))
+    }
+}
+
+/// Unarchives a project in Todoist and marks it as unarchived in config.
+pub async fn unarchive(
+    config: &mut Config,
+    project: &Project,
+    json: bool,
+) -> Result<String, Error> {
+    todoist::unarchive_project(config, &project.id, true).await?;
+
+    let mut unarchived = project.clone();
+    unarchived.is_archived = false;
+    config.remove_project(project);
+    config.add_project(unarchived);
+    config.save().await?;
+
+    if json {
+        Ok(serde_json::to_string(&project)?)
+    } else {
+        Ok(format!("Unarchived project {}", project.name))
+    }
+}
+
 /// Rename a project locally in config (does not sync to Todoist).
 pub async fn rename(
     config: &mut Config,
@@ -1205,6 +1279,164 @@ mod tests {
         assert_eq!(result, Ok("✓".to_string()));
         mock.assert_async().await;
     }
+
+    #[tokio::test]
+    async fn test_update_project() {
+        let mut server = mockito::Server::new_async().await;
+        let mock = server
+            .mock("POST", "/api/v1/projects/123")
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(ResponseFromFile::Project.read().await)
+            .create_async()
+            .await;
+
+        let mut config = test::fixtures::config()
+            .await
+            .with_mock_url(server.url())
+            .create()
+            .await
+            .expect("config should be created");
+
+        let project = config
+            .projects()
+            .await
+            .expect("projects should load")
+            .into_iter()
+            .find(|p| p.name == "myproject")
+            .expect("fixture project should exist");
+
+        let result = update(&mut config, &project, Some("Renamed"), None, None, None, false).await;
+
+        assert!(result.is_ok());
+        mock.assert_async().await;
+    }
+
+    #[tokio::test]
+    async fn test_update_project_json() {
+        let mut server = mockito::Server::new_async().await;
+        let mock = server
+            .mock("POST", "/api/v1/projects/123")
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(ResponseFromFile::Project.read().await)
+            .create_async()
+            .await;
+
+        let mut config = test::fixtures::config()
+            .await
+            .with_mock_url(server.url())
+            .create()
+            .await
+            .expect("config should be created");
+
+        let project = config
+            .projects()
+            .await
+            .expect("projects should load")
+            .into_iter()
+            .find(|p| p.name == "myproject")
+            .expect("fixture project should exist");
+
+        let json = update(&mut config, &project, Some("Renamed"), None, None, None, true)
+            .await
+            .expect("update should succeed");
+
+        let parsed: Project =
+            serde_json::from_str(&json).expect("should be valid project JSON");
+        assert_eq!(parsed.name, "Doomsday"); // fixture returns "Doomsday"
+        mock.assert_async().await;
+    }
+
+    #[tokio::test]
+    async fn test_archive_project() {
+        let mut server = mockito::Server::new_async().await;
+        let mock = server
+            .mock("POST", "/api/v1/projects/123/archive")
+            .with_status(204)
+            .create_async()
+            .await;
+
+        let mut config = test::fixtures::config()
+            .await
+            .with_mock_url(server.url())
+            .create()
+            .await
+            .expect("config should be created");
+
+        let project = config
+            .projects()
+            .await
+            .expect("projects should load")
+            .into_iter()
+            .find(|p| p.name == "myproject")
+            .expect("fixture project should exist");
+
+        let result = archive(&mut config, &project, false).await;
+
+        assert!(result.is_ok());
+        assert!(result.unwrap().contains("Archived project"));
+
+        let projects = config.projects().await.expect("projects should load");
+        let archived = projects
+            .iter()
+            .find(|p| p.id == "123")
+            .expect("project should still exist");
+        assert!(archived.is_archived);
+        mock.assert_async().await;
+    }
+
+    #[tokio::test]
+    async fn test_unarchive_project() {
+        let mut server = mockito::Server::new_async().await;
+        let mock = server
+            .mock("POST", "/api/v1/projects/123/unarchive")
+            .with_status(204)
+            .create_async()
+            .await;
+
+        let mut config = test::fixtures::config()
+            .await
+            .with_mock_url(server.url())
+            .create()
+            .await
+            .expect("config should be created");
+
+        // Start with project marked as archived in config
+        let project = {
+            let projects = config.projects().await.expect("projects should load");
+            let mut p = projects
+                .into_iter()
+                .find(|p| p.name == "myproject")
+                .expect("fixture project should exist");
+            p.is_archived = true;
+            p
+        };
+        let original = config
+            .projects()
+            .await
+            .expect("projects should load")
+            .into_iter()
+            .find(|p| p.id == "123")
+            .expect("fixture project should exist");
+        config.remove_project(&original);
+        config.add_project(project.clone());
+        config.save().await.expect("save should succeed");
+
+        let result = unarchive(&mut config, &project, false).await;
+
+        assert!(result.is_ok());
+        assert!(result.unwrap().contains("Unarchived project"));
+
+        let projects = config.projects().await.expect("projects should load");
+        let unarchived = projects
+            .iter()
+            .find(|p| p.id == "123")
+            .expect("project should still exist");
+        assert!(!unarchived.is_archived);
+        mock.assert_async().await;
+    }
+
     #[tokio::test]
     async fn test_schedule() {
         let mut server = mockito::Server::new_async().await;
