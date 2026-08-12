@@ -148,7 +148,7 @@ pub async fn delete(config: &Config, args: &Delete, json: bool) -> Result<String
         }
         let options = vec![input::CANCEL, input::DELETE];
         let desc = format!("Delete label \"{}\"?", target.name);
-        let result = input::select(&desc, options, config.mock_select)?;
+        let result = input::select(&desc, options, &config.mock_select)?;
         if result == input::CANCEL {
             return Ok("Cancelled".into());
         }
