@@ -51,6 +51,20 @@ where
     }
 }
 
+fn empty_mock_select() -> Arc<Mutex<Vec<usize>>> {
+    Arc::new(Mutex::new(Vec::new()))
+}
+
+fn deserialize_mock_select<'de, D>(deserializer: D) -> Result<Arc<Mutex<Vec<usize>>>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    // Accept any value (including null, empty array, old values) and return default.
+    // This preserves backward compatibility with config files that saved mock_select.
+    let _ = serde_json::Value::deserialize(deserializer)?;
+    Ok(empty_mock_select())
+}
+
 /// App configuration, serialized as json in `$XDG_CONFIG_HOME/tod.cfg`
 #[derive(Clone, Serialize, Deserialize, Debug)]
 #[serde(default, deny_unknown_fields)]
@@ -92,7 +106,11 @@ pub struct Config {
     pub last_version_check: Option<String>,
     pub mock_url: Option<String>,
     pub mock_string: Option<String>,
-    #[serde(skip)]
+    #[serde(
+        skip_serializing,
+        deserialize_with = "deserialize_mock_select",
+        default = "empty_mock_select"
+    )]
     pub mock_select: Arc<Mutex<Vec<usize>>>,
     /// Whether spinners are enabled
     pub spinners: Option<bool>,
