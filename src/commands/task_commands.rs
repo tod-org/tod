@@ -333,9 +333,9 @@ pub async fn complete(config: Config, _args: &Complete, json: bool) -> Result<St
     }
 }
 
-/// Reopens the stored next task.
+/// Reopens the last completed task.
 pub async fn reopen(config: Config, _args: &Reopen, json: bool) -> Result<String, Error> {
-    match config.next_task() {
+    match config.last_completed_task() {
         Some(task) => {
             todoist::reopen_task(&config, &task.id, true).await?;
 
@@ -347,7 +347,7 @@ pub async fn reopen(config: Config, _args: &Reopen, json: bool) -> Result<String
         }
         None => Err(Error::new(
             "task_reopen",
-            "There is nothing to reopen. A task must first be marked as 'next'.",
+            "There is nothing to reopen. A task must first be completed with 'tod task complete'.",
         )),
     }
 }

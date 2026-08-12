@@ -132,13 +132,13 @@ pub async fn reopen(config: Config, _args: &Reopen, json: bool) -> Result<String
 - [x] `scripts/test.sh` passes fully (fmt, check, clippy, test, forbidden-string grep)
 
 #### Manual
-- [ ] `tod task next` — fetches a task
-- [ ] `tod task complete` — completes it
-- [ ] `tod task reopen` — prints "Task reopened successfully" (green)
-- [ ] `tod task reopen -j` — prints the reopened task as JSON
-- [ ] `tod task reopen` (with no completed task) — errors with "There is nothing to reopen."
-- [ ] `tod task reopen -h` — shows `(r) Reopen the last completed task`
-- [ ] `tod t r` — alias works
+- [x] `tod task next` — fetches a task
+- [x] `tod task complete` — completes it
+- [x] `tod task reopen` — prints "Task reopened successfully" (green)
+- [x] `tod task reopen -j` — prints the reopened task as JSON
+- [x] `tod task reopen` (with no completed task) — errors with "There is nothing to reopen."
+- [x] `tod task reopen -h` — shows `(r) Reopen the last completed task`
+- [x] `tod t r` — alias works
 
 ---
 

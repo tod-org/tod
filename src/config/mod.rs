@@ -66,6 +66,9 @@ pub struct Config {
     /// The next task, for use with complete
     #[serde(rename = "next_taskv1")]
     next_task: Option<Task>,
+    /// The last completed task, for use with reopen
+    #[serde(rename = "last_completed_taskv1", default)]
+    last_completed_task: Option<Task>,
     /// Whether to trigger terminal bell on success
     #[serde(default)]
     pub bell_on_success: bool,
@@ -409,6 +412,31 @@ impl Config {
         Config { next_task, ..self }
     }
 
+    /// Stores a task as the last completed task for potential reopen.
+    pub fn set_last_completed_task(&self, task: Task) -> Config {
+        let last_completed_task: Option<Task> = Some(task);
+
+        Config {
+            last_completed_task,
+            ..self.clone()
+        }
+    }
+
+    /// Returns the stored last completed task, if any.
+    pub fn last_completed_task(&self) -> Option<Task> {
+        self.last_completed_task.clone()
+    }
+
+    /// Clears the stored last completed task.
+    pub fn clear_last_completed_task(self) -> Config {
+        let last_completed_task: Option<Task> = None;
+
+        Config {
+            last_completed_task,
+            ..self
+        }
+    }
+
     /// Increase the completed count for today
     pub fn increment_completed(&self) -> Result<Config, Error> {
         let date = time::naive_date_today(self)?.to_string();
@@ -439,6 +467,7 @@ impl Config {
             token: None,
             next_id: None,
             next_task: None,
+            last_completed_task: None,
             last_version_check: None,
             timeout: None,
             bell_on_success: false,
@@ -548,6 +577,7 @@ impl Config {
             completed: _,
             internal: _,
             last_version_check: _,
+            last_completed_task: _,
             mock_select,
             mock_string: _,
             mock_url: _,
@@ -714,6 +744,7 @@ impl Default for Config {
             path: PathBuf::new(),
             next_id: None,
             next_task: None,
+            last_completed_task: None,
             last_version_check: None,
             timeout: None,
             bell_on_success: false,
@@ -774,6 +805,7 @@ mod tests {
                 projects: Some(vec![]),
                 next_id: None,
                 next_task: None,
+                last_completed_task: None,
                 bell_on_success: false,
                 bell_on_failure: true,
                 task_create_command: None,
