@@ -185,7 +185,7 @@ tod task reopen
 ### Verification
 
 #### Automated
-- [ ] `grep "reopen" docs/usage.md` returns both the help listing line and the usage example
+- [x] `grep "reopen" docs/usage.md` returns both the help listing line and the usage example
 
 #### Manual
 - None — doc-only change
