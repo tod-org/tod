@@ -316,6 +316,11 @@ async fn task_command(
             let result = task_commands::complete(config.clone(), args, cli.json).await;
             Ok(build_command_result(result, &config))
         }
+        TaskCommands::Reopen(args) => {
+            let config = fetch_config(cli, tx).await?;
+            let result = task_commands::reopen(config.clone(), args, cli.json).await;
+            Ok(build_command_result(result, &config))
+        }
         TaskCommands::Comment(args) => {
             let config = fetch_config(cli, tx).await?;
             let result = task_commands::comment(config.clone(), args, cli.json).await;

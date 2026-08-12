@@ -129,7 +129,7 @@ pub async fn reopen(config: Config, _args: &Reopen, json: bool) -> Result<String
 ### Verification
 
 #### Automated
-- [ ] `scripts/test.sh` passes fully (fmt, check, clippy, test, forbidden-string grep)
+- [x] `scripts/test.sh` passes fully (fmt, check, clippy, test, forbidden-string grep)
 
 #### Manual
 - [ ] `tod task next` — fetches a task

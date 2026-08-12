@@ -35,6 +35,10 @@ pub enum TaskCommands {
     /// (o) Complete the last task fetched with the next command
     Complete(Complete),
 
+    #[clap(alias = "r")]
+    /// (r) Reopen the last completed task
+    Reopen(Reopen),
+
     #[clap(alias = "m")]
     /// (m) Add a comment to the last task fetched with the next command
     Comment(Comment),
@@ -112,6 +116,10 @@ pub struct Next {
 #[derive(Parser, Debug, Clone)]
 /// Completes the last task fetched with the next command.
 pub struct Complete {}
+
+#[derive(Parser, Debug, Clone)]
+/// Reopens the last completed task.
+pub struct Reopen {}
 
 #[derive(Parser, Debug, Clone)]
 /// Adds a comment to the last task fetched with the next command.
@@ -321,6 +329,25 @@ pub async fn complete(config: Config, _args: &Complete, json: bool) -> Result<St
         None => Err(Error::new(
             "task_complete",
             "There is nothing to complete. A task must first be marked as 'next'.",
+        )),
+    }
+}
+
+/// Reopens the stored next task.
+pub async fn reopen(config: Config, _args: &Reopen, json: bool) -> Result<String, Error> {
+    match config.next_task() {
+        Some(task) => {
+            todoist::reopen_task(&config, &task.id, true).await?;
+
+            if json {
+                Ok(serde_json::to_string(&task)?)
+            } else {
+                Ok(format::green_string("Task reopened successfully"))
+            }
+        }
+        None => Err(Error::new(
+            "task_reopen",
+            "There is nothing to reopen. A task must first be marked as 'next'.",
         )),
     }
 }
