@@ -6,6 +6,7 @@ use crate::{CommandResult, input, labels};
 use auth_commands::AuthCommands;
 use clap::{Parser, Subcommand};
 use config_commands::ConfigCommands;
+use label_commands::LabelCommands;
 use list_commands::ListCommands;
 use project_commands::ProjectCommands;
 use reminder_commands::ReminderCommands;
@@ -19,6 +20,7 @@ use tokio::sync::mpsc::UnboundedSender;
 
 mod auth_commands;
 mod config_commands;
+mod label_commands;
 mod list_commands;
 mod project_commands;
 mod reminder_commands;
@@ -84,6 +86,11 @@ pub enum Commands {
     Section(SectionCommands),
 
     #[command(subcommand)]
+    #[clap(alias = "b")]
+    /// (b) Commands for managing personal labels
+    Label(LabelCommands),
+
+    #[command(subcommand)]
     #[clap(alias = "t")]
     /// (t) Commands for individual tasks
     Task(TaskCommands),
@@ -146,6 +153,7 @@ pub async fn select_command(cli: Cli, tx: UnboundedSender<Error>) -> Result<Comm
         Commands::Project(command) => project_command(command, &cli, &tx).await,
         Commands::Reminder(command) => reminder_command(command, &cli, &tx).await,
         Commands::Section(command) => section_command(command, &cli, &tx).await,
+        Commands::Label(command) => label_command(command, &cli, &tx).await,
         Commands::Shell(command) => shell_command(command, cli.json).await,
         Commands::Task(command) => task_command(command, &cli, &tx).await,
         Commands::Test(command) => test_command(command, &cli, &tx).await,
@@ -189,6 +197,20 @@ async fn section_command(
         SectionCommands::Delete(args) => {
             let config = fetch_config(cli, tx).await?;
             let result = section_commands::delete(&config, args, cli.json).await;
+            Ok(build_command_result(result, &config))
+        }
+    }
+}
+
+async fn label_command(
+    command: &LabelCommands,
+    cli: &Cli,
+    tx: &UnboundedSender<Error>,
+) -> Result<CommandResult, Error> {
+    match command {
+        LabelCommands::Create(args) => {
+            let config = fetch_config(cli, tx).await?;
+            let result = label_commands::create(&config, args, cli.json).await;
             Ok(build_command_result(result, &config))
         }
     }

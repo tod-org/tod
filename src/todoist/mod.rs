@@ -461,6 +461,27 @@ pub async fn all_labels(
     Ok(labels)
 }
 
+/// Create a personal label.
+pub async fn create_label(
+    config: &Config,
+    name: &str,
+    color: Option<&str>,
+    order: Option<u32>,
+    is_favorite: bool,
+    spinner: bool,
+) -> Result<Label, Error> {
+    let mut body = json!({"name": name, "is_favorite": is_favorite});
+    if let Some(c) = color {
+        body["color"] = json!(c);
+    }
+    if let Some(o) = order {
+        body["order"] = json!(o);
+    }
+
+    let response = request::post_todoist(config, LABELS_URL, body, spinner).await?;
+    Label::from_json(&response)
+}
+
 /// Move a task to a different project
 pub async fn move_task_to_project(
     config: &Config,
@@ -1083,6 +1104,24 @@ mod tests {
             create_section(&config, "New task", &project, false).await,
             Ok(test::fixtures::section())
         );
+        mock.assert();
+    }
+
+    #[tokio::test]
+    async fn test_create_label() {
+        let mut server = mockito::Server::new_async().await;
+        let mock = server
+            .mock("POST", "/api/v1/labels")
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(ResponseFromFile::Label.read().await)
+            .create_async()
+            .await;
+
+        let config = test::fixtures::config().await.with_mock_url(server.url());
+
+        let result = create_label(&config, "test-label", Some("red"), None, false, false).await;
+        assert_eq!(result, Ok(test::fixtures::label()));
         mock.assert();
     }
 
