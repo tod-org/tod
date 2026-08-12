@@ -849,17 +849,13 @@ fn format_comment_option(comment: &Comment, config: &Config) -> String {
     } else {
         comment.content.clone()
     };
-    let formatted_date = match config.get_timezone() {
-        Ok(tz) => match time::timezone_from_str(&tz) {
-            Ok(tz) => match time::datetime_from_str(&comment.posted_at, tz) {
-                Ok(dt) => time::datetime_to_string(&dt, config)
-                    .unwrap_or_else(|_| comment.posted_at[..10].to_string()),
-                Err(_) => comment.posted_at[..10].to_string(),
-            },
-            Err(_) => comment.posted_at[..10].to_string(),
-        },
-        Err(_) => comment.posted_at[..10].to_string(),
-    };
+    let formatted_date = config
+        .get_timezone()
+        .ok()
+        .and_then(|tz| time::timezone_from_str(&tz).ok())
+        .and_then(|tz| time::datetime_from_str(&comment.posted_at, tz).ok())
+        .and_then(|dt| time::datetime_to_string(&dt, config).ok())
+        .unwrap_or_else(|| comment.posted_at[..10].to_string());
     format!("{truncated} — {formatted_date}")
 }
 
