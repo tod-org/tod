@@ -43,13 +43,16 @@ Commands for individual tasks
 Usage: tod task <COMMAND>
 
 Commands:
-  quick-add  (q) Create a new task using NLP
-  create     (c) Create a new task (without NLP)
-  edit       (e) Edit an existing task's content
-  next       (n) Get the next task by priority
-  complete   (o) Complete the last task fetched with the next command
-  reopen     (r) Reopen the last completed task
-  help       Print this message or the help of the given subcommand(s)
+  quick-add      (q) Create a new task using NLP
+  create         (c) Create a new task (without NLP)
+  edit           (e) Edit an existing task's content
+  next           (n) Get the next task by priority
+  complete       (o) Complete the last task fetched with the next command
+  reopen         (r) Reopen the last completed task
+  comment        (m) Add a comment to the last task fetched with the next command
+  edit-comment   (ec) Edit an existing comment's content
+  delete-comment (dc) Delete a comment by ID
+  help           Print this message or the help of the given subcommand(s)
 
 Options:
   -h, --help  Print help
@@ -159,6 +162,21 @@ tod task next
 
 # Comment on the current (next) task
 tod task comment
+
+# Edit an existing comment by ID
+tod task edit-comment 1234567890 "Updated comment text"
+
+# Edit a comment with JSON output
+tod task edit-comment 1234567890 "Updated comment text" --json
+
+# Edit a comment (interactive prompt for new content)
+tod task edit-comment 1234567890
+
+# Delete a comment by ID
+tod task delete-comment 1234567890
+
+# Delete a comment with JSON output
+tod task delete-comment 1234567890 --json
 
 # Go through tasks with an interactive prompt, completing them in order of importance one at a time.
 tod list process
