@@ -465,7 +465,8 @@ pub async fn update_task(
             let value = &task.priority;
             let priorities = priority::all_priorities();
 
-            let new_value = input::select("Select your priority:", priorities, &config.mock_select)?;
+            let new_value =
+                input::select("Select your priority:", priorities, &config.mock_select)?;
             if *value == new_value {
                 Ok(None)
             } else {
@@ -562,7 +563,7 @@ pub async fn process_task(
                 .iter()
                 .map(|c| format_comment_option(c, config))
                 .collect();
-            comment_options.push("New comment".to_string());
+            comment_options.push(input::NEW_COMMENT.to_string());
 
             let selected = input::select(
                 "Select a comment",
@@ -570,7 +571,7 @@ pub async fn process_task(
                 &config.mock_select,
             )?;
 
-            if selected == "New comment" {
+            if selected == input::NEW_COMMENT {
                 let content = input::string(CONTENT, config.mock_string.clone())?;
                 return Ok(Some(spawn_comment_task(config.clone(), task.id, content)));
             }
@@ -583,15 +584,11 @@ pub async fn process_task(
             let comment = &comments[comment_index];
 
             // Sub-submenu: Edit / Delete / Back
-            let action_options = vec!["Edit", "Delete", "Back"];
-            let action = input::select(
-                "Choose an action",
-                action_options,
-                &config.mock_select,
-            )?;
+            let action_options = vec![input::EDIT_COMMENT, input::DELETE_COMMENT, input::BACK];
+            let action = input::select("Choose an action", action_options, &config.mock_select)?;
 
             match action {
-                "Edit" => {
+                input::EDIT_COMMENT => {
                     let content = input::string(CONTENT, config.mock_string.clone())?;
                     Ok(Some(spawn_update_comment(
                         config.clone(),
@@ -599,11 +596,11 @@ pub async fn process_task(
                         content,
                     )))
                 }
-                "Delete" => Ok(Some(spawn_delete_comment(
+                input::DELETE_COMMENT => Ok(Some(spawn_delete_comment(
                     config.clone(),
                     comment.id.clone(),
                 ))),
-                "Back" => {
+                input::BACK => {
                     // Return a no-op handle to continue the loop
                     Ok(Some(tokio::spawn(async move {})))
                 }
@@ -855,7 +852,8 @@ fn format_comment_option(comment: &Comment, config: &Config) -> String {
     let formatted_date = match config.get_timezone() {
         Ok(tz) => match time::timezone_from_str(&tz) {
             Ok(tz) => match time::datetime_from_str(&comment.posted_at, tz) {
-                Ok(dt) => time::datetime_to_string(&dt, config).unwrap_or_else(|_| comment.posted_at[..10].to_string()),
+                Ok(dt) => time::datetime_to_string(&dt, config)
+                    .unwrap_or_else(|_| comment.posted_at[..10].to_string()),
                 Err(_) => comment.posted_at[..10].to_string(),
             },
             Err(_) => comment.posted_at[..10].to_string(),
@@ -2408,129 +2406,122 @@ mod tests {
         // ── properties ─────────────────────────────────────────────
 
         // Phase 2: COMMENT submenu tests
-    #[tokio::test]
-    async fn test_process_task_comment_empty() {
-        // Empty comments: goes straight to new comment prompt
-        let config = test::fixtures::config()
-            .await
-            .mock_selects(vec![3]) // COMMENT is option index 3 in process menu
-            .with_mock_string("new comment text")
-            .create()
-            .await
-            .expect("config should be created");
-        let task = test::fixtures::today_task().await;
-        let mut task_count = 1;
-        let result = process_task(
-            vec![],
-            &config,
-            task.clone(),
-            &mut task_count,
-            false,
-        )
-        .await;
-        // Should return a handle (spawned create_comment)
-        assert!(result.is_ok(), "got error: {result:?}");
-        assert!(result.unwrap().is_some());
-    }
+        #[tokio::test]
+        async fn test_process_task_comment_empty() {
+            // Empty comments: goes straight to new comment prompt
+            let config = test::fixtures::config()
+                .await
+                .mock_selects(vec![3]) // COMMENT is option index 3 in process menu
+                .with_mock_string("new comment text")
+                .create()
+                .await
+                .expect("config should be created");
+            let task = test::fixtures::today_task().await;
+            let mut task_count = 1;
+            let result = process_task(vec![], &config, task.clone(), &mut task_count, false).await;
+            // Should return a handle (spawned create_comment)
+            assert!(result.is_ok(), "got error: {result:?}");
+            assert!(result.unwrap().is_some());
+        }
 
-    #[tokio::test]
-    async fn test_process_task_comment_with_existing_new() {
-        let config = test::fixtures::config()
-            .await
-            .mock_selects(vec![3, 1]) // COMMENT (index 3), then "New comment" (index 1 in comment list with 1 existing)
-            .with_mock_string("brand new comment")
-            .create()
-            .await
-            .expect("config should be created");
-        let task = test::fixtures::today_task().await;
-        let comments = vec![crate::test::fixtures::comment()];
-        let mut task_count = 1;
-        let result = process_task(
-            comments.clone(),
-            &config,
-            task.clone(),
-            &mut task_count,
-            false,
-        )
-        .await;
-        assert!(result.is_ok(), "got error: {result:?}");
-        assert!(result.unwrap().is_some());
-    }
+        #[tokio::test]
+        async fn test_process_task_comment_with_existing_new() {
+            let config = test::fixtures::config()
+                .await
+                .mock_selects(vec![3, 1]) // COMMENT (index 3), then "New comment" (index 1 in comment list with 1 existing)
+                .with_mock_string("brand new comment")
+                .create()
+                .await
+                .expect("config should be created");
+            let task = test::fixtures::today_task().await;
+            let comments = vec![crate::test::fixtures::comment()];
+            let mut task_count = 1;
+            let result = process_task(
+                comments.clone(),
+                &config,
+                task.clone(),
+                &mut task_count,
+                false,
+            )
+            .await;
+            assert!(result.is_ok(), "got error: {result:?}");
+            assert!(result.unwrap().is_some());
+        }
 
-    #[tokio::test]
-    async fn test_process_task_comment_edit() {
-        let config = test::fixtures::config()
-            .await
-            .mock_selects(vec![3, 0, 0]) // COMMENT, pick first existing comment, then Edit
-            .with_mock_string("updated text")
-            .create()
-            .await
-            .expect("config should be created");
-        let task = test::fixtures::today_task().await;
-        let comments = vec![crate::test::fixtures::comment()];
-        let mut task_count = 1;
-        let result = process_task(
-            comments.clone(),
-            &config,
-            task.clone(),
-            &mut task_count,
-            false,
-        )
-        .await;
-        assert!(result.is_ok(), "got error: {result:?}");
-        assert!(result.unwrap().is_some());
-    }
+        #[tokio::test]
+        async fn test_process_task_comment_edit() {
+            let config = test::fixtures::config()
+                .await
+                .mock_selects(vec![3, 0, 0]) // COMMENT, pick first existing comment, then Edit
+                .with_mock_string("updated text")
+                .create()
+                .await
+                .expect("config should be created");
+            let task = test::fixtures::today_task().await;
+            let comments = vec![crate::test::fixtures::comment()];
+            let mut task_count = 1;
+            let result = process_task(
+                comments.clone(),
+                &config,
+                task.clone(),
+                &mut task_count,
+                false,
+            )
+            .await;
+            assert!(result.is_ok(), "got error: {result:?}");
+            assert!(result.unwrap().is_some());
+        }
 
-    #[tokio::test]
-    async fn test_process_task_comment_delete() {
-        let config = test::fixtures::config()
-            .await
-            .mock_selects(vec![3, 0, 1]) // COMMENT, pick first existing comment, then Delete
-            .with_mock_string("unused")
-            .create()
-            .await
-            .expect("config should be created");
-        let task = test::fixtures::today_task().await;
-        let comments = vec![crate::test::fixtures::comment()];
-        let mut task_count = 1;
-        let result = process_task(
-            comments.clone(),
-            &config,
-            task.clone(),
-            &mut task_count,
-            false,
-        )
-        .await;
-        assert!(result.is_ok(), "got error: {result:?}");
-        assert!(result.unwrap().is_some());
-    }
+        #[tokio::test]
+        async fn test_process_task_comment_delete() {
+            let config = test::fixtures::config()
+                .await
+                .mock_selects(vec![3, 0, 1]) // COMMENT, pick first existing comment, then Delete
+                .with_mock_string("unused")
+                .create()
+                .await
+                .expect("config should be created");
+            let task = test::fixtures::today_task().await;
+            let comments = vec![crate::test::fixtures::comment()];
+            let mut task_count = 1;
+            let result = process_task(
+                comments.clone(),
+                &config,
+                task.clone(),
+                &mut task_count,
+                false,
+            )
+            .await;
+            assert!(result.is_ok(), "got error: {result:?}");
+            assert!(result.unwrap().is_some());
+        }
 
-    #[tokio::test]
-    async fn test_process_task_comment_back() {
-        let config = test::fixtures::config()
-            .await
-            .mock_selects(vec![3, 0, 2]) // COMMENT, pick first existing comment, then Back
-            .with_mock_string("unused")
-            .create()
-            .await
-            .expect("config should be created");
-        let task = test::fixtures::today_task().await;
-        let comments = vec![crate::test::fixtures::comment()];
-        let mut task_count = 1;
-        let result = process_task(
-            comments.clone(),
-            &config,
-            task.clone(),
-            &mut task_count,
-            false,
-        )
-        .await;
-        // Back returns a no-op spawn handle (still Some)
-        assert!(result.is_ok(), "got error: {result:?}");
-        assert!(result.unwrap().is_some());
-    }
+        #[tokio::test]
+        async fn test_process_task_comment_back() {
+            let config = test::fixtures::config()
+                .await
+                .mock_selects(vec![3, 0, 2]) // COMMENT, pick first existing comment, then Back
+                .with_mock_string("unused")
+                .create()
+                .await
+                .expect("config should be created");
+            let task = test::fixtures::today_task().await;
+            let comments = vec![crate::test::fixtures::comment()];
+            let mut task_count = 1;
+            let result = process_task(
+                comments.clone(),
+                &config,
+                task.clone(),
+                &mut task_count,
+                false,
+            )
+            .await;
+            // Back returns a no-op spawn handle (still Some)
+            assert!(result.is_ok(), "got error: {result:?}");
+            assert!(result.unwrap().is_some());
+        }
 
-    proptest! {
+        proptest! {
             #[test]
             fn priority_serde_roundtrip(priority in arb_priority()) {
                 let json = serde_json::to_string(&priority).unwrap();
