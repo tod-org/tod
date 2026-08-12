@@ -36,6 +36,8 @@ pub const ATTRIBUTES: &str = "Select attributes";
 pub const PROJECT: &str = "Select a project";
 /// Prompt label for label selection.
 pub const LABELS: &str = "Select labels";
+/// Prompt label for single label selection.
+pub const LABEL: &str = "Label:";
 /// Prompt label for section selection.
 pub const SECTION: &str = "Select section";
 /// Prompt label for priority selection.

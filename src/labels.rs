@@ -50,6 +50,21 @@ pub async fn create(
     todoist::create_label(config, name, color, order, is_favorite, true).await
 }
 
+pub async fn update(
+    config: &Config,
+    label_id: &str,
+    name: Option<&str>,
+    color: Option<&str>,
+    order: Option<u32>,
+    is_favorite: Option<bool>,
+) -> Result<Label, Error> {
+    todoist::update_label(config, label_id, name, color, order, is_favorite, true).await
+}
+
+pub async fn delete(config: &Config, label_id: &str) -> Result<String, Error> {
+    todoist::delete_label(config, label_id, true).await
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
