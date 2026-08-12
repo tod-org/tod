@@ -1,0 +1,48 @@
+# Research Questions: Remove mock attributes from config files
+
+Issue: https://github.com/tod-org/tod/issues/1782
+Branch: remove_mock_attributes
+
+## Background
+
+Three mock fields exist on the production `Config` struct (src/config/mod.rs:107-114):
+
+| Field          | Type                        | skip_serializing? | Serialized to config file? |
+|----------------|-----------------------------|--------------------|-----------------------------|
+| `mock_url`     | `Option<String>`           | No                 | **Yes**                     |
+| `mock_string`  | `Option<String>`           | No                 | **Yes**                     |
+| `mock_select`  | `Arc<Mutex<Vec<usize>>>`   | Yes                | No                          |
+
+`mock_select` already has `skip_serializing` + a backward-compatible deserializer that accepts any value and returns an empty default. `mock_url` and `mock_string` do not.
+
+These fields are used exclusively for testing (via `with_mock_url()`, `with_mock_string()`, `mock_select()` builder methods on Config). They let tests inject canned HTTP responses and canned user-input answers.
+
+However, because `mock_url` and `mock_string` lack `skip_serializing`, calling `Config::save()` writes them into the user's config file on disk (`$XDG_CONFIG_HOME/tod.cfg`). This means a test-authored value could leak into a production config.
+
+## Questions
+
+### 1. Can we safely stop serializing `mock_url` and `mock_string`?
+
+Given that `#[serde(default)]` is on the Config struct, `Option<String>` defaults to `None`, and `#[serde(deny_unknown_fields)]` is active:
+
+1a. If we add `#[serde(skip_serializing)]` to `mock_url` and `mock_string` but keep the fields and their deserialization, can existing config files that already have `"mock_url"` and `"mock_string"` keys still deserialize without errors?
+
+1b. What specific serde behavior ensures backward compatibility here — is it `#[serde(default)]` supplying `None` for missing fields, or do we also need a custom deserializer (like `deserialize_mock_select`) to handle existing values?
+
+### 2. Are there any runtime code paths where `mock_url` or `mock_string` get persisted?
+
+2a. In `src/config/mod.rs` around line 400, `Config::check_version()` clones self and spawns a task that calls `cargo::compare_versions(cloned_config.mock_url)`. If a user's config file on disk already contains a `mock_url` from a previous test-tainted save, could this redirect the version check to a stale mock server?
+
+2b. Are there other production code paths that call `save()` while `mock_url` or `mock_string` hold non-None values?
+
+### 3. Could we remove these fields entirely from the Config struct?
+
+3a. If we remove the fields from Config, what breaks in test code that uses `with_mock_url()`, `with_mock_string()`, and `mock_select()`? How many test call sites would need refactoring?
+
+3b. Is there a way to keep the mock values out of Config entirely (e.g., a separate `TestHarness` struct, environment variables, or a global test-only static) while still supporting the existing test patterns?
+
+### 4. What is the minimal safe change?
+
+4a. What is the smallest diff that stops `mock_url` and `mock_string` from being written to config files while keeping all tests passing and backward compatibility with existing config files?
+
+4b. Should we also add a migration that strips these keys from the config file on next load/save, or is it sufficient to just stop writing them going forward?
