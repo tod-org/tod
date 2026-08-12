@@ -109,7 +109,7 @@ async fn test_delete_comment() {
 - [x] `cargo test test_delete_comment -- --nocapture` — `delete_comment` returns `"✓"` on 204
 
 #### Manual
-- [ ] (After full implementation) `tod task edit-comment <real_id> "test"` against live API to confirm response shape
+- [x] (After full implementation) `tod task edit-comment <real_id> "test"` against live API to confirm response shape
 
 ---
 
@@ -395,9 +395,9 @@ Then use these constants in the COMMENT arm instead of string literals.
   - [x] One comment → Back: `mock_selects(vec![3, 0, 2])` → returns no-op spawn (index 0 = existing comment, then index 2 = Back)
 
 #### Manual
-- [ ] `tod list process` → hit COMMENT on a task with comments → see formatted one-liners, select one, edit/delete it
-- [ ] Task with no comments → COMMENT → goes straight to content prompt
-- [ ] Select "Back" → returns to task process loop
+- [x] `tod list process` → hit COMMENT on a task with comments → see formatted one-liners, select one, edit/delete it
+- [x] Task with no comments → COMMENT → goes straight to content prompt
+- [x] Select "Back" → returns to task process loop
 
 ---
 
@@ -619,18 +619,18 @@ async fn delete_comment_json_output() {
 
 ### Verification
 #### Automated
-- [ ] `cargo test edit_comment delete_comment` passes — all 5 new tests green
-- [ ] `cargo test test_update_comment test_delete_comment` — Phase 1 tests still green
-- [ ] `cargo test process_task` — Phase 2 tests still green
-- [ ] `scripts/test.sh` passes (format, clippy, no forbidden strings)
+- [x] `cargo test edit_comment delete_comment` passes — all 5 new tests green
+- [x] `cargo test test_update_comment test_delete_comment` — Phase 1 tests still green
+- [x] `cargo test process_task` — Phase 2 tests still green
+- [x] `scripts/test.sh` passes (format, clippy, no forbidden strings)
 
 #### Manual
-- [ ] `tod task edit-comment <real_comment_id> "updated text"` → success message
-- [ ] `tod task delete-comment <real_comment_id>` → success message
-- [ ] `tod task edit-comment <real_comment_id> --json "updated text"` → JSON output with comment object
-- [ ] `tod task delete-comment <real_comment_id> --json` → `"✓"`
-- [ ] `tod task edit-comment <real_comment_id> --json` (no content) → errors with `json_mode` source
-- [ ] `tod t ec <id> "text"` and `tod t dc <id>` — aliases work
+- [x] `tod task edit-comment <real_comment_id> "updated text"` → success message
+- [x] `tod task delete-comment <real_comment_id>` → success message
+- [x] `tod task edit-comment <real_comment_id> --json "updated text"` → JSON output with comment object
+- [x] `tod task delete-comment <real_comment_id> --json` → `"✓"`
+- [x] `tod task edit-comment <real_comment_id> --json` (no content) → errors with `json_mode` source
+- [x] `tod t ec <id> "text"` and `tod t dc <id>` — aliases work
 - [ ] Verify in Todoist UI that edited content appears / comment is deleted
 
 ---
@@ -672,11 +672,11 @@ Also update the `tod task -h` help output block earlier in the doc (around line 
 
 ### Verification
 #### Automated
-- [ ] `scripts/test.sh` passes — full pipeline (format, build, clippy, tests, forbidden strings)
-- [ ] `grep -A3 "edit-comment\|delete-comment" docs/usage.md` — confirms docs mention new commands
+- [x] `scripts/test.sh` passes — full pipeline (format, build, clippy, tests, forbidden strings)
+- [x] `grep -A3 "edit-comment\|delete-comment" docs/usage.md` — confirms docs mention new commands
 
 #### Manual
-- [ ] Review `docs/usage.md` for accuracy of examples
+- [x] Review `docs/usage.md` for accuracy of examples
 
 ---
 

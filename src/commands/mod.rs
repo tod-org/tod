@@ -634,7 +634,7 @@ pub fn fetch_label<'a>(
         Err(Error::new("json_mode", JSON_INTERACTIVE_ERROR))
     } else {
         let label_names: Vec<String> = labels.iter().map(|l| l.name.clone()).collect();
-        let selected = input::select(input::LABEL, label_names, config.mock_select)?;
+        let selected = input::select(input::LABEL, label_names, &config.mock_select)?;
         Ok(labels
             .iter()
             .find(|l| l.name == selected)
