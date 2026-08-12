@@ -30,9 +30,28 @@
 
 ## Pre-commit checklist
 
-- Run `cargo fmt` to format the codebase
-- Run `scripts/test.sh` to verify formatting, compilation, clippy, tests, and forbidden strings
-- Both must pass before committing
+Run `scripts/test.sh` before committing — it covers `cargo fmt --check`, `cargo check`, `cargo clippy`, `cargo test`, and forbidden-string grep.
+
+## QRS workflow
+
+Features follow a phased workflow with artifacts in `.pi/qrspi/<issue-id>/`:
+
+1. `1_question` — research questions drafted
+2. `2_research` — answers collected; start from the questions file, not from scratch
+3. `3_design` — design document written; **the design must be reviewed and approved by the user before any implementation begins**
+4. `4_implement` — code changes applied
+5. `5_review` — PR opened for review
+6. `6_archive` — artifacts finalized
+
+Each phase gate requires explicit user approval before proceeding to the next.
+
+## Project skills
+
+| Skill | When to use |
+|-------|-------------|
+| `architecture` | Planning features that touch output, serialization, or cross-cutting concerns |
+| `docs-sync` | After implementing a feature that changes the CLI surface area |
+| `testing` | Writing unit/integration tests, mocking Todoist API calls, debugging test failures |
 
 ## GitHub conventions
 
@@ -52,9 +71,7 @@
 
 ## Commits and PRs
 
-- Never push directly to `main` — all changes go through pull requests and are merged into `main`
-- Branch naming: `type/short-description` (e.g. `fix/error-coloring`, `feat/add-foo`)
-- Push the branch to origin before creating a PR: `git push -u origin <branch>`
-- Create PRs with `gh pr create --title "type: description" --body "..." --base main`
-- Commit format follows Conventional Commits (lowercase, 250-char line limit). See `.commitlint.config.mjs` for enforced rules.
-- To fix non-conforming commits after the fact, use an interactive rebase with `GIT_SEQUENCE_EDITOR` to add `exec git commit --amend -m "type: description"` lines after each `pick`, then `git push --force-with-lease`.
+- Never push to `main` — all changes go through PRs. Branch naming: `type/short-description`.
+- Commit format follows Conventional Commits (enforced by `.commitlint.config.mjs`).
+- Create PRs with `gh pr create --title "type: description" --body "..." --base main`.
+- To fix multiple non-conforming commits: `GIT_SEQUENCE_EDITOR` interactive rebase with `exec git commit --amend` lines, then `git push --force-with-lease`.
