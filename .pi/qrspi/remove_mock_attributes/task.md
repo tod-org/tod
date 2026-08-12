@@ -1,0 +1,3 @@
+# Task: Remove mock attributes from config files
+
+The `Config` struct carries three mock-only fields (`mock_url`, `mock_string`, `mock_select`) that exist solely for testing but live on the production struct. While `mock_select` already skips serialization, `mock_url` and `mock_string` can be written to the user's config file on disk, leaking test-authored values into production configs. The goal is to remove all three mock fields from `Config` so they can never pollute user config files, replacing them with a mechanism that is test-only and never touches the serialized config format — while maintaining backward compatibility with existing config files that may contain stale `mock_url`/`mock_string` keys.
