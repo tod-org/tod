@@ -137,6 +137,22 @@ tod section delete -s "Groceries" -p "Shopping" --force
 
 # Repeat mode — keep deleting sections until Ctrl+C
 tod section delete -r
+
+# Create a label
+tod label create --name "Urgent" --color red
+
+# Create a label with favorite and order
+tod label create -n "Personal" -c blue -f -o 1
+
+# Update a label
+tod label update --label "Urgent" --name "Critical"
+tod label update -l "Personal" --color purple
+
+# Delete a label (skip confirmation)
+tod label delete --label "Critical" --force
+
+# Delete a label (interactive prompt)
+tod label delete -l "Purple"
 # Get the next task for a project
 tod task next
 

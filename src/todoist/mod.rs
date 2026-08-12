@@ -512,11 +512,7 @@ pub async fn update_label(
 }
 
 /// Delete a personal label by ID.
-pub async fn delete_label(
-    config: &Config,
-    label_id: &str,
-    spinner: bool,
-) -> Result<String, Error> {
+pub async fn delete_label(config: &Config, label_id: &str, spinner: bool) -> Result<String, Error> {
     let url = format!("{}/{}", LABELS_URL, label_id);
     request::delete_todoist(config, &url, json!({}), spinner).await?;
     Ok("✓".into())
@@ -1178,8 +1174,16 @@ mod tests {
 
         let config = test::fixtures::config().await.with_mock_url(server.url());
 
-        let result =
-            update_label(&config, "123", Some("new-name"), Some("blue"), None, None, false).await;
+        let result = update_label(
+            &config,
+            "123",
+            Some("new-name"),
+            Some("blue"),
+            None,
+            None,
+            false,
+        )
+        .await;
         assert_eq!(result, Ok(test::fixtures::label()));
         mock.assert();
     }

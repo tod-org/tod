@@ -779,16 +779,16 @@ Note: Read the existing `docs/usage.md` to find the exact "Sections" section loc
 ### Verification
 
 #### Automated
-- [ ] `scripts/test.sh` passes clean (fmt, build, clippy, tests, forbidden strings)
-- [ ] No `dbg!`, `TODO`, `FIXME`, `DEBUG:`, or `FIXTURE:` strings in any `.rs` file
+- [x] `scripts/test.sh` passes clean (fmt, build, clippy, tests, forbidden strings)
+- [x] No `dbg!`, `TODO`, `FIXME`, `DEBUG:`, or `FIXTURE:` strings in any `.rs` file
 
 #### Manual
-- [ ] `tod -h` shows `label` / `b` in the command list
-- [ ] `tod label -h` shows all three subcommands with correct aliases:
+- [x] `tod -h` shows `label` / `b` in the command list
+- [x] `tod label -h` shows all three subcommands with correct aliases:
   - `create` / `c`
   - `update` / `u`
   - `delete` / `d`
-- [ ] `docs/usage.md` renders correctly (check in editor)
+- [x] `docs/usage.md` renders correctly (check in editor)
 
 ---
 
