@@ -862,6 +862,33 @@ pub async fn create_comment(
     Comment::from_json(&response)
 }
 
+/// Updates the content of a comment by ID.
+pub async fn update_comment(
+    config: &Config,
+    comment_id: &str,
+    content: &str,
+    spinner: bool,
+) -> Result<Comment, Error> {
+    let body = json!({"content": content});
+    let url = format!("{COMMENTS_URL}{comment_id}");
+
+    let response = request::post_todoist(config, &url, body, spinner).await?;
+    Comment::from_json(&response)
+}
+
+/// Deletes a comment by ID. The Todoist API returns 204 No Content.
+pub async fn delete_comment(
+    config: &Config,
+    comment_id: &str,
+    spinner: bool,
+) -> Result<String, Error> {
+    let url = format!("{COMMENTS_URL}{comment_id}");
+
+    request::delete_todoist(config, &url, json!({}), spinner).await?;
+    // Does not pass back a comment
+    Ok("✓".into())
+}
+
 /// Fetches the authenticated user's data.
 pub async fn get_user_data(config: &Config) -> Result<User, Error> {
     let url = USER_URL.to_string();
@@ -1249,6 +1276,51 @@ mod tests {
             create_comment(&config, &task.id, "New comment", true).await,
             Ok(comment)
         );
+        mock.assert();
+    }
+
+    #[tokio::test]
+    async fn test_update_comment() {
+        let mut server = mockito::Server::new_async().await;
+        let mock = server
+            .mock("POST", "/api/v1/comments/123")
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(ResponseFromFile::Comment.read().await)
+            .create_async()
+            .await;
+
+        let config = test::fixtures::config()
+            .await
+            .with_mock_url(server.url());
+
+        let comment = update_comment(&config, "123", "updated content", false)
+            .await
+            .expect("expected value or result, got None or Err");
+
+        assert_eq!(comment.id, "2992679862");
+        assert_eq!(comment.content, "Need one bottle of milk");
+        mock.assert();
+    }
+
+    #[tokio::test]
+    async fn test_delete_comment() {
+        let mut server = mockito::Server::new_async().await;
+        let mock = server
+            .mock("DELETE", "/api/v1/comments/123")
+            .with_status(204)
+            .create_async()
+            .await;
+
+        let config = test::fixtures::config()
+            .await
+            .with_mock_url(server.url());
+
+        let result = delete_comment(&config, "123", false)
+            .await
+            .expect("expected value or result, got None or Err");
+
+        assert_eq!(result, "✓");
         mock.assert();
     }
 
