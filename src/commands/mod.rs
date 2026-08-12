@@ -620,7 +620,10 @@ pub fn fetch_label<'a>(
     } else {
         let label_names: Vec<String> = labels.iter().map(|l| l.name.clone()).collect();
         let selected = input::select(input::LABEL, label_names, config.mock_select)?;
-        Ok(labels.iter().find(|l| l.name == selected).unwrap())
+        Ok(labels
+            .iter()
+            .find(|l| l.name == selected)
+            .expect("selected label must exist in labels slice"))
     }
 }
 

@@ -54,7 +54,7 @@ pub struct Update {
 
     #[arg(short = 'f', long)]
     /// Toggle favorite status (true or false)
-    favorite: Option<bool>,
+    is_favorite: Option<bool>,
 }
 
 #[derive(Parser, Debug, Clone)]
@@ -96,17 +96,20 @@ pub async fn update(config: &Config, args: &Update, json: bool) -> Result<String
         name,
         color,
         order,
-        favorite,
+        is_favorite,
     } = args;
 
-    if name.is_none() && color.is_none() && order.is_none() && favorite.is_none() {
+    if name.is_none() && color.is_none() && order.is_none() && is_favorite.is_none() {
         return Err(Error::new(
             "update_label",
-            "At least one of --name, --color, --order, or --favorite is required",
+            "At least one of --name, --color, --order, or --is-favorite is required",
         ));
     }
 
     let labels_list = labels::get_labels(config, true).await?;
+    if labels_list.is_empty() {
+        return Ok("No labels found".into());
+    }
     let target = super::fetch_label(label.as_deref(), config, &labels_list)?;
 
     let updated = labels::update(
@@ -115,7 +118,7 @@ pub async fn update(config: &Config, args: &Update, json: bool) -> Result<String
         name.as_deref(),
         color.as_deref(),
         *order,
-        *favorite,
+        *is_favorite,
     )
     .await?;
     if json {
@@ -193,7 +196,7 @@ mod tests {
             name: None,
             color: None,
             order: None,
-            favorite: None,
+            is_favorite: None,
         };
 
         let error = update(&config, &args, false)
