@@ -700,6 +700,16 @@ pub async fn complete_task(config: &Config, task_id: &str, spinner: bool) -> Res
     Ok("✓".into())
 }
 
+/// Reopens a completed task by its ID. Does not return a new task (the API yields no data).
+pub async fn reopen_task(config: &Config, task_id: &str, spinner: bool) -> Result<String, Error> {
+    let url = format!("{TASKS_URL}{task_id}/reopen");
+
+    request::post_todoist(config, &url, Value::Null, spinner).await?;
+    // No side effects — reopening doesn't change what's "next"
+    // API does not pass back a task
+    Ok("✓".into())
+}
+
 /// Deletes a task by ID.
 pub async fn delete_task(config: &Config, task_id: &str, spinner: bool) -> Result<String, Error> {
     let body = json!({});
@@ -1273,6 +1283,24 @@ mod tests {
             .await
             .expect("Did not complete task");
         mock.assert();
+        assert_eq!(response, String::from("✓"));
+    }
+
+    #[tokio::test]
+    async fn test_reopen_task() {
+        let mut server = mockito::Server::new_async().await;
+        let mock = server
+            .mock("POST", "/api/v1/tasks/6Xqhv4cwxgjwG9w8/reopen")
+            .with_status(204)
+            .create_async()
+            .await;
+
+        let config = test::fixtures::config().await.with_mock_url(server.url());
+        let task = test::fixtures::today_task().await;
+        let response = reopen_task(&config, &task.id, false)
+            .await
+            .expect("Did not reopen task");
+        mock.assert_async().await;
         assert_eq!(response, String::from("✓"));
     }
 
