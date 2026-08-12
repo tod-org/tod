@@ -48,6 +48,7 @@ Commands:
   edit       (e) Edit an existing task's content
   next       (n) Get the next task by priority
   complete   (o) Complete the last task fetched with the next command
+  reopen     (r) Reopen the last completed task
   help       Print this message or the help of the given subcommand(s)
 
 Options:
@@ -164,6 +165,9 @@ tod list process
 
 # Complete the last "next task" and get another
 tod task complete && tod task next
+
+# Reopen the last completed task
+tod task reopen
 
 # Get all tasks for work
 tod list view --project work
