@@ -79,7 +79,7 @@ pub async fn delete(config: &Config, args: &Delete, json: bool) -> Result<String
             return Err(Error::new("json_mode", super::JSON_INTERACTIVE_ERROR));
         } else {
             let section_names: Vec<String> = sections.iter().map(|s| s.name.clone()).collect();
-            let selected = input::select(input::SECTION, section_names, config.mock_select)?;
+            let selected = input::select(input::SECTION, section_names, &config.mock_select)?;
             sections.into_iter().find(|s| s.name == selected).unwrap()
         };
 
@@ -92,7 +92,7 @@ pub async fn delete(config: &Config, args: &Delete, json: bool) -> Result<String
                 "Delete section \"{}\"? Tasks inside will also be deleted.",
                 section.name
             );
-            let result = input::select(&desc, options, config.mock_select)?;
+            let result = input::select(&desc, options, &config.mock_select)?;
             if result == input::CANCEL {
                 return Ok("Cancelled".into());
             }

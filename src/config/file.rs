@@ -72,6 +72,7 @@ impl Config {
         Config::load(&self.path).await.map(|config| Config {
             internal: self.internal.clone(),
             time_provider: self.time_provider.clone(),
+            mock_select: self.mock_select.clone(),
             ..config
         })
     }

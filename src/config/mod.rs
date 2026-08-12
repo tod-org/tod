@@ -14,6 +14,7 @@ use regex::Regex;
 use serde::de::Error as DeError;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::path::PathBuf;
+use std::sync::{Arc, Mutex};
 use terminal_size::{Height, Width, terminal_size};
 use tokio::sync::mpsc::UnboundedSender;
 
@@ -91,7 +92,8 @@ pub struct Config {
     pub last_version_check: Option<String>,
     pub mock_url: Option<String>,
     pub mock_string: Option<String>,
-    pub mock_select: Option<usize>,
+    #[serde(skip)]
+    pub mock_select: Arc<Mutex<Vec<usize>>>,
     /// Whether spinners are enabled
     pub spinners: Option<bool>,
     #[serde(default)]
@@ -482,7 +484,7 @@ impl Config {
             no_sections: None,
             natural_language_only: None,
             mock_string: None,
-            mock_select: None,
+            mock_select: Arc::new(Mutex::new(Vec::new())),
             max_comment_length: None,
             comment_exclude_regex: None,
             task_exclude_regex: None,
@@ -597,14 +599,14 @@ impl Config {
             bell_on_failure
             Ring terminal bell if a command fails
         ";
-        let bell_on_failure = input::bool(desc, bell_on_failure, mock_select)?;
+        let bell_on_failure = input::bool(desc, bell_on_failure, &mock_select)?;
 
         // --- bell_on_success
         let desc = "
             bell_on_success
             Ring terminal bell if a command succeeds
         ";
-        let bell_on_success = input::bool(desc, bell_on_success, mock_select)?;
+        let bell_on_success = input::bool(desc, bell_on_success, &mock_select)?;
 
         // --- spinners
         let desc = "
@@ -612,7 +614,7 @@ impl Config {
             Display a spinner in terminal while waiting for an API call to complete
         ";
         let default_value = spinners.unwrap_or(true);
-        let spinners = Some(input::bool(desc, default_value, mock_select)?);
+        let spinners = Some(input::bool(desc, default_value, &mock_select)?);
 
         // --- verbose
         let desc = "
@@ -620,7 +622,7 @@ impl Config {
             Output additional information to assist with debugging issues
         ";
         let default_value = verbose.unwrap_or(false);
-        let verbose = Some(input::bool(desc, default_value, mock_select)?);
+        let verbose = Some(input::bool(desc, default_value, &mock_select)?);
 
         // --- natural_language_only
         let desc = "
@@ -628,14 +630,14 @@ impl Config {
             Skip the date-picker menu and go straight to natural language input for datetime selection
         ";
         let default_value = natural_language_only.unwrap_or(false);
-        let natural_language_only = Some(input::bool(desc, default_value, mock_select)?);
+        let natural_language_only = Some(input::bool(desc, default_value, &mock_select)?);
 
         // --- disable_links
         let desc = "
             disable_links
             Disable terminal hyperlinks in output
         ";
-        let disable_links = input::bool(desc, disable_links, mock_select)?;
+        let disable_links = input::bool(desc, disable_links, &mock_select)?;
 
         // --- no_sections
         let desc = "
@@ -643,7 +645,7 @@ impl Config {
             Do not prompt a user to select a section when working with projects
         ";
         let default_value = no_sections.unwrap_or(false);
-        let no_sections = Some(input::bool(desc, default_value, mock_select)?);
+        let no_sections = Some(input::bool(desc, default_value, &mock_select)?);
 
         // --- token
         let desc = format!(
@@ -764,7 +766,7 @@ impl Default for Config {
             no_sections: None,
             natural_language_only: None,
             mock_string: None,
-            mock_select: None,
+            mock_select: Arc::new(Mutex::new(Vec::new())),
             max_comment_length: None,
             verbose: None,
             internal: Internal { tx: None },
@@ -818,7 +820,7 @@ mod tests {
                 last_version_check: None,
                 mock_url: None,
                 mock_string: None,
-                mock_select: None,
+                mock_select: Arc::new(Mutex::new(Vec::new())),
                 spinners: None,
                 disable_links: false,
                 completed: None,
@@ -845,7 +847,14 @@ mod tests {
 
         pub fn mock_select(self, index: usize) -> Config {
             Config {
-                mock_select: Some(index),
+                mock_select: Arc::new(Mutex::new(vec![index])),
+                ..self
+            }
+        }
+
+        pub fn mock_selects(self, selects: Vec<usize>) -> Config {
+            Config {
+                mock_select: Arc::new(Mutex::new(selects)),
                 ..self
             }
         }
@@ -1038,7 +1047,7 @@ mod tests {
         );
 
         let select_config = base_config.clone().mock_select(2);
-        assert_eq!(select_config.mock_select, Some(2));
+        assert_eq!(*select_config.mock_select.lock().unwrap(), vec![2]);
 
         let path_config = base_config.with_path(PathBuf::from("some/test/path.cfg"));
         assert_eq!(path_config.path, PathBuf::from("some/test/path.cfg"));

@@ -163,7 +163,7 @@ pub async fn create(config: Config, args: &Create, json: bool) -> Result<String,
             return Err(Error::new("json_mode", super::JSON_INTERACTIVE_ERROR));
         }
         let options = tasks::create_task_attributes();
-        let selections = input::multi_select(input::ATTRIBUTES, options, config.mock_select)?;
+        let selections = input::multi_select(input::ATTRIBUTES, options, &config.mock_select)?;
 
         let content = super::fetch_string(None, &config, input::CONTENT)?;
 
@@ -180,7 +180,7 @@ pub async fn create(config: Config, args: &Create, json: bool) -> Result<String,
         };
         let due = if selections.contains(&TaskAttribute::Due) {
             let datetime_input = input::datetime(
-                config.mock_select,
+                &config.mock_select,
                 config.mock_string.clone(),
                 config.natural_language_only,
                 false,
@@ -198,7 +198,7 @@ pub async fn create(config: Config, args: &Create, json: bool) -> Result<String,
 
         let labels = if selections.contains(&TaskAttribute::Labels) {
             let all_labels = labels::get_labels(&config, false).await?;
-            input::multi_select(input::LABELS, all_labels, config.mock_select)?
+            input::multi_select(input::LABELS, all_labels, &config.mock_select)?
         } else {
             Vec::new()
         }
@@ -461,11 +461,11 @@ mod tests {
             .create_async()
             .await;
 
-        let mut config = test::fixtures::config()
+        let config = test::fixtures::config()
             .await
             .with_mock_url(server.url())
-            .with_time_provider(TimeProviderEnum::Fixed(FixedTimeProvider));
-        config.mock_select = Some(0);
+            .with_time_provider(TimeProviderEnum::Fixed(FixedTimeProvider))
+            .mock_select(0);
 
         let args = Edit {
             project: None,

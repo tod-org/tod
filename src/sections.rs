@@ -61,7 +61,7 @@ pub async fn select_section(config: &Config, project: &Project) -> Result<Option
         Ok(None)
     } else {
         section_names.insert(0, "No section".to_string());
-        let section_name = input::select(input::SECTION, section_names, config.mock_select)?;
+        let section_name = input::select(input::SECTION, section_names, &config.mock_select)?;
 
         let section = sections
             .iter()

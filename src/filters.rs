@@ -19,11 +19,11 @@ pub async fn edit_task(config: &Config, filter: String) -> Result<String, Error>
         .flat_map(|(_, tasks)| tasks)
         .collect::<Vec<Task>>();
 
-    let task = input::select(input::TASK, tasks, config.mock_select)?;
+    let task = input::select(input::TASK, tasks, &config.mock_select)?;
 
     let options = tasks::edit_task_attributes();
 
-    let selections = input::multi_select(input::ATTRIBUTES, options, config.mock_select)?;
+    let selections = input::multi_select(input::ATTRIBUTES, options, &config.mock_select)?;
 
     if selections.is_empty() {
         return Err(Error {

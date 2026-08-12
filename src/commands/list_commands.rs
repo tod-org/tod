@@ -450,7 +450,7 @@ fn select_file(path_or_file: String, config: &Config) -> Result<String, Error> {
             .collect::<Vec<String>>();
         options.sort();
         options.dedup();
-        let path = input::select("Select file to process", options, config.mock_select)?;
+        let path = input::select("Select file to process", options, &config.mock_select)?;
 
         Ok(path)
     } else if Path::is_file(path) {

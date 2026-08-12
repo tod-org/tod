@@ -318,7 +318,7 @@ pub async fn remove_all(config: &mut Config) -> Result<String, Error> {
     let selection = input::select(
         "Confirm removing all projects from config",
         options,
-        config.mock_select,
+        &config.mock_select,
     )?;
 
     if selection == "Cancel" {
@@ -495,7 +495,7 @@ async fn maybe_add_project(
 
     let options = vec!["add", "skip"];
     println!("{project}");
-    match input::select("Select an option", options, config.mock_select) {
+    match input::select("Select an option", options, &config.mock_select) {
         Ok(string) => {
             if string == "add" {
                 add(config, &project).await
@@ -516,12 +516,12 @@ pub async fn edit_task(config: &Config, project: &Project) -> Result<String, Err
     let task = input::select(
         "Choose a task of the project:",
         project_tasks,
-        config.mock_select,
+        &config.mock_select,
     )?;
 
     let options = tasks::edit_task_attributes();
 
-    let selections = input::multi_select("Choose attributes to edit", options, config.mock_select)?;
+    let selections = input::multi_select("Choose attributes to edit", options, &config.mock_select)?;
 
     if selections.is_empty() {
         return Err(Error {
@@ -674,7 +674,7 @@ pub async fn move_task_to_project(
         .iter()
         .map(std::string::ToString::to_string)
         .collect::<Vec<String>>();
-    let selection = input::select("Choose", options, config.mock_select)?;
+    let selection = input::select("Choose", options, &config.mock_select)?;
 
     match selection.as_str() {
         "Complete" => Ok(tasks::spawn_complete_task(config.clone(), task.id)),
@@ -683,7 +683,7 @@ pub async fn move_task_to_project(
         "Skip" => Ok(tokio::spawn(async move {})),
         _ => {
             let projects = config.projects().await?;
-            let project = input::select("Select project", projects, config.mock_select)?;
+            let project = input::select("Select project", projects, &config.mock_select)?;
 
             let sections: Vec<Section> = sections
                 .iter()
@@ -706,7 +706,7 @@ pub async fn move_task_to_project(
                 }))
             } else {
                 let section_name =
-                    input::select("Select section", section_names, config.mock_select)?;
+                    input::select("Select section", section_names, &config.mock_select)?;
                 let section = sections
                     .iter()
                     .find(|x| x.name == section_name.as_str())
