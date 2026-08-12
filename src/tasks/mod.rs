@@ -465,7 +465,7 @@ pub async fn update_task(
             let value = &task.priority;
             let priorities = priority::all_priorities();
 
-            let new_value = input::select("Select your priority:", priorities, config.mock_select)?;
+            let new_value = input::select("Select your priority:", priorities, &config.mock_select)?;
             if *value == new_value {
                 Ok(None)
             } else {
@@ -503,7 +503,7 @@ pub async fn label_task(
     println!("{text}");
     let mut options = labels.to_vec();
     options.push(input::SKIP.to_string());
-    let label = input::select("Select label", options, config.mock_select)?;
+    let label = input::select("Select label", options, &config.mock_select)?;
 
     let config = config.clone();
     Ok(tokio::spawn(async move {
@@ -541,7 +541,7 @@ pub async fn process_task(
     let tasks_completed = reloaded_config.tasks_completed()?;
     println!("{formatted_task}{tasks_completed} completed today, {task_count} remaining");
     *task_count -= 1;
-    let selection = input::select(input::OPTION, options, config.mock_select)?;
+    let selection = input::select(input::OPTION, options, &config.mock_select)?;
     match selection.as_str() {
         input::COMPLETE => {
             if let Err(e) = reloaded_config.save().await {
@@ -605,7 +605,7 @@ pub async fn timebox_task(
         .await?;
     println!("{formatted_task}{task_count} task(s) remaining");
     *task_count -= 1;
-    let selection = input::select("Select an option", options, config.mock_select)?;
+    let selection = input::select("Select an option", options, &config.mock_select)?;
     match selection.as_str() {
         input::TIMEBOX => {
             let (due_string, duration) = get_timebox(config, &task)?;
@@ -675,7 +675,7 @@ pub async fn spawn_schedule_task(
         .await?;
     println!("{text}");
     let datetime_input = input::datetime(
-        config.mock_select,
+        &config.mock_select,
         config.mock_string.clone(),
         config.natural_language_only,
         false,
@@ -709,7 +709,7 @@ pub async fn spawn_deadline_task(
         .await?;
     println!("{text}");
     let datetime_input = input::datetime(
-        config.mock_select,
+        &config.mock_select,
         config.mock_string.clone(),
         config.natural_language_only,
         true,
@@ -979,7 +979,7 @@ pub async fn set_priority(
         Priority::Medium,
         Priority::High,
     ];
-    let priority = input::select(input::PRIORITY, options, config.mock_select)?;
+    let priority = input::select(input::PRIORITY, options, &config.mock_select)?;
 
     let config = config.clone();
     Ok(tokio::spawn(async move {
@@ -995,7 +995,7 @@ pub async fn create_reminder(config: &Config, task: Task) -> Result<Option<JoinH
     let text = task.fmt(comments, config, FormatType::Single, true).await?;
     println!("{text}");
     let datetime_input = input::datetime(
-        config.mock_select,
+        &config.mock_select,
         config.mock_string.clone(),
         // We only want to use natural language for this input
         Some(true),

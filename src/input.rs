@@ -3,6 +3,7 @@
 use crate::errors::Error;
 use inquire::{Confirm, CustomType, DateSelect, MultiSelect, Select, Text};
 use std::fmt::Display;
+use std::sync::Mutex;
 use terminal_size::{Height, Width, terminal_size};
 
 // These constants are used throughout the app
@@ -91,7 +92,7 @@ pub enum DateTimeInput {
 /// `skip_or_complete` enables the skip and complete options;
 /// it is generally true when processing tasks.
 pub fn datetime(
-    mock_select: Option<usize>,
+    mock_selects: &Mutex<Vec<usize>>,
     mock_string: Option<String>,
     natural_language_only: Option<bool>,
     no_natural_language: bool,
@@ -102,15 +103,15 @@ pub fn datetime(
     } else if no_natural_language && skip_or_complete {
         let options = vec![SELECT_DATE, NO_DATE, SKIP, COMPLETE];
         let description = DATE;
-        select(description, options, mock_select)?
+        select(description, options, mock_selects)?
     } else if !no_natural_language && skip_or_complete {
         let options = vec![SELECT_DATE, NAT_LANG, NO_DATE, SKIP, COMPLETE];
         let description = DATE;
-        select(description, options, mock_select)?
+        select(description, options, mock_selects)?
     } else {
         let options = vec![SELECT_DATE, NAT_LANG, NO_DATE];
         let description = DATE;
-        select(description, options, mock_select)?
+        select(description, options, mock_selects)?
     };
 
     match selection {
@@ -213,19 +214,19 @@ pub fn number_with_default(desc: &str, default_message: usize) -> Result<usize, 
 }
 
 /// Prompts the user for a boolean value.
-pub fn bool(desc: &str, default_value: bool, mock_select: Option<usize>) -> Result<bool, Error> {
+pub fn bool(desc: &str, default_value: bool, mock_selects: &Mutex<Vec<usize>>) -> Result<bool, Error> {
     let options = vec![true, false];
     let cursor_index = usize::from(!default_value);
-    select_with_cursor_index(desc, options, cursor_index, mock_select)
+    select_with_cursor_index(desc, options, cursor_index, mock_selects)
 }
 
 /// Select an input from a list
 pub fn select<T: Display>(
     desc: &str,
     options: Vec<T>,
-    mock_select: Option<usize>,
+    mock_selects: &Mutex<Vec<usize>>,
 ) -> Result<T, Error> {
-    select_with_cursor_index(desc, options, 0, mock_select)
+    select_with_cursor_index(desc, options, 0, mock_selects)
 }
 
 /// Select an input from a list, with a cursor index
@@ -233,17 +234,21 @@ pub fn select_with_cursor_index<T: Display>(
     desc: &str,
     options: Vec<T>,
     cursor_index: usize,
-    mock_select: Option<usize>,
+    mock_selects: &Mutex<Vec<usize>>,
 ) -> Result<T, Error> {
     if cfg!(test) {
-        if let Some(index) = mock_select {
-            Ok(options
-                .into_iter()
-                .nth(index)
-                .expect("Must provide a vector of options"))
+        let mut selects = mock_selects.lock().unwrap();
+        let index = if selects.len() <= 1 {
+            // Singleton or empty: peek (backward-compatible, never consumes)
+            *selects.first().unwrap_or(&0)
         } else {
-            panic!("Must set mock_select in config")
-        }
+            // Multiple values: consume sequentially
+            selects.remove(0)
+        };
+        Ok(options
+            .into_iter()
+            .nth(index)
+            .expect("Must provide a vector of options"))
     } else {
         Select::new(desc, options)
             .with_page_size(page_size() / 2) //Fixing bug with page size
@@ -257,18 +262,20 @@ pub fn select_with_cursor_index<T: Display>(
 pub fn multi_select<T: Display>(
     desc: &str,
     options: Vec<T>,
-    mock_select: Option<usize>,
+    mock_selects: &Mutex<Vec<usize>>,
 ) -> Result<Vec<T>, Error> {
     if cfg!(test) {
-        if let Some(index) = mock_select {
-            let value = options
-                .into_iter()
-                .nth(index)
-                .expect("Must provide a vector of options");
-            Ok(vec![value])
+        let mut selects = mock_selects.lock().unwrap();
+        let index = if selects.len() <= 1 {
+            *selects.first().unwrap_or(&0)
         } else {
-            panic!("Must set mock_select in config")
-        }
+            selects.remove(0)
+        };
+        let value = options
+            .into_iter()
+            .nth(index)
+            .expect("Must provide a vector of options");
+        Ok(vec![value])
     } else {
         MultiSelect::new(desc, options)
             .with_page_size(page_size() / 2) //Fixing bug with page size
@@ -291,14 +298,15 @@ pub fn page_size() -> usize {
 mod tests {
     use super::*;
     use pretty_assertions::assert_eq;
+    use std::sync::Arc;
 
     #[test]
     fn can_select() {
-        let result = select("type", vec!["there", "are", "words"], Some(0));
+        let result = select("type", vec!["there", "are", "words"], &Arc::new(Mutex::new(vec![0])));
         let expected = Ok("there");
         assert_eq!(result, expected);
 
-        let result = select("type", vec!["there", "are", "words"], Some(1));
+        let result = select("type", vec!["there", "are", "words"], &Arc::new(Mutex::new(vec![1])));
         let expected = Ok("are");
         assert_eq!(result, expected);
     }
@@ -306,7 +314,7 @@ mod tests {
     #[test]
     fn datetime_natural_language_only_returns_text() {
         let result = datetime(
-            None,
+            &Arc::new(Mutex::new(Vec::new())),
             Some("tomorrow at 3pm".into()),
             Some(true),
             false,
@@ -317,67 +325,67 @@ mod tests {
 
     #[test]
     fn datetime_no_natural_language_skip_complete_select_no_date() {
-        let result = datetime(Some(1), None, None, true, true);
+        let result = datetime(&Arc::new(Mutex::new(vec![1])), None, None, true, true);
         assert_eq!(result, Ok(DateTimeInput::None));
     }
 
     #[test]
     fn datetime_no_natural_language_skip_complete_select_skip() {
-        let result = datetime(Some(2), None, None, true, true);
+        let result = datetime(&Arc::new(Mutex::new(vec![2])), None, None, true, true);
         assert_eq!(result, Ok(DateTimeInput::Skip));
     }
 
     #[test]
     fn datetime_no_natural_language_skip_complete_select_complete() {
-        let result = datetime(Some(3), None, None, true, true);
+        let result = datetime(&Arc::new(Mutex::new(vec![3])), None, None, true, true);
         assert_eq!(result, Ok(DateTimeInput::Complete));
     }
 
     #[test]
     fn datetime_nat_lang_with_skip_complete_enter_none() {
-        let result = datetime(Some(1), Some("none".into()), None, false, true);
+        let result = datetime(&Arc::new(Mutex::new(vec![1])), Some("none".into()), None, false, true);
         assert_eq!(result, Ok(DateTimeInput::None));
     }
 
     #[test]
     fn datetime_nat_lang_with_skip_complete_enter_skip() {
-        let result = datetime(Some(1), Some("skip".into()), None, false, true);
+        let result = datetime(&Arc::new(Mutex::new(vec![1])), Some("skip".into()), None, false, true);
         assert_eq!(result, Ok(DateTimeInput::Skip));
     }
 
     #[test]
     fn datetime_nat_lang_with_skip_complete_enter_complete() {
-        let result = datetime(Some(1), Some("complete".into()), None, false, true);
+        let result = datetime(&Arc::new(Mutex::new(vec![1])), Some("complete".into()), None, false, true);
         assert_eq!(result, Ok(DateTimeInput::Complete));
     }
 
     #[test]
     fn datetime_nat_lang_with_skip_complete_enter_free_text() {
-        let result = datetime(Some(1), Some("next Monday".into()), None, false, true);
+        let result = datetime(&Arc::new(Mutex::new(vec![1])), Some("next Monday".into()), None, false, true);
         assert_eq!(result, Ok(DateTimeInput::Text("next Monday".into())));
     }
 
     #[test]
     fn datetime_nat_lang_without_skip_complete_enter_none() {
-        let result = datetime(Some(1), Some("none".into()), None, false, false);
+        let result = datetime(&Arc::new(Mutex::new(vec![1])), Some("none".into()), None, false, false);
         assert_eq!(result, Ok(DateTimeInput::None));
     }
 
     #[test]
     fn datetime_nat_lang_without_skip_complete_enter_short_n() {
-        let result = datetime(Some(1), Some("n".into()), None, false, false);
+        let result = datetime(&Arc::new(Mutex::new(vec![1])), Some("n".into()), None, false, false);
         assert_eq!(result, Ok(DateTimeInput::None));
     }
 
     #[test]
     fn datetime_nat_lang_without_skip_complete_enter_free_text() {
-        let result = datetime(Some(1), Some("Friday".into()), None, false, false);
+        let result = datetime(&Arc::new(Mutex::new(vec![1])), Some("Friday".into()), None, false, false);
         assert_eq!(result, Ok(DateTimeInput::Text("Friday".into())));
     }
 
     #[test]
     fn datetime_select_no_date_from_default_options() {
-        let result = datetime(Some(2), None, None, false, false);
+        let result = datetime(&Arc::new(Mutex::new(vec![2])), None, None, false, false);
         assert_eq!(result, Ok(DateTimeInput::None));
     }
 
@@ -387,7 +395,7 @@ mod tests {
         // With the correct code, the else branch fires with options:
         // [SELECT_DATE(0), NAT_LANG(1), NO_DATE(2)]
         // mock_select=2 selects NO_DATE.
-        let result = datetime(Some(2), None, None, false, false);
+        let result = datetime(&Arc::new(Mutex::new(vec![2])), None, None, false, false);
         assert_eq!(result, Ok(DateTimeInput::None));
     }
 
@@ -395,7 +403,7 @@ mod tests {
     fn bool_select_returns_false_when_cursor_starts_on_true() {
         // default_value=true → cursor starts on false (index 1)
         // mock_select=0 overrides and picks the first option (true)
-        let result = bool("test", true, Some(0));
+        let result = bool("test", true, &Arc::new(Mutex::new(vec![0])));
         assert_eq!(result, Ok(true));
     }
 
@@ -403,7 +411,7 @@ mod tests {
     fn bool_select_returns_true_when_cursor_starts_on_false() {
         // default_value=false → cursor starts on true (index 0)
         // mock_select=1 picks the second option (false)
-        let result = bool("test", false, Some(1));
+        let result = bool("test", false, &Arc::new(Mutex::new(vec![1])));
         assert_eq!(result, Ok(false));
     }
 
@@ -412,7 +420,7 @@ mod tests {
         // no_natural_language=true, skip_or_complete=false
         // Must not match no_natural_language && skip_or_complete.
         // Goes to else branch with options: [SELECT_DATE(0), NAT_LANG(1), NO_DATE(2)]
-        let result = datetime(Some(2), None, None, true, false);
+        let result = datetime(&Arc::new(Mutex::new(vec![2])), None, None, true, false);
         assert_eq!(result, Ok(DateTimeInput::None));
     }
 
@@ -422,7 +430,7 @@ mod tests {
         // no_natural_language=false, skip_or_complete=false
         // Original (&&): !false && false = false → else (3 options) → mock_select=3 panics
         // Mutant  (||): !false || false = true  → branch (5 options) → mock_select=3 → SKIP
-        let _ = datetime(Some(3), None, None, false, false);
+        let _ = datetime(&Arc::new(Mutex::new(vec![3])), None, None, false, false);
     }
 
     #[test]

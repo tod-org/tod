@@ -104,9 +104,9 @@ async fn test_delete_comment() {
 
 ### Verification
 #### Automated
-- [ ] `cargo test update_comment delete_comment` passes
-- [ ] `cargo test test_update_comment -- --nocapture` — `update_comment` returns parsed `Comment` matching `Comment.json` fixture
-- [ ] `cargo test test_delete_comment -- --nocapture` — `delete_comment` returns `"✓"` on 204
+- [x] `cargo test update_comment delete_comment` passes
+- [x] `cargo test test_update_comment -- --nocapture` — `update_comment` returns parsed `Comment` matching `Comment.json` fixture
+- [x] `cargo test test_delete_comment -- --nocapture` — `delete_comment` returns `"✓"` on 204
 
 #### Manual
 - [ ] (After full implementation) `tod task edit-comment <real_id> "test"` against live API to confirm response shape

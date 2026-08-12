@@ -565,7 +565,7 @@ async fn fetch_project(project_name: Option<&str>, config: &Config) -> Result<Fl
             if config.args.json {
                 return Err(Error::new("json_mode", JSON_INTERACTIVE_ERROR));
             }
-            input::select(input::PROJECT, projects, config.mock_select).map(Flag::Project)
+            input::select(input::PROJECT, projects, &config.mock_select).map(Flag::Project)
         }
     }
 }
@@ -601,7 +601,7 @@ async fn fetch_project_or_filter(
                 return Err(Error::new("json_mode", JSON_INTERACTIVE_ERROR));
             }
             let options = vec![FlagOptions::Project, FlagOptions::Filter];
-            match input::select(input::OPTION, options, config.mock_select)? {
+            match input::select(input::OPTION, options, &config.mock_select)? {
                 FlagOptions::Project => fetch_project(project, config).await,
                 FlagOptions::Filter => fetch_filter(filter, config),
             }
@@ -646,7 +646,7 @@ fn fetch_priority(priority: Option<u8>, config: &Config) -> Result<Priority, Err
             Priority::Medium,
             Priority::High,
         ];
-        input::select(input::PRIORITY, options, config.mock_select)
+        input::select(input::PRIORITY, options, &config.mock_select)
     }
 }
 
@@ -778,8 +778,7 @@ mod tests {
 
     #[test]
     fn fetch_priority_uses_mock_select_when_none() {
-        let mut config = Config::default_test();
-        config.mock_select = Some(1);
+        let config = Config::default_test().mock_select(1);
 
         let result = fetch_priority(None, &config);
 

@@ -243,7 +243,7 @@ pub async fn delete(config: &mut Config, args: &Delete) -> Result<String, Error>
             let options = vec![input::CANCEL, input::DELETE];
             let num_tasks = tasks.len();
             let desc = format!("Project has {num_tasks} tasks, confirm deletion");
-            let result = input::select(&desc, options, config.mock_select)?;
+            let result = input::select(&desc, options, &config.mock_select)?;
 
             if result == input::CANCEL {
                 return Ok("Cancelled".into());
