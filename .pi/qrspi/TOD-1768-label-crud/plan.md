@@ -280,10 +280,10 @@ Note: `labels::Label` is already available via `use crate::{..., labels};` on li
 - [x] `#[allow(dead_code)]` is removed from `ResponseFromFile::Label` (verify with `grep dead_code src/test/responses.rs` — should not appear on the `Label` line)
 
 #### Manual
-- [ ] `tod label -h` shows `Create` subcommand with alias `c`
-- [ ] `tod label create --name "test-label" --color red` creates a real label (visible in Todoist UI)
-- [ ] `tod label create --name "test-label" --json` returns JSON with `id`, `name`, `color`, `order`, `is_favorite` fields
-- [ ] `tod -h` shows `label` command with alias `b` in the command list
+- [x] `tod label -h` shows `Create` subcommand with alias `c`
+- [x] `tod label create --name "test-label" --color red` creates a real label (visible in Todoist UI)
+- [x] `tod label create --name "test-label" --json` returns JSON with `id`, `name`, `color`, `order`, `is_favorite` fields
+- [x] `tod -h` shows `label` command with alias `b` in the command list
 
 ---
 
@@ -714,7 +714,7 @@ Replace the Phase 1 version of `label_command()` (which only had the `Create` ar
 ### Verification
 
 #### Automated
-- [ ] `cargo test` passes all Phase 1 + Phase 2 tests (8 total new tests across both phases):
+- [x] `cargo test` passes all Phase 1 + Phase 2 tests (8 total new tests across both phases):
   - `labels::tests::test_label_from_json_valid`
   - `labels::tests::test_label_from_json_invalid`
   - `todoist::tests::test_create_label`
@@ -724,13 +724,13 @@ Replace the Phase 1 version of `label_command()` (which only had the `Create` ar
   - `label_commands::tests::update_fails_without_any_fields`
   - `label_commands::tests::delete_fails_when_label_not_found`
   - `label_commands::tests::delete_force_skips_confirmation`
-- [ ] `cargo build` compiles without warnings
+- [x] `cargo build` compiles without warnings
 
 #### Manual
-- [ ] `tod label update --label "test-label" --name "renamed"` renames a label
-- [ ] `tod label delete --label "renamed" --force` deletes without confirmation
-- [ ] `tod label delete --label "renamed"` (interactive, no `--force`) shows confirmation prompt with Cancel/Delete options
-- [ ] `tod label -h` shows all three subcommands with aliases: `c` (create), `u` (update), `d` (delete)
+- [x] `tod label update --label "test-label" --name "renamed"` renames a label
+- [x] `tod label delete --label "renamed" --force` deletes without confirmation
+- [x] `tod label delete --label "renamed"` (interactive, no `--force`) shows confirmation prompt with Cancel/Delete options
+- [x] `tod label -h` shows all three subcommands with aliases: `c` (create), `u` (update), `d` (delete)
 
 ---
 

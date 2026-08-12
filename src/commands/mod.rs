@@ -213,6 +213,16 @@ async fn label_command(
             let result = label_commands::create(&config, args, cli.json).await;
             Ok(build_command_result(result, &config))
         }
+        LabelCommands::Update(args) => {
+            let config = fetch_config(cli, tx).await?;
+            let result = label_commands::update(&config, args, cli.json).await;
+            Ok(build_command_result(result, &config))
+        }
+        LabelCommands::Delete(args) => {
+            let config = fetch_config(cli, tx).await?;
+            let result = label_commands::delete(&config, args, cli.json).await;
+            Ok(build_command_result(result, &config))
+        }
     }
 }
 
@@ -591,6 +601,26 @@ async fn fetch_project_or_filter(
                 FlagOptions::Filter => fetch_filter(filter, config),
             }
         }
+    }
+}
+
+/// Resolves a label by ID or name from a list, or prompts interactively.
+pub fn fetch_label<'a>(
+    arg: Option<&str>,
+    config: &Config,
+    labels: &'a [labels::Label],
+) -> Result<&'a labels::Label, Error> {
+    if let Some(input) = arg {
+        labels
+            .iter()
+            .find(|l| l.id == input || l.name == input)
+            .ok_or_else(|| Error::new("fetch_label", &format!("Label \"{input}\" not found")))
+    } else if config.args.json {
+        Err(Error::new("json_mode", JSON_INTERACTIVE_ERROR))
+    } else {
+        let label_names: Vec<String> = labels.iter().map(|l| l.name.clone()).collect();
+        let selected = input::select(input::LABEL, label_names, config.mock_select)?;
+        Ok(labels.iter().find(|l| l.name == selected).unwrap())
     }
 }
 

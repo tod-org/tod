@@ -482,6 +482,46 @@ pub async fn create_label(
     Label::from_json(&response)
 }
 
+/// Update a personal label by ID.
+pub async fn update_label(
+    config: &Config,
+    label_id: &str,
+    name: Option<&str>,
+    color: Option<&str>,
+    order: Option<u32>,
+    is_favorite: Option<bool>,
+    spinner: bool,
+) -> Result<Label, Error> {
+    let mut body = json!({});
+    if let Some(n) = name {
+        body["name"] = json!(n);
+    }
+    if let Some(c) = color {
+        body["color"] = json!(c);
+    }
+    if let Some(o) = order {
+        body["order"] = json!(o);
+    }
+    if let Some(f) = is_favorite {
+        body["is_favorite"] = json!(f);
+    }
+
+    let url = format!("{}/{}", LABELS_URL, label_id);
+    let response = request::post_todoist(config, &url, body, spinner).await?;
+    Label::from_json(&response)
+}
+
+/// Delete a personal label by ID.
+pub async fn delete_label(
+    config: &Config,
+    label_id: &str,
+    spinner: bool,
+) -> Result<String, Error> {
+    let url = format!("{}/{}", LABELS_URL, label_id);
+    request::delete_todoist(config, &url, json!({}), spinner).await?;
+    Ok("✓".into())
+}
+
 /// Move a task to a different project
 pub async fn move_task_to_project(
     config: &Config,
@@ -1122,6 +1162,41 @@ mod tests {
 
         let result = create_label(&config, "test-label", Some("red"), None, false, false).await;
         assert_eq!(result, Ok(test::fixtures::label()));
+        mock.assert();
+    }
+
+    #[tokio::test]
+    async fn test_update_label() {
+        let mut server = mockito::Server::new_async().await;
+        let mock = server
+            .mock("POST", "/api/v1/labels/123")
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(ResponseFromFile::Label.read().await)
+            .create_async()
+            .await;
+
+        let config = test::fixtures::config().await.with_mock_url(server.url());
+
+        let result =
+            update_label(&config, "123", Some("new-name"), Some("blue"), None, None, false).await;
+        assert_eq!(result, Ok(test::fixtures::label()));
+        mock.assert();
+    }
+
+    #[tokio::test]
+    async fn test_delete_label() {
+        let mut server = mockito::Server::new_async().await;
+        let mock = server
+            .mock("DELETE", "/api/v1/labels/123")
+            .with_status(204)
+            .create_async()
+            .await;
+
+        let config = test::fixtures::config().await.with_mock_url(server.url());
+
+        let result = delete_label(&config, "123", false).await;
+        assert_eq!(result, Ok("✓".into()));
         mock.assert();
     }
 
