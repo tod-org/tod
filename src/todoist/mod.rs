@@ -692,11 +692,20 @@ pub async fn complete_task(config: &Config, task_id: &str, spinner: bool) -> Res
 
     if !cfg!(test) {
         maybe_run_command(config.task_complete_command.as_deref(), config)?;
-        config.reload().await?.clear_next_task().save().await?;
+        // Stash the task so reopen can find it; then clear next_task
+        if let Some(task) = config.next_task() {
+            config
+                .reload()
+                .await?
+                .set_last_completed_task(task)
+                .clear_next_task()
+                .save()
+                .await?;
+        } else {
+            config.reload().await?.clear_next_task().save().await?;
+        }
     }
-    // Execute the execute_command() complete_task_command if set in config
 
-    // API does not pass back a task
     Ok("✓".into())
 }
 
@@ -705,8 +714,16 @@ pub async fn reopen_task(config: &Config, task_id: &str, spinner: bool) -> Resul
     let url = format!("{TASKS_URL}{task_id}/reopen");
 
     request::post_todoist(config, &url, Value::Null, spinner).await?;
-    // No side effects — reopening doesn't change what's "next"
-    // API does not pass back a task
+
+    if !cfg!(test) {
+        config
+            .reload()
+            .await?
+            .clear_last_completed_task()
+            .save()
+            .await?;
+    }
+
     Ok("✓".into())
 }
 
