@@ -385,14 +385,14 @@ Then use these constants in the COMMENT arm instead of string literals.
 
 ### Verification
 #### Automated
-- [ ] `cargo test process_task` passes — existing tests still green with upgraded mock_select infrastructure
-- [ ] `cargo test spawn_update_comment spawn_delete_comment` passes (if unit-testing spawn functions — note: they fire-and-forget so it's hard to assert; rely on integration-level process_task tests)
-- [ ] New tests for COMMENT submenu flows:
-  - [ ] Empty comments: `mock_selects(vec![3])` + `mock_string("test")` → spawns create (COMMENT at index 3 in process menu)
-  - [ ] One comment + "New comment" selected: `mock_selects(vec![3, 1])` + `mock_string("new")` → spawns create (index 1 = "New comment" in comment list)
-  - [ ] One comment → Edit: `mock_selects(vec![3, 0, 0])` + `mock_string("updated")` → spawns update (index 0 = existing comment, then index 0 = Edit)
-  - [ ] One comment → Delete: `mock_selects(vec![3, 0, 1])` → spawns delete (index 0 = existing comment, then index 1 = Delete)
-  - [ ] One comment → Back: `mock_selects(vec![3, 0, 2])` → returns no-op spawn (index 0 = existing comment, then index 2 = Back)
+- [x] `cargo test process_task` passes — existing tests still green with upgraded mock_select infrastructure
+- [x] `cargo test spawn_update_comment spawn_delete_comment` passes (if unit-testing spawn functions — note: they fire-and-forget so it's hard to assert; rely on integration-level process_task tests)
+- [x] New tests for COMMENT submenu flows:
+  - [x] Empty comments: `mock_selects(vec![3])` + `mock_string("test")` → spawns create (COMMENT at index 3 in process menu)
+  - [x] One comment + "New comment" selected: `mock_selects(vec![3, 1])` + `mock_string("new")` → spawns create (index 1 = "New comment" in comment list)
+  - [x] One comment → Edit: `mock_selects(vec![3, 0, 0])` + `mock_string("updated")` → spawns update (index 0 = existing comment, then index 0 = Edit)
+  - [x] One comment → Delete: `mock_selects(vec![3, 0, 1])` → spawns delete (index 0 = existing comment, then index 1 = Delete)
+  - [x] One comment → Back: `mock_selects(vec![3, 0, 2])` → returns no-op spawn (index 0 = existing comment, then index 2 = Back)
 
 #### Manual
 - [ ] `tod list process` → hit COMMENT on a task with comments → see formatted one-liners, select one, edit/delete it

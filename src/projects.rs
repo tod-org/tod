@@ -521,7 +521,8 @@ pub async fn edit_task(config: &Config, project: &Project) -> Result<String, Err
 
     let options = tasks::edit_task_attributes();
 
-    let selections = input::multi_select("Choose attributes to edit", options, &config.mock_select)?;
+    let selections =
+        input::multi_select("Choose attributes to edit", options, &config.mock_select)?;
 
     if selections.is_empty() {
         return Err(Error {

@@ -42,6 +42,14 @@ pub enum TaskCommands {
     #[clap(alias = "m")]
     /// (m) Add a comment to the last task fetched with the next command
     Comment(Comment),
+
+    #[clap(alias = "ec")]
+    /// (ec) Edit an existing comment's content
+    EditComment(EditComment),
+
+    #[clap(alias = "dc")]
+    /// (dc) Delete a comment by ID
+    DeleteComment(DeleteComment),
 }
 
 #[derive(Parser, Debug, Clone)]
@@ -352,6 +360,54 @@ pub async fn reopen(config: Config, _args: &Reopen, json: bool) -> Result<String
     }
 }
 
+#[derive(Parser, Debug, Clone)]
+/// (ec) Edit an existing comment's content
+pub struct EditComment {
+    /// ID of the comment to edit
+    comment_id: String,
+
+    /// New content for the comment
+    content: Option<String>,
+}
+
+#[derive(Parser, Debug, Clone)]
+/// (dc) Delete a comment by ID
+pub struct DeleteComment {
+    /// ID of the comment to delete
+    comment_id: String,
+}
+
+/// Edits the content of an existing comment by ID.
+pub async fn edit_comment(config: Config, args: &EditComment, json: bool) -> Result<String, Error> {
+    let EditComment {
+        comment_id,
+        content,
+    } = args;
+
+    let content = super::fetch_string(content.as_deref(), &config, input::CONTENT)?;
+    let comment = todoist::update_comment(&config, comment_id, &content, true).await?;
+
+    if json {
+        Ok(serde_json::to_string(&comment)?)
+    } else {
+        Ok(format::green_string("Comment updated successfully"))
+    }
+}
+
+/// Deletes a comment by ID.
+pub async fn delete_comment(
+    config: Config,
+    args: &DeleteComment,
+    json: bool,
+) -> Result<String, Error> {
+    let result = todoist::delete_comment(&config, &args.comment_id, true).await?;
+
+    if json {
+        Ok(serde_json::to_string(&result)?)
+    } else {
+        Ok(format::green_string("Comment deleted successfully"))
+    }
+}
 /// Adds a comment to the stored next task.
 pub async fn comment(config: Config, args: &Comment, json: bool) -> Result<String, Error> {
     let Comment { content } = args;
@@ -525,5 +581,113 @@ mod tests {
         assert!(result.unwrap().contains("task(s) remaining"));
         tasks_mock.assert();
         comments_mock.assert();
+    }
+
+    #[tokio::test]
+    async fn edit_comment_happy_path() {
+        let mut server = mockito::Server::new_async().await;
+        let mock = server
+            .mock("POST", "/api/v1/comments/123")
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(ResponseFromFile::Comment.read().await)
+            .create_async()
+            .await;
+
+        let config = test::fixtures::config().await.with_mock_url(server.url());
+
+        let args = EditComment {
+            comment_id: "123".to_string(),
+            content: Some("new content".to_string()),
+        };
+        let result = edit_comment(config, &args, false).await;
+        assert!(
+            result.is_ok(),
+            "edit_comment should succeed; got: {result:?}"
+        );
+        assert!(result.unwrap().contains("Comment updated successfully"));
+        mock.assert();
+    }
+
+    #[tokio::test]
+    async fn edit_comment_json_output() {
+        let mut server = mockito::Server::new_async().await;
+        let mock = server
+            .mock("POST", "/api/v1/comments/123")
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(ResponseFromFile::Comment.read().await)
+            .create_async()
+            .await;
+
+        let config = test::fixtures::config().await.with_mock_url(server.url());
+
+        let args = EditComment {
+            comment_id: "123".to_string(),
+            content: Some("new content".to_string()),
+        };
+        let result = edit_comment(config, &args, true).await;
+        assert!(result.is_ok());
+        let json = result.unwrap();
+        assert!(json.contains("\"id\""));
+        assert!(json.contains("2992679862"));
+        mock.assert();
+    }
+
+    #[tokio::test]
+    async fn edit_comment_json_mode_no_content_errors() {
+        let mut config = test::fixtures::config().await;
+        config.args.json = true;
+
+        let args = EditComment {
+            comment_id: "123".to_string(),
+            content: None,
+        };
+        let result = edit_comment(config, &args, true).await;
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err().source, "json_mode");
+    }
+
+    #[tokio::test]
+    async fn delete_comment_happy_path() {
+        let mut server = mockito::Server::new_async().await;
+        let mock = server
+            .mock("DELETE", "/api/v1/comments/123")
+            .with_status(204)
+            .create_async()
+            .await;
+
+        let config = test::fixtures::config().await.with_mock_url(server.url());
+
+        let args = DeleteComment {
+            comment_id: "123".to_string(),
+        };
+        let result = delete_comment(config, &args, false).await;
+        assert!(
+            result.is_ok(),
+            "delete_comment should succeed; got: {result:?}"
+        );
+        assert!(result.unwrap().contains("Comment deleted successfully"));
+        mock.assert();
+    }
+
+    #[tokio::test]
+    async fn delete_comment_json_output() {
+        let mut server = mockito::Server::new_async().await;
+        let mock = server
+            .mock("DELETE", "/api/v1/comments/123")
+            .with_status(204)
+            .create_async()
+            .await;
+
+        let config = test::fixtures::config().await.with_mock_url(server.url());
+
+        let args = DeleteComment {
+            comment_id: "123".to_string(),
+        };
+        let result = delete_comment(config, &args, true).await;
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "\"✓\"");
+        mock.assert();
     }
 }

@@ -223,7 +223,11 @@ pub fn number_with_default(desc: &str, default_message: usize) -> Result<usize, 
 }
 
 /// Prompts the user for a boolean value.
-pub fn bool(desc: &str, default_value: bool, mock_selects: &Mutex<Vec<usize>>) -> Result<bool, Error> {
+pub fn bool(
+    desc: &str,
+    default_value: bool,
+    mock_selects: &Mutex<Vec<usize>>,
+) -> Result<bool, Error> {
     let options = vec![true, false];
     let cursor_index = usize::from(!default_value);
     select_with_cursor_index(desc, options, cursor_index, mock_selects)
@@ -311,11 +315,19 @@ mod tests {
 
     #[test]
     fn can_select() {
-        let result = select("type", vec!["there", "are", "words"], &Arc::new(Mutex::new(vec![0])));
+        let result = select(
+            "type",
+            vec!["there", "are", "words"],
+            &Arc::new(Mutex::new(vec![0])),
+        );
         let expected = Ok("there");
         assert_eq!(result, expected);
 
-        let result = select("type", vec!["there", "are", "words"], &Arc::new(Mutex::new(vec![1])));
+        let result = select(
+            "type",
+            vec!["there", "are", "words"],
+            &Arc::new(Mutex::new(vec![1])),
+        );
         let expected = Ok("are");
         assert_eq!(result, expected);
     }
@@ -352,43 +364,85 @@ mod tests {
 
     #[test]
     fn datetime_nat_lang_with_skip_complete_enter_none() {
-        let result = datetime(&Arc::new(Mutex::new(vec![1])), Some("none".into()), None, false, true);
+        let result = datetime(
+            &Arc::new(Mutex::new(vec![1])),
+            Some("none".into()),
+            None,
+            false,
+            true,
+        );
         assert_eq!(result, Ok(DateTimeInput::None));
     }
 
     #[test]
     fn datetime_nat_lang_with_skip_complete_enter_skip() {
-        let result = datetime(&Arc::new(Mutex::new(vec![1])), Some("skip".into()), None, false, true);
+        let result = datetime(
+            &Arc::new(Mutex::new(vec![1])),
+            Some("skip".into()),
+            None,
+            false,
+            true,
+        );
         assert_eq!(result, Ok(DateTimeInput::Skip));
     }
 
     #[test]
     fn datetime_nat_lang_with_skip_complete_enter_complete() {
-        let result = datetime(&Arc::new(Mutex::new(vec![1])), Some("complete".into()), None, false, true);
+        let result = datetime(
+            &Arc::new(Mutex::new(vec![1])),
+            Some("complete".into()),
+            None,
+            false,
+            true,
+        );
         assert_eq!(result, Ok(DateTimeInput::Complete));
     }
 
     #[test]
     fn datetime_nat_lang_with_skip_complete_enter_free_text() {
-        let result = datetime(&Arc::new(Mutex::new(vec![1])), Some("next Monday".into()), None, false, true);
+        let result = datetime(
+            &Arc::new(Mutex::new(vec![1])),
+            Some("next Monday".into()),
+            None,
+            false,
+            true,
+        );
         assert_eq!(result, Ok(DateTimeInput::Text("next Monday".into())));
     }
 
     #[test]
     fn datetime_nat_lang_without_skip_complete_enter_none() {
-        let result = datetime(&Arc::new(Mutex::new(vec![1])), Some("none".into()), None, false, false);
+        let result = datetime(
+            &Arc::new(Mutex::new(vec![1])),
+            Some("none".into()),
+            None,
+            false,
+            false,
+        );
         assert_eq!(result, Ok(DateTimeInput::None));
     }
 
     #[test]
     fn datetime_nat_lang_without_skip_complete_enter_short_n() {
-        let result = datetime(&Arc::new(Mutex::new(vec![1])), Some("n".into()), None, false, false);
+        let result = datetime(
+            &Arc::new(Mutex::new(vec![1])),
+            Some("n".into()),
+            None,
+            false,
+            false,
+        );
         assert_eq!(result, Ok(DateTimeInput::None));
     }
 
     #[test]
     fn datetime_nat_lang_without_skip_complete_enter_free_text() {
-        let result = datetime(&Arc::new(Mutex::new(vec![1])), Some("Friday".into()), None, false, false);
+        let result = datetime(
+            &Arc::new(Mutex::new(vec![1])),
+            Some("Friday".into()),
+            None,
+            false,
+            false,
+        );
         assert_eq!(result, Ok(DateTimeInput::Text("Friday".into())));
     }
 

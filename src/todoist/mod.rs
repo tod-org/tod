@@ -1290,9 +1290,7 @@ mod tests {
             .create_async()
             .await;
 
-        let config = test::fixtures::config()
-            .await
-            .with_mock_url(server.url());
+        let config = test::fixtures::config().await.with_mock_url(server.url());
 
         let comment = update_comment(&config, "123", "updated content", false)
             .await
@@ -1312,9 +1310,7 @@ mod tests {
             .create_async()
             .await;
 
-        let config = test::fixtures::config()
-            .await
-            .with_mock_url(server.url());
+        let config = test::fixtures::config().await.with_mock_url(server.url());
 
         let result = delete_comment(&config, "123", false)
             .await
