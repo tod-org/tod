@@ -24,6 +24,12 @@ impl LabelResponse {
         Ok(response)
     }
 }
+impl Label {
+    pub fn from_json(json: &str) -> Result<Label, Error> {
+        let label: Label = serde_json::from_str(json)?;
+        Ok(label)
+    }
+}
 impl Display for Label {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let name = self.name.clone();
@@ -34,10 +40,38 @@ pub async fn get_labels(config: &Config, spinner: bool) -> Result<Vec<Label>, Er
     todoist::all_labels(config, spinner, None).await
 }
 
+pub async fn create(
+    config: &Config,
+    name: &str,
+    color: Option<&str>,
+    order: Option<u32>,
+    is_favorite: bool,
+) -> Result<Label, Error> {
+    todoist::create_label(config, name, color, order, is_favorite, true).await
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use pretty_assertions::assert_eq;
+
+    #[test]
+    fn test_label_from_json_valid() {
+        let json =
+            r#"{"id":"1","name":"work","color":"red","order":1,"is_favorite":false}"#;
+        let label = Label::from_json(json).expect("should parse label");
+        assert_eq!(label.id, "1");
+        assert_eq!(label.name, "work");
+        assert_eq!(label.color, "red");
+        assert_eq!(label.order, Some(1));
+        assert!(!label.is_favorite);
+    }
+
+    #[test]
+    fn test_label_from_json_invalid() {
+        let result = Label::from_json("not json");
+        assert!(result.is_err());
+    }
 
     #[test]
     fn test_label_fmt() {

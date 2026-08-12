@@ -18,7 +18,6 @@ pub enum ResponseFromFile {
     TodayTask,
     TodayTasks,
     Comment,
-    #[allow(dead_code)]
     Label,
     Labels,
     Project,
