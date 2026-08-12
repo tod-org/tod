@@ -216,7 +216,9 @@ mod tests {
             .create_async()
             .await;
 
-        let config = crate::test::fixtures::config().await.with_mock_url(server.url());
+        let config = crate::test::fixtures::config()
+            .await
+            .with_mock_url(server.url());
 
         let args = Delete {
             label: Some("nonexistent".to_string()),
@@ -250,7 +252,9 @@ mod tests {
             .create_async()
             .await;
 
-        let config = crate::test::fixtures::config().await.with_mock_url(server.url());
+        let config = crate::test::fixtures::config()
+            .await
+            .with_mock_url(server.url());
 
         let args = Delete {
             label: Some("345".to_string()),

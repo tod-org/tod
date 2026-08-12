@@ -72,8 +72,7 @@ mod tests {
 
     #[test]
     fn test_label_from_json_valid() {
-        let json =
-            r#"{"id":"1","name":"work","color":"red","order":1,"is_favorite":false}"#;
+        let json = r#"{"id":"1","name":"work","color":"red","order":1,"is_favorite":false}"#;
         let label = Label::from_json(json).expect("should parse label");
         assert_eq!(label.id, "1");
         assert_eq!(label.name, "work");
