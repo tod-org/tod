@@ -75,6 +75,15 @@ pub const QUIT: &str = "Quit";
 /// Option: schedule the task.
 pub const SCHEDULE: &str = "Schedule";
 
+/// Comment submenu option: edit.
+pub const EDIT_COMMENT: &str = "Edit";
+/// Comment submenu option: delete.
+pub const DELETE_COMMENT: &str = "Delete";
+/// Comment submenu option: go back.
+pub const BACK: &str = "Back";
+/// Comment submenu option: create new comment.
+pub const NEW_COMMENT: &str = "New comment";
+
 /// Natural language date and time input.
 #[derive(Debug, PartialEq)]
 pub enum DateTimeInput {

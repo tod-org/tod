@@ -535,7 +535,7 @@ pub async fn process_task(
     .map(std::string::ToString::to_string)
     .collect();
     let formatted_task = task
-        .fmt(comments, config, FormatType::Single, with_project)
+        .fmt(comments.clone(), config, FormatType::Single, with_project)
         .await?;
     let mut reloaded_config = config.reload().await?.increment_completed()?;
     let tasks_completed = reloaded_config.tasks_completed()?;
@@ -551,9 +551,64 @@ pub async fn process_task(
         }
         input::DELETE => Ok(Some(spawn_delete_task(config.clone(), task.id))),
         input::COMMENT => {
-            let content = input::string(CONTENT, config.mock_string.clone())?;
+            if comments.is_empty() {
+                // No existing comments — go straight to new comment prompt
+                let content = input::string(CONTENT, config.mock_string.clone())?;
+                return Ok(Some(spawn_comment_task(config.clone(), task.id, content)));
+            }
 
-            Ok(Some(spawn_comment_task(config.clone(), task.id, content)))
+            // Build options: each existing comment + "New comment"
+            let mut comment_options: Vec<String> = comments
+                .iter()
+                .map(|c| format_comment_option(c, config))
+                .collect();
+            comment_options.push("New comment".to_string());
+
+            let selected = input::select(
+                "Select a comment",
+                comment_options.clone(),
+                &config.mock_select,
+            )?;
+
+            if selected == "New comment" {
+                let content = input::string(CONTENT, config.mock_string.clone())?;
+                return Ok(Some(spawn_comment_task(config.clone(), task.id, content)));
+            }
+
+            // User picked an existing comment — find it by matching the formatted string
+            let comment_index = comment_options
+                .iter()
+                .position(|opt| *opt == selected)
+                .expect("selected option must exist");
+            let comment = &comments[comment_index];
+
+            // Sub-submenu: Edit / Delete / Back
+            let action_options = vec!["Edit", "Delete", "Back"];
+            let action = input::select(
+                "Choose an action",
+                action_options,
+                &config.mock_select,
+            )?;
+
+            match action {
+                "Edit" => {
+                    let content = input::string(CONTENT, config.mock_string.clone())?;
+                    Ok(Some(spawn_update_comment(
+                        config.clone(),
+                        comment.id.clone(),
+                        content,
+                    )))
+                }
+                "Delete" => Ok(Some(spawn_delete_comment(
+                    config.clone(),
+                    comment.id.clone(),
+                ))),
+                "Back" => {
+                    // Return a no-op handle to continue the loop
+                    Ok(Some(tokio::spawn(async move {})))
+                }
+                _ => unreachable!(),
+            }
         }
 
         input::REMIND => {
@@ -790,10 +845,48 @@ pub fn spawn_update_task_deadline(
     })
 }
 
+/// Formats a comment as a one-line summary for display in select menus.
+fn format_comment_option(comment: &Comment, config: &Config) -> String {
+    let truncated = if comment.content.len() > 60 {
+        format!("{}…", &comment.content[..60])
+    } else {
+        comment.content.clone()
+    };
+    let formatted_date = match config.get_timezone() {
+        Ok(tz) => match time::timezone_from_str(&tz) {
+            Ok(tz) => match time::datetime_from_str(&comment.posted_at, tz) {
+                Ok(dt) => time::datetime_to_string(&dt, config).unwrap_or_else(|_| comment.posted_at[..10].to_string()),
+                Err(_) => comment.posted_at[..10].to_string(),
+            },
+            Err(_) => comment.posted_at[..10].to_string(),
+        },
+        Err(_) => comment.posted_at[..10].to_string(),
+    };
+    format!("{truncated} — {formatted_date}")
+}
+
 /// Updates task inside another thread
 pub fn spawn_comment_task(config: Config, task_id: String, task_comment: String) -> JoinHandle<()> {
     tokio::spawn(async move {
         if let Err(e) = todoist::create_comment(&config, &task_id, &task_comment, false).await {
+            let _ = config.tx().send(e);
+        }
+    })
+}
+
+/// Updates a comment inside another thread
+pub fn spawn_update_comment(config: Config, comment_id: String, content: String) -> JoinHandle<()> {
+    tokio::spawn(async move {
+        if let Err(e) = todoist::update_comment(&config, &comment_id, &content, false).await {
+            let _ = config.tx().send(e);
+        }
+    })
+}
+
+/// Deletes a comment inside another thread
+pub fn spawn_delete_comment(config: Config, comment_id: String) -> JoinHandle<()> {
+    tokio::spawn(async move {
+        if let Err(e) = todoist::delete_comment(&config, &comment_id, false).await {
             let _ = config.tx().send(e);
         }
     })
@@ -1247,7 +1340,7 @@ mod tests {
             }),
             ..test::fixtures::today_task().await
         };
-        let comments = vec![test::fixtures::comment()];
+        let comments = vec![crate::test::fixtures::comment()];
 
         let task_text = task
             .fmt(comments, &config, FormatType::Single, true)
@@ -2314,7 +2407,130 @@ mod tests {
 
         // ── properties ─────────────────────────────────────────────
 
-        proptest! {
+        // Phase 2: COMMENT submenu tests
+    #[tokio::test]
+    async fn test_process_task_comment_empty() {
+        // Empty comments: goes straight to new comment prompt
+        let config = test::fixtures::config()
+            .await
+            .mock_selects(vec![3]) // COMMENT is option index 3 in process menu
+            .with_mock_string("new comment text")
+            .create()
+            .await
+            .expect("config should be created");
+        let task = test::fixtures::today_task().await;
+        let mut task_count = 1;
+        let result = process_task(
+            vec![],
+            &config,
+            task.clone(),
+            &mut task_count,
+            false,
+        )
+        .await;
+        // Should return a handle (spawned create_comment)
+        assert!(result.is_ok(), "got error: {result:?}");
+        assert!(result.unwrap().is_some());
+    }
+
+    #[tokio::test]
+    async fn test_process_task_comment_with_existing_new() {
+        let config = test::fixtures::config()
+            .await
+            .mock_selects(vec![3, 1]) // COMMENT (index 3), then "New comment" (index 1 in comment list with 1 existing)
+            .with_mock_string("brand new comment")
+            .create()
+            .await
+            .expect("config should be created");
+        let task = test::fixtures::today_task().await;
+        let comments = vec![crate::test::fixtures::comment()];
+        let mut task_count = 1;
+        let result = process_task(
+            comments.clone(),
+            &config,
+            task.clone(),
+            &mut task_count,
+            false,
+        )
+        .await;
+        assert!(result.is_ok(), "got error: {result:?}");
+        assert!(result.unwrap().is_some());
+    }
+
+    #[tokio::test]
+    async fn test_process_task_comment_edit() {
+        let config = test::fixtures::config()
+            .await
+            .mock_selects(vec![3, 0, 0]) // COMMENT, pick first existing comment, then Edit
+            .with_mock_string("updated text")
+            .create()
+            .await
+            .expect("config should be created");
+        let task = test::fixtures::today_task().await;
+        let comments = vec![crate::test::fixtures::comment()];
+        let mut task_count = 1;
+        let result = process_task(
+            comments.clone(),
+            &config,
+            task.clone(),
+            &mut task_count,
+            false,
+        )
+        .await;
+        assert!(result.is_ok(), "got error: {result:?}");
+        assert!(result.unwrap().is_some());
+    }
+
+    #[tokio::test]
+    async fn test_process_task_comment_delete() {
+        let config = test::fixtures::config()
+            .await
+            .mock_selects(vec![3, 0, 1]) // COMMENT, pick first existing comment, then Delete
+            .with_mock_string("unused")
+            .create()
+            .await
+            .expect("config should be created");
+        let task = test::fixtures::today_task().await;
+        let comments = vec![crate::test::fixtures::comment()];
+        let mut task_count = 1;
+        let result = process_task(
+            comments.clone(),
+            &config,
+            task.clone(),
+            &mut task_count,
+            false,
+        )
+        .await;
+        assert!(result.is_ok(), "got error: {result:?}");
+        assert!(result.unwrap().is_some());
+    }
+
+    #[tokio::test]
+    async fn test_process_task_comment_back() {
+        let config = test::fixtures::config()
+            .await
+            .mock_selects(vec![3, 0, 2]) // COMMENT, pick first existing comment, then Back
+            .with_mock_string("unused")
+            .create()
+            .await
+            .expect("config should be created");
+        let task = test::fixtures::today_task().await;
+        let comments = vec![crate::test::fixtures::comment()];
+        let mut task_count = 1;
+        let result = process_task(
+            comments.clone(),
+            &config,
+            task.clone(),
+            &mut task_count,
+            false,
+        )
+        .await;
+        // Back returns a no-op spawn handle (still Some)
+        assert!(result.is_ok(), "got error: {result:?}");
+        assert!(result.unwrap().is_some());
+    }
+
+    proptest! {
             #[test]
             fn priority_serde_roundtrip(priority in arb_priority()) {
                 let json = serde_json::to_string(&priority).unwrap();
