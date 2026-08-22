@@ -4,7 +4,6 @@
 
 - Use the existing `Error` type (`src/errors.rs`) for error handling
 - No `dbg!`, `TODO`, `FIXME`, `DEBUG:`, or `FIXTURE:` strings anywhere in `.rs` files — `scripts/test.sh` greps for these and fails the build
-- New business logic should have tests covering both happy and sad paths
 
 ## Project structure
 
@@ -32,18 +31,12 @@
 
 Run `scripts/test.sh` before committing — it covers `cargo fmt --check`, `cargo check`, `cargo clippy`, `cargo test`, and forbidden-string grep.
 
-## QRS workflow
+## QRSPI workflow
 
-Features follow a phased workflow with artifacts in `.pi/qrspi/<issue-id>/`:
-
-1. `1_question` — research questions drafted
-2. `2_research` — answers collected; start from the questions file, not from scratch
-3. `3_design` — design document written; **the design must be reviewed and approved by the user before any implementation begins**
-4. `4_implement` — code changes applied
-5. `5_review` — PR opened for review
-6. `6_archive` — artifacts finalized
-
-Each phase gate requires explicit user approval before proceeding to the next.
+Features follow the QRSPI pipeline: `/1_spec` → `/2_clarify` → `/3_design`
+→ `/4_research` → `/5_plan` → `/6_implement` (see `~/AGENTS.md`).
+Artifacts live in `.pi/qrspi/<issue-id>/`. Each phase gate requires
+explicit user approval before proceeding to the next.
 
 ## Project skills
 
@@ -71,7 +64,7 @@ Each phase gate requires explicit user approval before proceeding to the next.
 
 ## Commits and PRs
 
-- Never push to `main` — all changes go through PRs. Branch naming: `type/short-description`.
+- Branch naming: `type/short-description`.
 - Commit format follows Conventional Commits (enforced by `.commitlint.config.mjs`).
 - Create PRs with `gh pr create --title "type: description" --body "..." --base main`.
 - To fix multiple non-conforming commits: `GIT_SEQUENCE_EDITOR` interactive rebase with `exec git commit --amend` lines, then `git push --force-with-lease`.
