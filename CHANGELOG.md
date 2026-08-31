@@ -1,5 +1,37 @@
 # Changelog
 
+## [0.19.0](https://github.com/tod-org/tod/compare/v0.18.0...v0.19.0) (2026-08-31)
+
+
+### Features
+
+* add 'tod auth view' command to display current API token ([44cd644](https://github.com/tod-org/tod/commit/44cd644f0563394365c68651d286695120d561d4))
+* add CLI surface for task reopen command ([0bb67df](https://github.com/tod-org/tod/commit/0bb67df05e540dbc799ff06cf1ccda61eb710c6e))
+* add delete_section API function and test ([450f6a4](https://github.com/tod-org/tod/commit/450f6a492c4222277b97cd0bfe6785a5eadd5229))
+* add edit-comment and delete-comment CLI subcommands ([d891549](https://github.com/tod-org/tod/commit/d89154950586674b94cd8c5902d8f48ed06a50c5))
+* add interactive comment update/delete submenu in process_task ([35d4d39](https://github.com/tod-org/tod/commit/35d4d39b4dc01201d3c03c11cf5097c410b4a6ac))
+* add JSON output support for prioritize, remind, schedule, and deadline commands ([ad74fd4](https://github.com/tod-org/tod/commit/ad74fd41a13bace88eff90b1fa66e9cdfde2e4ca)), closes [#1734](https://github.com/tod-org/tod/issues/1734)
+* add QRSPI research questions for doc comments ([#1753](https://github.com/tod-org/tod/issues/1753)) ([301620f](https://github.com/tod-org/tod/commit/301620f4c86204323895072bdaa22cfd6fefaeac))
+* add reopen_task API client function and test ([6d623de](https://github.com/tod-org/tod/commit/6d623ded62a94540b7f91604a6cafaa7b0cccd07))
+* add research plan for label CRUD ([#1768](https://github.com/tod-org/tod/issues/1768)) ([db9b618](https://github.com/tod-org/tod/commit/db9b618461f5a392a024d850188bd6ffc220fb72))
+* add section delete CLI handler and dispatch arm ([1d136de](https://github.com/tod-org/tod/commit/1d136dec6020b86e39f98fad8d692420abd181b6))
+* add tod label create command with API, business logic, and tests ([3f8c236](https://github.com/tod-org/tod/commit/3f8c2366ea3e043ab7b076ac07726a81f0101e5f))
+* add tod label update and delete commands with tests ([2dae41a](https://github.com/tod-org/tod/commit/2dae41aba7e6b1d6fbc4859b6c0b2c12ef9f4887))
+* add update_comment and delete_comment to Todoist API client ([66a01bd](https://github.com/tod-org/tod/commit/66a01bdb8d3c795d815aa29e73c28a4675763e9a))
+* add update_project, archive_project, unarchive_project API client functions ([a67a8f1](https://github.com/tod-org/tod/commit/a67a8f17184e8f18cf10ccfbed2b4f39db5a074f))
+* add update, archive, unarchive business logic with config sync ([d646831](https://github.com/tod-org/tod/commit/d646831020efc032e455b3b0e92ab2ea93c99869))
+* add Update, Archive, Unarchive CLI subcommands with dispatch ([3e28d1a](https://github.com/tod-org/tod/commit/3e28d1a742dcba39a7c3f899b9e1ba7e2eb65ac0))
+* support parent_id for subtask creation ([910ea70](https://github.com/tod-org/tod/commit/910ea70f152442a88722ad885218a7d0e9a5e52e)), closes [#1769](https://github.com/tod-org/tod/issues/1769)
+
+
+### Bug Fixes
+
+* address review feedback for auth view command ([eaee8f3](https://github.com/tod-org/tod/commit/eaee8f33f150d9744cf55d278af6f61b71be087e))
+* apply review fixes — label prompt, is_favorite naming, empty guard, unwrap-&gt;expect ([cefe736](https://github.com/tod-org/tod/commit/cefe73613e9174b72b6a1535f3b8bc3410bd6b72))
+* handle legacy mock_select field in config deserialization ([97f45bf](https://github.com/tod-org/tod/commit/97f45bf9c636fe51372d61d607dcb3f88acbfdfb))
+* prevent leaky test in shell command non-blocking test ([9566e85](https://github.com/tod-org/tod/commit/9566e85b763ed20bae5942b9ab67d249a4ead53c))
+* store last_completed_task in config for reopen-after-complete flow ([b51aba6](https://github.com/tod-org/tod/commit/b51aba691f392d72489acf18bba0cb9f5ab734ff))
+
 ## [0.18.0](https://github.com/tod-org/tod/compare/v0.17.1...v0.18.0) (2026-08-05)
 
 
