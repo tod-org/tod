@@ -34,7 +34,7 @@ Run `scripts/test.sh` before committing — it covers `cargo fmt --check`, `carg
 ## QRSPI workflow
 
 Features follow the QRSPI pipeline: `/1_spec` → `/2_clarify` → `/3_design`
-→ `/4_research` → `/5_plan` → `/6_implement` (see `~/AGENTS.md`).
+→ `/4_research` → `/5_plan` → `/6_implement` (see `~/.pi/agent/AGENTS.md`).
 Artifacts live in `.pi/qrspi/<issue-id>/`. Each phase gate requires
 explicit user approval before proceeding to the next.
 
