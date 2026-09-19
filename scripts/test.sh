@@ -9,9 +9,7 @@ echo "=== TEST ===" &&
 cargo nextest run &&
 echo "=== FORGOTTEN TODOS ===" &&
 # Requires ripgrep
-if rg -i -s -g '*.rs' 'TODO:|todo:|FIXME|fixme|dbg!|DEBUG:|FIXTURE:|TODO\s|todo\s' .; then
-    exit 1
-fi
+! rg -i -s -g '*.rs' 'TODO:|todo:|FIXME|fixme|dbg!|DEBUG:|FIXTURE:|TODO\s|todo\s' . &&
 echo "=== SUCCESS ===" &&
 echo "=== CLEANING FILES ===" &&
 ./scripts/testcfg_clean.sh &&
