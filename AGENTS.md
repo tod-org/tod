@@ -29,14 +29,11 @@
 
 ## Pre-commit checklist
 
-Run `scripts/test.sh` before committing — it covers `cargo fmt --check`, `cargo check`, `cargo clippy`, `cargo test`, and forbidden-string grep.
+Run `scripts/test.sh` before committing — it covers `cargo fmt --check`, `cargo check`, `cargo clippy`, `cargo nextest run`, and forbidden-string grep.
 
-## QRSPI workflow
+## Workflow
 
-Features follow the QRSPI pipeline: `/1_spec` → `/2_clarify` → `/3_design`
-→ `/4_research` → `/5_plan` → `/6_implement` (see `~/AGENTS.md`).
-Artifacts live in `.pi/qrspi/<issue-id>/`. Each phase gate requires
-explicit user approval before proceeding to the next.
+Features run through the orksorksorks CLI (see the `qrspi` skill); artifacts in `.pi/orksorksorks/<branch>/`.
 
 ## Project skills
 
@@ -51,10 +48,6 @@ explicit user approval before proceeding to the next.
 - Use `gh issue view <N>` or `gh pr view <N>` to fetch issue/PR content. Never use web_search for repo issues.
 - Issue templates live in `.github/ISSUE_TEMPLATE/` — `feature_request.md` for features, `bug_report.md` for bugs
 
-## Docs
-
-- When adding or changing CLI commands, check `docs/usage.md` for example output that references the changed subcommands and keep it up to date.
-
 ## Error handling
 
 - All errors use the `Error` type (`src/errors.rs`)
@@ -65,6 +58,8 @@ explicit user approval before proceeding to the next.
 ## Commits and PRs
 
 - Branch naming: `type/short-description`.
+- Step artifacts under `.pi/` are tracked here: commit them in their own
+  `chore:` commit, never mixed into a `fix:`/`feat:` source commit.
 - Commit format follows Conventional Commits (enforced by `.commitlint.config.mjs`).
 - Create PRs with `gh pr create --title "type: description" --body "..." --base main`.
 - To fix multiple non-conforming commits: `GIT_SEQUENCE_EDITOR` interactive rebase with `exec git commit --amend` lines, then `git push --force-with-lease`.
