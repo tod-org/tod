@@ -22,6 +22,7 @@ Get started with [Homebrew](https://brew.sh) (macOS, Linux, WSL)
 
 ```bash
 brew tap tod-org/tod
+brew trust tod-org/tod
 brew install tod
 ```
 
